@@ -1,7 +1,6 @@
-import {DEFAULT_CONFIG,MODE_LABELS,validateConfig} from './balance-config.mjs';
-export function getGhostLifetime(mode,elapsed,config=DEFAULT_CONFIG){
-  const m=config.modes[mode],r=config.difficulty;
-  if(!m)throw new Error('알 수 없는 속도입니다.');
+import {DEFAULT_CONFIG,FIXED_MODE,validateConfig} from './balance-config.mjs';
+export function getGhostLifetime(elapsed,config=DEFAULT_CONFIG){
+  const m=config.normal,r=config.difficulty;
   if(elapsed<=r.startsAt)return m.life;
   if(elapsed>=r.maxAt)return m.minLife;
   return m.life+(m.minLife-m.life)*(elapsed-r.startsAt)/(r.maxAt-r.startsAt);
@@ -9,19 +8,18 @@ export function getGhostLifetime(mode,elapsed,config=DEFAULT_CONFIG){
 export const DIRECTIONS=Object.freeze([{x:-1,y:0},{x:1,y:0},{x:-Math.SQRT1_2,y:-Math.SQRT1_2},{x:Math.SQRT1_2,y:-Math.SQRT1_2},{x:-Math.SQRT1_2,y:Math.SQRT1_2},{x:Math.SQRT1_2,y:Math.SQRT1_2}].map(Object.freeze));
 export const BOSS_SPOTS=Object.freeze([{x:.2,y:.24},{x:.5,y:.24},{x:.8,y:.24},{x:.2,y:.5},{x:.5,y:.5},{x:.8,y:.5},{x:.2,y:.76},{x:.5,y:.76},{x:.8,y:.76}].map(Object.freeze));
 export class GhostGame{
-  constructor(random=Math.random,config=DEFAULT_CONFIG){this.random=random;this.config=validateConfig(config);this.reset('normal');}
-  reset(mode=this.mode,config=this.config){
-    if(!MODE_LABELS[mode])throw new Error('알 수 없는 속도입니다.');
+  constructor(random=Math.random,config=DEFAULT_CONFIG){this.random=random;this.reset(config);}
+  reset(config=this.config){
     const next=validateConfig(config);
-    this.config=next;this.mode=mode;this.state='idle';this.time=next.round.startTime;this.elapsed=0;this.health=next.round.health;
-    this.score=0;this.caught=0;this.bosses=0;this.escaped=0;this.hits=0;this.shots=0;this.streak=0;this.bestStreak=0;this.friendHits=0;
+    this.config=next;this.mode=FIXED_MODE;this.state='idle';this.time=next.round.startTime;this.elapsed=0;this.health=next.round.health;
+    this.score=0;this.caught=0;this.bosses=0;this.escaped=0;this.escapeTimeLost=0;this.hits=0;this.shots=0;this.streak=0;this.bestStreak=0;this.friendHits=0;
     this.nextBoss=next.boss.every;this.bossAvailableAt=0;this.ghosts=[];this.events=[];this.nextSpawn=.12;this.sequence=0;this.endReason=null;
     this.face={phase:'idle',bossId:null,startedAt:0,endsAt:0};this.faceNextAt=Infinity;
     this.nextFriend=next.friend.interval;
     this.items={flashlight:0,talisman:0};this.bonusCaught=0;this.bonusScore=0;
     this.talisman={startedAt:0,endsAt:0,graceUntil:0,nextSpawnAt:Infinity};
   }
-  start(config=this.config,loadout={}){this.reset(this.mode,config);for(const kind of ['flashlight','talisman'])this.items[kind]=Number.isFinite(loadout[kind])&&loadout[kind]>=1?1:0;this.state='running';}
+  start(config=this.config,loadout={}){this.reset(config);for(const kind of ['flashlight','talisman'])this.items[kind]=Number.isFinite(loadout[kind])&&loadout[kind]>=1?1:0;this.state='running';}
   pause(){if(this.state==='running')this.state='paused';}
   resume(){if(this.state==='paused')this.state='running';}
   end(reason){if(this.state!=='running')return;this.state='ended';this.endReason=reason;this.clearFace(false);this.endTalisman(false);this.events.push({type:'end',reason});}
@@ -33,9 +31,9 @@ export class GhostGame{
     return {...choices[Math.floor(this.random()*choices.length)].p};
   }
   spawn(kind='normal'){
-    const boss=kind==='boss',friend=kind==='friend',bonus=kind==='bonus',p=boss?this.bossSpot():this.place(),m=boss?this.config.boss:friend?this.config.friend:bonus?this.config.items.talisman:this.config.modes[this.mode];
+    const boss=kind==='boss',friend=kind==='friend',bonus=kind==='bonus',p=boss?this.bossSpot():this.place(),m=boss?this.config.boss:friend?this.config.friend:bonus?this.config.items.talisman:this.config.normal;
     const direction=DIRECTIONS[Math.floor(this.random()*DIRECTIONS.length)];
-    const ghost={id:++this.sequence,kind,...p,age:0,life:boss?Infinity:friend||bonus?m.life:getGhostLifetime(this.mode,this.elapsed,this.config),vx:direction.x*m.speed/100,vy:direction.y*m.speed/100,hp:boss?this.config.boss.hp:1,teleports:0};
+    const ghost={id:++this.sequence,kind,...p,age:0,life:boss?Infinity:friend||bonus?m.life:getGhostLifetime(this.elapsed,this.config),vx:direction.x*m.speed/100,vy:direction.y*m.speed/100,hp:boss?this.config.boss.hp:1,teleports:0};
     this.ghosts.push(ghost);
     if(boss){ghost.nextTeleportAt=m.teleportInterval>0?this.elapsed+m.teleportInterval:Infinity;this.faceNextAt=this.config.face.enabled?this.elapsed+this.config.face.firstDelay:Infinity;}
     this.events.push({type:'spawn',id:ghost.id,kind});return ghost;
@@ -106,16 +104,30 @@ export class GhostGame{
     if(this.state!=='running'||!Number.isFinite(dt)||dt<=0)return;
     const active=Math.min(dt,this.time);this.elapsed+=active;this.time=Math.max(0,this.time-active);
     if(this.time<=0){this.end('time');return;}
+    const talismanStart=this.talisman.startedAt,talismanEnd=this.talisman.endsAt;
     if(this.talisman.endsAt&&!this.isTalismanActive())this.endTalisman();
     for(const g of [...this.ghosts]){
-      g.age+=active;if(g.age>=g.life){this.ghosts=this.ghosts.filter(x=>x.id!==g.id);if(g.kind==='normal'){this.escaped++;this.events.push({type:'escape',x:g.x,y:g.y});}continue;}
+      g.age+=active;
+      if(g.age>=g.life){
+        this.ghosts=this.ghosts.filter(x=>x.id!==g.id);
+        if(g.kind==='normal'){
+          // Use the actual expiry time when a frame crosses the end of the talisman.
+          const expiredAt=this.elapsed-(g.age-g.life);
+          const protectedEscape=talismanEnd>0&&expiredAt>=talismanStart&&expiredAt<talismanEnd;
+          const timeLost=protectedEscape?0:Math.min(this.time,this.config.normal.escapePenalty);
+          this.time=Math.max(0,this.time-timeLost);this.escaped++;this.escapeTimeLost+=timeLost;
+          this.events.push({type:'escape',id:g.id,x:g.x,y:g.y,timeLost,protected:protectedEscape});
+        }
+        continue;
+      }
       g.x+=g.vx*active;g.y+=g.vy*active;
       while(g.x<.14||g.x>.86){if(g.x<.14){g.x=.28-g.x;g.vx=Math.abs(g.vx);}else{g.x=1.72-g.x;g.vx=-Math.abs(g.vx);}}
       while(g.y<.19||g.y>.81){if(g.y<.19){g.y=.38-g.y;g.vy=Math.abs(g.vy);}else{g.y=1.62-g.y;g.vy=-Math.abs(g.vy);}}
       if(g.kind==='boss'&&this.elapsed>=g.nextTeleportAt)this.teleportBoss(g);
     }
+    if(this.time<=0){this.end('escape');return;}
     this.nextSpawn-=active;
-    if(this.nextSpawn<=0){const m=this.config.modes[this.mode];if(this.ghosts.filter(g=>g.kind==='normal').length<m.max)this.spawn();const jitter=this.config.normal.spawnJitter/100;this.nextSpawn=m.interval*(1-jitter+this.random()*jitter*2);}
+    if(this.nextSpawn<=0){const m=this.config.normal;if(this.ghosts.filter(g=>g.kind==='normal').length<m.max)this.spawn();const jitter=m.spawnJitter/100;this.nextSpawn=m.interval*(1-jitter+this.random()*jitter*2);}
     if(this.config.friend.enabled){this.nextFriend-=active;if(this.nextFriend<=0){if(!this.ghosts.some(g=>g.kind==='friend'))this.spawn('friend');this.nextFriend=this.config.friend.interval;}}
     this.ensureBoss();this.updateFace();this.updateTalisman();
   }
@@ -142,5 +154,5 @@ export class GhostGame{
     const result={type:boss?'bossCaught':'caught',id:g.id,kind:g.kind,...position,points,source,bonus:boss?this.config.boss.bonus:0};this.events.push(result);return result;
   }
   drainEvents(){const e=this.events;this.events=[];return e;}
-  snapshot(){return{state:this.state,mode:this.mode,time:Number(this.time.toFixed(1)),health:this.health,score:this.score,caught:this.caught,bonusCaught:this.bonusCaught,bonusScore:this.bonusScore,bosses:this.bosses,escaped:this.escaped,friendHits:this.friendHits,shots:this.shots,hits:this.hits,elapsed:Number(this.elapsed.toFixed(1)),ghostLifetime:Number(getGhostLifetime(this.mode,this.elapsed,this.config).toFixed(2)),maxDifficulty:this.elapsed>=this.config.difficulty.maxAt,bossCooldown:Number(Math.max(0,this.bossAvailableAt-this.elapsed).toFixed(1)),nextBossInKills:Math.max(0,this.nextBoss-this.caught),items:{...this.items},talisman:{active:this.isTalismanActive(),remaining:Number(Math.max(0,this.talisman.endsAt-this.elapsed).toFixed(2)),graceRemaining:Number(Math.max(0,this.talisman.graceUntil-this.elapsed).toFixed(2))},face:{...this.face},endReason:this.endReason,ghosts:this.ghosts.map(g=>({id:g.id,kind:g.kind,x:g.x,y:g.y,hp:g.hp}))};}
+  snapshot(){return{state:this.state,mode:this.mode,time:Number(this.time.toFixed(1)),health:this.health,score:this.score,caught:this.caught,bonusCaught:this.bonusCaught,bonusScore:this.bonusScore,bosses:this.bosses,escaped:this.escaped,escapeTimeLost:Number(this.escapeTimeLost.toFixed(2)),friendHits:this.friendHits,shots:this.shots,hits:this.hits,elapsed:Number(this.elapsed.toFixed(1)),ghostLifetime:Number(getGhostLifetime(this.elapsed,this.config).toFixed(2)),maxDifficulty:this.elapsed>=this.config.difficulty.maxAt,bossCooldown:Number(Math.max(0,this.bossAvailableAt-this.elapsed).toFixed(1)),nextBossInKills:Math.max(0,this.nextBoss-this.caught),items:{...this.items},talisman:{active:this.isTalismanActive(),remaining:Number(Math.max(0,this.talisman.endsAt-this.elapsed).toFixed(2)),graceRemaining:Number(Math.max(0,this.talisman.graceUntil-this.elapsed).toFixed(2))},face:{...this.face},endReason:this.endReason,ghosts:this.ghosts.map(g=>({id:g.id,kind:g.kind,x:g.x,y:g.y,hp:g.hp}))};}
 }
