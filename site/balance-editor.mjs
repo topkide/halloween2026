@@ -1,11 +1,12 @@
-import {DEFAULT_CONFIG,FIELD_GROUPS,getValue,setValue,validateConfig} from './balance-config.mjs';
+import {DEFAULT_CONFIG,FIELD_GROUPS,getValue,setValue,validateConfig,parseBalanceDB,serializeBalanceDB} from './balance-config.mjs';
 
 export function createBalanceEditor({getConfig,onSave,onOpen}){
   const dialog=document.getElementById('balance-dialog'),form=document.getElementById('balance-form');
   const container=document.getElementById('balance-fields'),message=document.getElementById('balance-message');
-  const inputs=new Map();
+  const inputs=new Map(),dbFile=document.getElementById('balance-db-file');
+  let loadRequest=0;
   for(const group of FIELD_GROUPS){
-    const section=document.createElement('details');section.className='balance-group';section.open=!group.mode||group.mode==='normal';
+    const section=document.createElement('details');section.className='balance-group';section.open=true;
     const summary=document.createElement('summary');summary.textContent=group.title;section.append(summary);
     if(group.note){const p=document.createElement('p');p.className='group-note';p.textContent=group.note;section.append(p);}
     const grid=document.createElement('div');grid.className='balance-grid';
@@ -32,17 +33,32 @@ export function createBalanceEditor({getConfig,onSave,onOpen}){
     return validateConfig(draft);
   }
   function report(text,error=false){message.textContent=text;message.classList.toggle('error',error);}
-  function open(){onOpen();fill(getConfig());report('변경한 값은 저장 후 다음 판부터 적용됩니다.');dialog.showModal();}
+  function open(){loadRequest++;onOpen();fill(getConfig());dbFile.textContent='현재 적용된 밸런스 · DB 파일로 저장해 보관하세요.';report('변경한 값은 적용 후 다음 판부터 사용합니다.');dialog.showModal();}
   document.getElementById('balance-close').addEventListener('click',()=>dialog.close());
+  dialog.addEventListener('close',()=>loadRequest++);
+  form.addEventListener('input',()=>{loadRequest++;dbFile.textContent='수치 변경됨 · DB 파일 저장 시 현재 입력값을 담아요.';report('변경한 값은 적용 후 다음 판부터 사용합니다.');});
   form.addEventListener('submit',event=>{event.preventDefault();try{onSave(read());dialog.close();}catch(error){report(error.message,true);}});
-  document.getElementById('balance-reset').addEventListener('click',()=>{fill(DEFAULT_CONFIG);report('기본값을 불러왔어요. 저장하면 다음 판에 적용됩니다.');});
+  document.getElementById('balance-reset').addEventListener('click',()=>{loadRequest++;fill(DEFAULT_CONFIG);dbFile.textContent='빠르게 기본값 · 아직 적용하지 않았어요.';report('기본값을 불러왔어요. 적용하면 다음 판에 사용합니다.');});
   document.getElementById('balance-export').addEventListener('click',()=>{
-    try{const json=JSON.stringify(read(),null,2);const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='catjump-ghost-balance.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);report('입력한 설정을 JSON 파일로 내보냈어요.');}catch(error){report(error.message,true);}
+    try{
+      const config=read(),json=serializeBalanceDB(config),now=new Date(),pad=n=>String(n).padStart(2,'0');
+      const stamp=`${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      const name=`catjump-balance-${stamp}.json`,url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+      try{
+        const saved=onSave(config),a=document.createElement('a');a.href=url;a.download=name;a.hidden=true;document.body.append(a);a.click();a.remove();
+        dbFile.textContent=`저장한 DB: ${name}`;
+        report(`DB 파일을 내보냈어요. 현재 입력값은 다음 판에도 적용됩니다.${saved?.persisted===false?' 브라우저 보관이 제한되어 있으니 파일을 보관해 주세요.':''}`);
+      }finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}
+    }catch(error){report(error.message,true);}
   });
   const file=document.getElementById('balance-file');document.getElementById('balance-import').addEventListener('click',()=>file.click());
   file.addEventListener('change',async()=>{
-    try{const selected=file.files?.[0];if(!selected)return;if(selected.size>200000)throw new Error('200KB 이하의 설정 JSON 파일을 선택해 주세요.');const config=validateConfig(JSON.parse(await selected.text()));fill(config);report('설정을 불러왔어요. 저장하면 다음 판에 적용됩니다.');}
-    catch(error){report(error instanceof SyntaxError?'올바른 JSON 설정 파일이 아니에요.':error.message,true);}finally{file.value='';}
+    const request=++loadRequest;
+    try{
+      const selected=file.files?.[0];file.value='';if(!selected)return;if(selected.size>200000)throw new Error('200KB 이하의 밸런스 DB JSON 파일을 선택해 주세요.');
+      const config=parseBalanceDB(await selected.text());if(request!==loadRequest||!dialog.open)return;
+      fill(config);dbFile.textContent=`불러온 DB: ${selected.name}`;report('DB를 불러왔어요. 수치를 확인하고 적용하고 닫기를 눌러주세요.');
+    }catch(error){if(request===loadRequest&&dialog.open)report(error.message,true);}
   });
   return {open};
 }

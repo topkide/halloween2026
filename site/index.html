@@ -11,7 +11,7 @@
 </head>
 <body>
 <div class="page">
-  <header class="topbar"><div class="brand">CAT JUMP <span>HALLOWEEN</span></div><div class="top-actions"><span class="prototype">PLAY TEST 06</span><button id="balance-open-top" class="quiet-button" type="button" aria-label="밸런스 설정 열기">밸런스</button><button id="sound" class="quiet-button" type="button" aria-pressed="true">♪ 소리 켬</button></div></header>
+  <header class="topbar"><div class="brand">CAT JUMP <span>HALLOWEEN</span></div><div class="top-actions"><span class="prototype">PLAY TEST 09</span><button id="balance-open-top" class="quiet-button" type="button" aria-label="밸런스 설정 열기">밸런스</button><button id="sound" class="quiet-button" type="button" aria-pressed="true">♪ 소리 켬</button></div></header>
   <main class="layout">
     <section class="game-shell" aria-label="유령 사격장 게임">
       <div class="hud"><div class="score-block"><span class="eyebrow">SCORE</span><strong id="score">0</strong></div><div class="clock-block"><span class="eyebrow">남은 시간</span><strong><span id="time">30.0</span><small>초</small></strong></div><button id="pause" class="pause-button" type="button" aria-label="일시정지" disabled>Ⅱ</button></div>
@@ -34,7 +34,7 @@
           </div>
           <div id="countdown" class="countdown" hidden><span>준비됐나요?</span><strong id="countdown-number">3</strong></div>
           <div id="paused" class="overlay-card" hidden><span class="kicker">잠깐 쉬어가기</span><h2>일시정지</h2><p>준비되면 사냥을 계속하세요.</p><button id="resume" class="primary-button" type="button">계속하기</button><button id="quit" class="text-button" type="button">처음으로</button></div>
-          <div id="result" class="overlay-card result-card" hidden><span id="result-reason" class="kicker">시간 종료</span><h2>사냥 완료!</h2><span class="result-label">최종 점수</span><strong id="result-score" class="result-score">0</strong><div class="result-grid"><div><span>유령 포획</span><b id="result-caught">0마리</b></div><div><span>보스 포획</span><b id="result-bosses">0마리</b></div><div><span>터치 명중률</span><b id="result-accuracy">0%</b></div><div><span>플레이 시간</span><b id="result-duration">30초</b></div></div><p id="result-bonus" class="result-bonus" hidden></p><button id="replay" class="primary-button" type="button">다시 사냥하기</button><button id="back" class="text-button" type="button">처음으로</button></div>
+          <div id="result" class="overlay-card result-card" hidden><span id="result-reason" class="kicker">시간 종료</span><h2>사냥 완료!</h2><span class="result-label">최종 점수</span><strong id="result-score" class="result-score">0</strong><div class="result-grid"><div><span>유령 포획</span><b id="result-caught">0마리</b></div><div><span>보스 포획</span><b id="result-bosses">0마리</b></div><div><span>터치 명중률</span><b id="result-accuracy">0%</b></div><div><span>플레이 시간</span><b id="result-duration">30초</b></div></div><p id="result-escaped" class="result-escaped" hidden></p><p id="result-bonus" class="result-bonus" hidden></p><button id="replay" class="primary-button" type="button">다시 사냥하기</button><button id="back" class="text-button" type="button">처음으로</button></div>
         </div>
         <div class="arena-bottom"><span id="caught-label">포획 0</span><span id="combo-label">정확하게 조준하세요</span></div>
       </div>
@@ -53,7 +53,7 @@
       <div class="rules"><div class="rule"><span class="rule-number">01</span><div><h3>일반 유령은 한 번에</h3><p id="normal-rule"></p></div></div><div class="rule boss-rule"><span class="rule-number">02</span><div><h3 id="boss-title">보스를 잡으면 +10초</h3><p id="boss-rule"></p></div></div><div class="rule"><span class="rule-number">03</span><div><h3>헛발은 조심!</h3><p id="miss-rule"></p></div></div></div>
       <div class="friend-rule-summary"><h3>친구 고양이는 그냥 보내주세요</h3><p id="friend-rule"></p></div>
       <div class="item-rule-summary"><h3>준비해 온 아이템으로 한 번 더!</h3><p id="item-rule"></p><p class="item-shortcuts">사냥 중 버튼 터치 · 키보드 1 손전등 / 2 부적</p></div>
-      <div class="settings"><span class="settings-label">등장 속도</span><div id="difficulty" class="segmented" role="group" aria-label="등장 속도 선택"><button type="button" data-mode="easy" aria-pressed="false">느긋하게</button><button type="button" data-mode="normal" aria-pressed="true" class="selected">보통</button><button type="button" data-mode="fast" aria-pressed="false">빠르게</button></div><p id="mode-note"></p><p id="ramp-note"></p><button id="balance-open" class="balance-open" type="button">밸런스 설정</button><p id="settings-notice" role="status">시간·체력·보스·아이템 수치를 직접 조정해요.</p></div>
+      <div class="settings"><div class="fixed-speed"><span class="settings-label">동작 속도</span><strong>빠르게 <small>기본 모드 고정</small></strong></div><p id="mode-note"></p><p id="ramp-note"></p><button id="balance-open" class="balance-open" type="button">밸런스 설정 · DB 저장 / 불러오기</button><p id="settings-notice" role="status">등장 간격은 밸런스에서 따로 조정해요.</p></div>
       <p class="prototype-note">조작과 규칙을 확인하는 프로토타입입니다.<br>그래픽과 수치는 테스트용이에요.</p>
     </aside>
   </main>
@@ -72,7 +72,21 @@
 </dialog>
 <dialog id="balance-dialog" aria-labelledby="balance-title">
   <header class="balance-header"><div><span class="kicker">PLAY TEST SETTINGS</span><h2 id="balance-title">밸런스 설정</h2></div><button id="balance-close" class="quiet-button" type="button" aria-label="설정 닫기">닫기</button></header>
-  <form id="balance-form" novalidate><div class="balance-scroll"><p class="balance-intro">수치를 바꾸고 다음 판에서 비교해 보세요. 설정은 이 기기에서 유지됩니다.</p><div class="balance-toolbar"><button id="balance-reset" type="button">기본값 복원</button><button id="balance-import" type="button">설정 불러오기</button><button id="balance-export" type="button">설정 내보내기</button><input id="balance-file" type="file" accept=".json,application/json" hidden></div><div id="balance-fields"></div></div><footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">저장하고 닫기</button></footer></form>
+  <form id="balance-form" novalidate>
+    <div class="balance-scroll">
+      <p class="balance-intro">빠르게 모드를 기준으로 등장 간격과 다른 수치를 각각 조정해요. 변경 사항은 다음 판부터 적용됩니다.</p>
+      <section class="balance-db" aria-labelledby="balance-db-title">
+        <h3 id="balance-db-title">밸런스 DB 보관 · 이동</h3>
+        <p>다른 웹 주소나 브라우저에서 이 프로토타입을 플레이할 때도, 저장한 DB 파일을 불러와 같은 수치로 테스트할 수 있어요.</p>
+        <div class="balance-toolbar"><button id="balance-export" type="button">DB 파일 저장</button><button id="balance-import" type="button">DB 파일 불러오기</button><input id="balance-file" type="file" accept=".json,application/json" hidden></div>
+        <p id="balance-db-file" class="balance-db-file">모든 밸런스 수치를 JSON 파일 하나에 보관합니다.</p>
+        <p class="balance-db-help">파일 저장은 현재 입력값을 다음 판에도 적용해요. 불러온 DB는 확인 후 아래에서 적용하세요.</p>
+      </section>
+      <div class="balance-toolbar balance-reset-row"><button id="balance-reset" type="button">빠르게 기본값 복원</button></div>
+      <div id="balance-fields"></div>
+    </div>
+    <footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">적용하고 닫기</button></footer>
+  </form>
 </dialog>
 <script type="module" src="app.mjs"></script>
 </body>

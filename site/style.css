@@ -58,3 +58,24 @@
 .items-feedback{min-height:42px;font-size:14px;line-height:1.5;color:#b8f3d1;margin:13px 0}
 @media(max-width:680px){.arena{height:clamp(365px,calc(100svh - 290px),520px)}.item-bar{padding:8px 11px 10px}.item-button{min-height:61px;padding:8px 10px;gap:8px}.item-bar-head>span{font-size:13px}.item-key{display:none}.intro-ghost{height:74px;width:84px;margin-bottom:8px}.overlay h1{font-size:31px;margin:7px 0 10px}.start-chips{margin:12px 0}.items-dialog-body{padding:16px}.prepare-item{padding:14px}}
 @media(max-height:650px){.overlay{overflow-y:auto;align-items:flex-start}.overlay-card{margin:auto}.intro-ghost{height:64px;width:76px}}
+
+/* Fixed fast mode and portable balance DB controls. */
+.fixed-speed{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid #b9885966;border-radius:10px;background:#352439}
+.fixed-speed .settings-label{margin:0;font-size:14px}
+.fixed-speed strong{color:var(--orange);font-size:17px;line-height:1.6}
+.fixed-speed small{font-size:12px;color:var(--muted);font-weight:500;margin-left:6px}
+.balance-db{padding:16px;border:1px solid #8abca570;border-radius:11px;background:#20332f55;margin-bottom:14px}
+.balance-db h3{margin:0 0 8px;font-size:17px;color:var(--mint)}
+.balance-db p{font-size:14px;line-height:1.7;color:#c0d4cb;margin:0 0 13px;overflow-wrap:anywhere}
+.balance-db .balance-toolbar{display:grid;grid-template-columns:1fr 1fr;margin-bottom:12px}
+.balance-db .balance-toolbar button{font-size:14px;font-weight:750;min-height:44px;padding:11px 12px;background:#364b43;border-color:#80b69d;color:#d9ffeb}
+.balance-db #balance-export{background:#bae9d5;color:#152d23;border-color:#bae9d5}
+.balance-db .balance-db-file{color:#e9f7ed;margin-bottom:7px}
+.balance-db .balance-db-help{font-size:13px;margin-bottom:0;color:#a6bdb3}
+.balance-reset-row{justify-content:flex-end;margin-bottom:8px}
+.balance-reset-row button{font-size:14px}
+@media(max-width:380px){.balance-db .balance-toolbar{grid-template-columns:1fr}.balance-db{padding:12px}.fixed-speed strong{font-size:16px}}
+
+/* Brief, steady color feedback when an ordinary ghost escapes. */
+.clock-block.time-penalty strong{color:#ff948f}
+.result-escaped{color:#ffb3ac!important;font-size:14px!important;margin:0 0 12px!important;line-height:1.5!important}
