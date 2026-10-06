@@ -79,3 +79,23 @@
 /* Brief, steady color feedback when an ordinary ghost escapes. */
 .clock-block.time-penalty strong{color:#ff948f}
 .result-escaped{color:#ffb3ac!important;font-size:14px!important;margin:0 0 12px!important;line-height:1.5!important}
+
+/* PLAY TEST 10: latest rules, collection and table editor. */
+.side-heading{margin-top:28px}.side-heading h2{font-size:30px}.side-heading p{font-size:14px}
+.collection-panel{padding:18px;border:1px solid #6e557e;border-radius:14px;background:#241c34}
+.collection-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.collection-heading h2{font-size:18px;margin:0;color:#ffe0b0}.collection-heading span{color:#a0f4d7;white-space:nowrap;font-weight:750}.collection-panel>p{font-size:13px;color:#c5b7d4;line-height:1.6;margin:9px 0 14px}
+.collection-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.collection-card{min-width:0;background:#171222;border:1px solid #47364f;border-radius:9px;text-align:center;padding:8px 3px}.collection-card img{width:100%;height:66px;object-fit:contain;image-rendering:pixelated}.collection-card.locked img{filter:grayscale(1);opacity:.26}.collection-card span{display:block;font-size:13px;color:#e3d7ed;overflow-wrap:anywhere;margin-top:5px}.collection-card small{display:block;font-size:12px;color:#9e8eaf;margin-top:3px}.collection-card.owned{border-color:#a48a54;background:#332b29}.collection-card.owned small{color:#ffd18c}
+.collection-panel .collection-note{margin:13px 0 0;font-size:12px;color:#a899b9}
+.bomb-rule-summary{margin:0 0 21px;padding:14px;border:1px solid #dd687d66;border-radius:9px;background:#45213188}.bomb-rule-summary h3{font-size:15px;margin:0 0 7px;color:#ffb7c3}.bomb-rule-summary p{font-size:14px;color:#d7bac8;white-space:pre-line;line-height:1.65;margin:0}
+.ghost.bomb img{animation:bombWarning 1.2s ease-in-out infinite;filter:drop-shadow(2px 0 0 #ff3651) drop-shadow(-2px 0 0 #ff3651) drop-shadow(0 2px 0 #ff3651) drop-shadow(0 -2px 0 #ff3651)}
+.ghost.bomb .life i{background:#ff677e}.boss-hp{font-size:13px;font-weight:800;white-space:nowrap;padding:3px 7px;background:#23152c;color:#ffcb81;border:1px solid #a9784e;border-radius:5px}
+@keyframes bombWarning{50%{filter:drop-shadow(0 0 2px #ff3651)}}
+.item-icon img{width:30px;height:38px;object-fit:contain;image-rendering:pixelated}.face-layer,.face-art,.face-art *,.flashlight-wash{pointer-events:none!important}
+#continue-description{white-space:pre-line;margin:12px 0 15px}.overlay #continue-score{display:block;font-size:36px;margin:10px 0 20px}
+.overlay{overflow-y:auto;padding:24px;overscroll-behavior:contain}.result-card{padding-block:8px}.overlay-card.result-card h2{font-size:26px;margin:5px 0}.result-card .result-label{margin-top:8px}.result-card .result-score{font-size:38px}.result-card .result-grid{padding:12px 0;gap:10px}.result-card .result-grid b{font-size:15px}
+.result-collections{margin:10px 0 16px}.result-collections h3{font-size:14px;color:#ffdfb1;margin:0 0 8px}#result-collections{display:flex;justify-content:center;gap:16px}#result-collections p{font-size:13px}.result-collection{display:flex;align-items:center;gap:5px;font-size:13px}.result-collection img{width:42px;height:42px;object-fit:contain;image-rendering:pixelated}
+#balance-dialog{width:min(960px,calc(100vw - 24px))}.balance-table-scroll{overflow:auto;margin:14px 0;max-width:100%;padding-bottom:4px}.balance-table{border-collapse:collapse;width:100%;font-size:14px;min-width:420px}.balance-table th{font-weight:600;text-align:left;padding:8px;color:#d6c5e3;white-space:nowrap}.balance-table td{padding:7px;border-top:1px solid #4a3658;white-space:nowrap}.balance-table input{width:100%;min-width:75px;background:#110e1b;border:1px solid #6d557d;border-radius:6px;color:#fff1dc;padding:8px;font:inherit;font-size:16px}.balance-table button{border:1px solid #6d557d;background:#39243c;color:#ffd0d7;border-radius:5px;padding:7px;font-size:13px}
+.game-caption{flex-wrap:wrap}.game-caption>span:last-child{margin-left:0}.arena-top{gap:6px}.boss-progress{white-space:nowrap}.item-bar-head{height:auto;min-height:34px}.item-bar-head>span{line-height:1.4}
+@media(max-width:680px){.sidebar .collection-panel{order:-2;margin-top:0;margin-bottom:18px}.collection-card img{height:72px}.overlay{padding:18px}.result-card .result-grid{gap:8px}.top-actions .quiet-button{min-height:36px}.balance-table{font-size:13px}.balance-table th,.balance-table td{padding:5px}.collection-heading h2{font-size:18px}}
+@media(prefers-reduced-motion:reduce){.ghost.bomb img{animation:none}}
+.overlay{align-items:flex-start}.overlay-card{margin-block:auto}

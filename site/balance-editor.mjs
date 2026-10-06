@@ -1,64 +1,33 @@
-import {DEFAULT_CONFIG,FIELD_GROUPS,getValue,setValue,validateConfig,parseBalanceDB,serializeBalanceDB} from './balance-config.mjs';
-
+import {DEFAULT_CONFIG,FIELD_GROUPS,TABLE_GROUPS,COLLECTIONS,getValue,setValue,validateConfig,parseBalanceDB,serializeBalanceDB} from './balance-config.mjs';
 export function createBalanceEditor({getConfig,onSave,onOpen}){
-  const dialog=document.getElementById('balance-dialog'),form=document.getElementById('balance-form');
-  const container=document.getElementById('balance-fields'),message=document.getElementById('balance-message');
-  const inputs=new Map(),dbFile=document.getElementById('balance-db-file');
-  let loadRequest=0;
-  for(const group of FIELD_GROUPS){
-    const section=document.createElement('details');section.className='balance-group';section.open=true;
-    const summary=document.createElement('summary');summary.textContent=group.title;section.append(summary);
-    if(group.note){const p=document.createElement('p');p.className='group-note';p.textContent=group.note;section.append(p);}
-    const grid=document.createElement('div');grid.className='balance-grid';
-    for(const f of group.fields){
-      const label=document.createElement('label');label.className='balance-field';
-      const title=document.createElement('span');title.textContent=f.label;label.append(title);
-      const control=document.createElement('span');control.className='field-control';
-      const input=document.createElement('input');input.dataset.path=f.path;input.name=f.path;
-      if(f.type==='boolean'){input.type='checkbox';label.classList.add('toggle-field');}
-      else{input.type='number';input.min=String(f.min);input.max=String(f.max);input.step=String(f.step);input.inputMode='decimal';input.required=true;}
-      control.append(input);
-      if(f.unit){const unit=document.createElement('span');unit.textContent=f.unit;control.append(unit);}
-      label.append(control);grid.append(label);inputs.set(f.path,{input,field:f});
+  const $=id=>document.getElementById(id),dialog=$('balance-dialog'),form=$('balance-form'),container=$('balance-fields');
+  let draft=structuredClone(DEFAULT_CONFIG),request=0;
+  const report=(text,error=false)=>{$('balance-message').textContent=text;$('balance-message').classList.toggle('error',error);};
+  function input(value,f,onChange){const n=document.createElement('input');n.type='number';n.min=f.min;n.max=f.max;n.step=f.step;n.value=value;n.required=true;n.inputMode='decimal';n.setAttribute('aria-label',f.label);n.addEventListener('input',()=>{onChange(n.value===''?NaN:Number(n.value));report('적용하면 다음 판부터 사용합니다.');});return n;}
+  function section(title,note){const d=document.createElement('details');d.className='balance-group';d.open=true;const s=document.createElement('summary');s.textContent=title;d.append(s);if(note){const p=document.createElement('p');p.className='group-note';p.textContent=note;d.append(p);}container.append(d);return d;}
+  function render(){
+    container.replaceChildren();
+    for(const group of TABLE_GROUPS){
+      const d=section(group.title,group.note),wrap=document.createElement('div');wrap.className='balance-table-scroll';
+      const table=document.createElement('table');table.className='balance-table';const thead=table.createTHead(),tr=thead.insertRow();
+      for(const label of [...(group.fixed?['물품']:[]),...group.columns.map(c=>c.label),...(!group.fixed?['']:[])]){const th=document.createElement('th');th.textContent=label;tr.append(th);}
+      const body=table.createTBody();
+      draft[group.key].forEach((r,i)=>{const row=body.insertRow();if(group.fixed){row.insertCell().textContent=COLLECTIONS.find(c=>c.id===r.id).name;}
+        for(const f of group.columns)row.insertCell().append(input(r[f.key],f,v=>r[f.key]=v));
+        if(!group.fixed){const del=document.createElement('button');del.type='button';del.textContent='삭제';del.disabled=draft[group.key].length===1;del.setAttribute('aria-label',`${group.title} ${i+1}행 삭제`);del.onclick=()=>{draft[group.key].splice(i,1);render();};row.insertCell().append(del);}
+      });wrap.append(table);d.append(wrap);
+      if(!group.fixed){const add=document.createElement('button');add.type='button';add.className='quiet-button';add.textContent='시간 구간 추가';add.onclick=()=>{if(draft[group.key].length>=50)return;const last=draft[group.key].at(-1);draft[group.key].push({...last,at:last.at+30});render();};d.append(add);}
     }
-    section.append(grid);container.append(section);
-  }
-  function fill(config){for(const [path,{input,field}] of inputs){if(field.type==='boolean')input.checked=getValue(config,path);else input.value=String(getValue(config,path));}}
-  function read(){
-    const draft=structuredClone(DEFAULT_CONFIG);
-    for(const [path,{input,field}] of inputs){
-      if(field.type==='boolean')setValue(draft,path,input.checked);
-      else{if(input.value.trim()==='')throw new Error(`${field.label} 값을 입력해 주세요.`);setValue(draft,path,Number(input.value));}
+    for(const group of FIELD_GROUPS){const d=section(group.title,group.note),grid=document.createElement('div');grid.className='balance-grid';
+      for(const f of group.fields){const label=document.createElement('label');label.className='balance-field';const title=document.createElement('span');title.textContent=f.label;const control=document.createElement('span');control.className='field-control';control.append(input(getValue(draft,f.path),f,v=>setValue(draft,f.path,v)));const unit=document.createElement('span');unit.textContent=f.unit;control.append(unit);label.append(title,control);grid.append(label);}d.append(grid);
     }
-    return validateConfig(draft);
   }
-  function report(text,error=false){message.textContent=text;message.classList.toggle('error',error);}
-  function open(){loadRequest++;onOpen();fill(getConfig());dbFile.textContent='현재 적용된 밸런스 · DB 파일로 저장해 보관하세요.';report('변경한 값은 적용 후 다음 판부터 사용합니다.');dialog.showModal();}
-  document.getElementById('balance-close').addEventListener('click',()=>dialog.close());
-  dialog.addEventListener('close',()=>loadRequest++);
-  form.addEventListener('input',()=>{loadRequest++;dbFile.textContent='수치 변경됨 · DB 파일 저장 시 현재 입력값을 담아요.';report('변경한 값은 적용 후 다음 판부터 사용합니다.');});
-  form.addEventListener('submit',event=>{event.preventDefault();try{onSave(read());dialog.close();}catch(error){report(error.message,true);}});
-  document.getElementById('balance-reset').addEventListener('click',()=>{loadRequest++;fill(DEFAULT_CONFIG);dbFile.textContent='빠르게 기본값 · 아직 적용하지 않았어요.';report('기본값을 불러왔어요. 적용하면 다음 판에 사용합니다.');});
-  document.getElementById('balance-export').addEventListener('click',()=>{
-    try{
-      const config=read(),json=serializeBalanceDB(config),now=new Date(),pad=n=>String(n).padStart(2,'0');
-      const stamp=`${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-      const name=`catjump-balance-${stamp}.json`,url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
-      try{
-        const saved=onSave(config),a=document.createElement('a');a.href=url;a.download=name;a.hidden=true;document.body.append(a);a.click();a.remove();
-        dbFile.textContent=`저장한 DB: ${name}`;
-        report(`DB 파일을 내보냈어요. 현재 입력값은 다음 판에도 적용됩니다.${saved?.persisted===false?' 브라우저 보관이 제한되어 있으니 파일을 보관해 주세요.':''}`);
-      }finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}
-    }catch(error){report(error.message,true);}
-  });
-  const file=document.getElementById('balance-file');document.getElementById('balance-import').addEventListener('click',()=>file.click());
-  file.addEventListener('change',async()=>{
-    const request=++loadRequest;
-    try{
-      const selected=file.files?.[0];file.value='';if(!selected)return;if(selected.size>200000)throw new Error('200KB 이하의 밸런스 DB JSON 파일을 선택해 주세요.');
-      const config=parseBalanceDB(await selected.text());if(request!==loadRequest||!dialog.open)return;
-      fill(config);dbFile.textContent=`불러온 DB: ${selected.name}`;report('DB를 불러왔어요. 수치를 확인하고 적용하고 닫기를 눌러주세요.');
-    }catch(error){if(request===loadRequest&&dialog.open)report(error.message,true);}
-  });
+  function open(){request++;onOpen();draft=structuredClone(getConfig());render();$('balance-db-file').textContent='v6 · 시간대별 테이블과 컬렉션 확률을 함께 보관합니다.';report('모든 초기 수치는 테스트용입니다. 변경 사항은 다음 판부터 적용됩니다.');dialog.showModal();}
+  $('balance-close').onclick=()=>dialog.close();dialog.addEventListener('close',()=>request++);
+  form.onsubmit=e=>{e.preventDefault();try{onSave(validateConfig(draft));dialog.close();}catch(e){report(e.message,true);}};
+  $('balance-reset').onclick=()=>{draft=structuredClone(DEFAULT_CONFIG);render();report('최신 기획 기본값을 불러왔습니다. 적용 후 다음 판부터 사용합니다.');};
+  $('balance-export').onclick=()=>{try{const config=validateConfig(draft),blob=new Blob([serializeBalanceDB(config)],{type:'application/json'}),url=URL.createObjectURL(blob);onSave(config);const a=document.createElement('a');a.href=url;a.download='catjump-balance-v6.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);report('DB 파일을 저장하고 다음 판에 적용했습니다.');}catch(e){report(e.message,true);}};
+  $('balance-import').onclick=()=>$('balance-file').click();
+  $('balance-file').onchange=async()=>{const n=++request;try{const file=$('balance-file').files[0];$('balance-file').value='';if(!file)return;if(file.size>200000)throw new Error('200KB 이하 JSON 파일을 선택해 주세요.');const value=parseBalanceDB(await file.text());if(n!==request||!dialog.open)return;draft=value;render();$('balance-db-file').textContent=file.name;report('불러왔습니다. 확인 후 적용해 주세요.');}catch(e){if(n===request)report(e.message,true);}};
   return {open};
 }
