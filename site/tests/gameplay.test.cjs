@@ -50,8 +50,8 @@ function game(options={}) {
       showModal() { this.open=true; },
       close() { if(this.open){this.open=false;this.emit('close',{target:this});} },
       addEventListener(name, fn) { this.handlers[name] = fn; },
-      emit(name,event) { this.handlers[name]?.(event); if(name==='click'&&!event.stopped) this.parent?.emit(name,event); },
-      click(props={}) { const event={detail:0,clientX:0,clientY:0,target:this,stopPropagation(){this.stopped=true;},...props}; this.emit('click',event); return event; }
+      emit(name,event) { this.handlers[name]?.(event); if((name==='click'||name.startsWith('pointer'))&&!event.stopped) this.parent?.emit(name,event); },
+      click(props={}) { const event={type:'click',detail:0,clientX:0,clientY:0,target:this,stopPropagation(){this.stopped=true;},...props}; this.emit('click',event); return event; }
     };
   }
   const get = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
@@ -68,7 +68,7 @@ function game(options={}) {
       setItem(key,value){if(options.blockStorage)throw Error('Storage denied');storage.set(key,value);if(key==='catjump-memory-room-state-v1')saved.push(JSON.parse(value));if(key===PROGRESS_KEY)progressSaved.push(JSON.parse(value));},
       removeItem(key){if(options.blockStorage)throw Error('Storage denied');storage.delete(key);}},
     document:{ getElementById:id => id==='cj-ghost-room'?root:get(id), createElement(tag){const node=element();node.tag=tag;created.push(node);return node;} },
-    window:{ AudioContext:options.audio?FakeAudioContext:undefined,innerWidth:390,innerHeight:844 },
+    window:{ AudioContext:options.audio?FakeAudioContext:undefined,PointerEvent:options.pointer?function PointerEvent(){}:undefined,innerWidth:390,innerHeight:844 },
     performance:{ now:() => now },
     setInterval(fn, ms) { const id = ++serial; timers.set(id, {fn, ms, next:now + ms}); return id; },
     clearInterval(id) { timers.delete(id); },
@@ -85,6 +85,13 @@ function game(options={}) {
       return (type==='empty'?!s.innerHTML:type==='collection'?collector:s.innerHTML.includes('cj-ghost '+type)&&!collector)?[i]:[];
     }); },
     click(i,event) { return this.slots()[i].click(event); },
+    pointer(i,props={}) {
+      const node=i===null?get('room'):this.slots()[i],rect=node.rect;
+      const event={type:'pointerdown',detail:0,button:0,pointerType:'touch',pointerId:1,isPrimary:true,
+        clientX:rect.left+rect.width/2,clientY:rect.top+rect.height/2,target:node,
+        preventDefault(){this.defaultPrevented=true;},stopPropagation(){this.stopped=true;},...props};
+      node.emit(event.type,event);return event;
+    },
     start() { get(this.phase()==='ready'?'lobby-start':get('result-dialog').open?'result-retry':'action').click();if(get('rules-dialog').open)get('rules-start').click(); },
     jump(time) { now = time; },
     advance(ms) {
@@ -606,24 +613,69 @@ const curse=shot.get('effects').children.find(e=>e.className==='cj-curse');asser
 effect.emit('animationend',{target:{}});assert.ok(effect.parent);effect.emit('animationend',{target:effect});assert.equal(effect.parent,null);
 shot.click(sb.target[1]);assert.match(impactText(shot),/2 COMBO!/);
 
-// Pointer aiming resolves from coordinates, including taps arriving on an empty button or the room.
-for(const onEmptyButton of [false,true]){
-  const {g:aim,b}=startRun(),target=b.target[0],empty=b.empty[0];
+// Pointer aiming resolves even detail-zero contacts on an empty button or the room.
+for(const supportsPointer of [false,true])for(const onEmptyButton of [false,true]){
+  const {g:aim,b}=startRun(game({pointer:supportsPointer})),target=b.target[0],empty=b.empty[0];
   aim.slots().forEach((button,i)=>button.rect={left:1000+i*100,top:1000,width:80,height:80});
   aim.slots()[target].rect={left:100,top:100,width:80,height:80};
   aim.slots()[empty].rect={left:190,top:100,width:80,height:80};
-  const tap={detail:1,clientX:onEmptyButton?191:85,clientY:140};
-  if(onEmptyButton)aim.click(empty,tap);else aim.get('room').click(tap);
+  const tap={detail:supportsPointer?0:1,clientX:onEmptyButton?191:85,clientY:140};
+  if(supportsPointer){const down=aim.pointer(onEmptyButton?empty:null,tap);assert.ok(down.stopped&&down.defaultPrevented);}
+  else if(onEmptyButton)aim.click(empty,tap);else aim.get('room').click(tap);
   assert.equal(aim.phase(),'hunt');assert.equal(aim.get('score').textContent,'명중 1');
   assert.ok(aim.slots()[target].className.includes('is-caught'));assertHidden(aim);
+  assert.equal(parseFloat(newest(aim).style.left),(tap.clientX-10)/360*100);
   // The forgiving margin does not forgive tapping the already caught slot itself.
-  aim.click(target,{detail:1,clientX:140,clientY:140});
+  if(supportsPointer)aim.pointer(target,{clientX:140,clientY:140});else aim.click(target,{detail:1,clientX:140,clientY:140});
   assert.equal(aim.phase(),'hunt');assert.equal(aim.get('clock').textContent,'1.20초');
   assert.equal(aim.get('score').textContent,'명중 1');assertHidden(aim);
 }
 const {g:farMiss}=startRun();farMiss.get('room').click({detail:1,clientX:-100,clientY:-100});
 assert.equal(farMiss.phase(),'hunt');assert.equal(farMiss.get('clock').textContent,'1.20초');assertHidden(farMiss);
 assert.equal(farMiss.saved.length,0);assert.equal(farMiss.get('continue-dialog').open,false);
+
+// Fire on contact, including a second finger arriving before the first finger lifts.
+const {g:touch,b:tb}=startRun(game({pointer:true}));
+const firstContact=touch.pointer(tb.target[0]);assert.ok(firstContact.stopped&&firstContact.defaultPrevented);
+assert.equal(touch.get('score').textContent,'명중 1');assert.equal(touch.get('clock').textContent,'1.60초');
+touch.advance(50);touch.pointer(tb.target[1],{pointerId:2,isPrimary:false});
+assert.equal(touch.get('score').textContent,'명중 2');assert.match(impactText(touch),/2 COMBO!/);
+assert.equal(touch.get('clock').textContent,'1.67초');
+for(const type of ['pointermove','pointerup','pointercancel'])touch.pointer(null,{type,clientX:-100,clientY:-100});
+for(const detail of [0,1])touch.click(tb.target[0],{detail,pointerType:'touch'});
+touch.get('room').click({detail:1,pointerType:'touch',clientX:-100,clientY:-100});
+assert.equal(touch.get('score').textContent,'명중 2');assert.equal(touch.get('clock').textContent,'1.67초');
+touch.pointer(tb.target[0],{pointerId:3});assert.match(impactText(touch),/MISS/);
+assert.equal(touch.get('clock').textContent,'1.27초');assert.equal(touch.get('score').textContent,'명중 2');
+for(const button of [1,2])touch.pointer(tb.target[2],{pointerType:'mouse',button});
+assert.equal(touch.get('clock').textContent,'1.27초');assert.equal(touch.get('score').textContent,'명중 2');
+touch.pointer(tb.target[2],{pointerType:'mouse'});assert.equal(touch.get('score').textContent,'명중 3');
+touch.pointer(tb.target[3],{pointerType:'pen'});assert.equal(touch.get('score').textContent,'명중 4');assert.equal(touch.phase(),'impact');
+touch.pointer(tb.decoy[0]);assert.equal(touch.phase(),'impact');assert.equal(touch.get('score').textContent,'명중 4');
+
+const {g:keyboard,b:kb}=startRun(game({pointer:true}));
+keyboard.click(kb.target[0]);assert.equal(keyboard.get('score').textContent,'명중 1');
+keyboard.click(kb.target[1],{pointerType:'pen'});keyboard.click(kb.target[1],{detail:1});
+assert.equal(keyboard.get('score').textContent,'명중 1');keyboard.click(kb.target[1]);
+assert.equal(keyboard.get('score').textContent,'명중 2');assert.match(impactText(keyboard),/2 COMBO!/);
+
+// A contact begun before hunting or during pause cannot turn its later release into a shot.
+const held=game({pointer:true});held.start();held.advance(250);const heldTargets=held.types('target');
+held.pointer(heldTargets[0]);assert.equal(held.get('score').textContent,'명중 0');
+held.advance(500+40);held.pointer(heldTargets[0],{type:'pointerup'});held.click(heldTargets[0],{detail:1,pointerType:'touch'});
+assert.equal(held.phase(),'hunt');assert.equal(held.get('score').textContent,'명중 0');assert.equal(held.get('clock').textContent,'1.60초');
+held.pointer(heldTargets[0]);pauseAndWait(held);held.pointer(heldTargets[1]);
+assert.equal(held.get('score').textContent,'명중 1');resume(held);
+held.pointer(heldTargets[1],{type:'pointerup'});held.click(heldTargets[1],{detail:1,pointerType:'touch'});
+assert.equal(held.get('score').textContent,'명중 1');held.pointer(heldTargets[1]);assert.equal(held.get('score').textContent,'명중 2');
+
+for(const offset of [-.1,0]){
+  const {g:atDeadline,b}=startRun(game({pointer:true}));atDeadline.jump(atDeadline.now()+1600+offset);
+  atDeadline.pointer(b.target[0]);assert.equal(atDeadline.get('score').textContent,offset<0?'명중 1':'명중 0');
+  assert.equal(atDeadline.phase(),offset<0?'hunt':'continue');
+  atDeadline.click(b.target[0],{detail:1,pointerType:'touch'});
+  assert.equal(atDeadline.get('score').textContent,offset<0?'명중 1':'명중 0');
+}
 
 for(const [state,want] of [[{},0],[{best:200},200],[{best:-1},0],[{best:Infinity},0],[{best:2.5},0],[{best:Number.MAX_SAFE_INTEGER+1},0]]){
   assert.equal(game({saved:state}).get('best').textContent,'최고 '+want);
@@ -717,6 +769,6 @@ const muted=game({audio:true}),mb=startRun(muted).b,ma=muted.audioLog;muted.get(
 muted.click(mb.target[0]);muted.advance(1000);assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
 const shiver=game({audio:true}),shb=startRun(shiver).b;shb.target.forEach(i=>shiver.click(i));const tonesBefore=shiver.audioLog.tones.length;
 shiver.advance(80);assert.equal(shiver.audioLog.tones.length,tonesBefore+7);assert.ok(shiver.audioLog.tones.slice(-7).every(t=>t.stoppedAt<=.28));
-console.log('PASS: slower configurable transitions and saved-setting migration; growing combo display through impact and reset on expiry/miss; combo coin x1/x2/x3/x4 thresholds, rising base rates, continue rate preservation, weighted settlement/doubling, collection coins and new-run reset; exact miss penalties and shortened deadline preservation; bomb failure; 3-second continue/reward ads and cancellation; rare 5% optional collection, half-memory fade, per-run cap and persistence; 3x3 to 5x5 grids; 30 cycles/171 fixture score/1128 coins; 220ms live combo boundary; lobby tickets/modals, pause, storage and sound regressions.');
+console.log('PASS: immediate/multi-touch shots, suppressed release clicks, mouse/pen/keyboard fallback, input phase/deadline guards; slower configurable transitions and saved-setting migration; combo display through impact; combo coin x1/x2/x3/x4, weighted settlement/doubling, collection coins and run reset; exact miss penalties and shortened deadlines; bomb failure; continue/reward ads and cancellation; optional collections and persistence; 3x3 to 5x5 grids; 30 cycles/171 fixture score/1128 coins; combo boundary, lobby, pause, storage and sound regressions.');
 
 })().catch(error=>{console.error(error);process.exitCode=1;});

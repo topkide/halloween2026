@@ -7,6 +7,7 @@ import {COLLECTIONS} from './collections.mjs';
   const root = document.getElementById('cj-ghost-room');
   const find = id => root.querySelector('#cj-' + id);
   const room = find('room'), spots = find('spots'), action = find('action'), effects = find('effects');
+  const pointerInput=typeof window.PointerEvent==='function';
   const STATE_KEY='catjump-memory-room-state-v1', BALANCE_KEY='catjump-memory-room-balance-v1', LOBBY_KEY='catjump-event-lobby-v1';
   const balanceButton=document.getElementById('balance-open'), balanceDialog=document.getElementById('balance-dialog');
   const rulesDialog=document.getElementById('rules-dialog');
@@ -58,7 +59,8 @@ import {COLLECTIONS} from './collections.mjs';
     spots.replaceChildren();
     buttons=Array.from({length:size**2},(_,i)=>{
       const button=document.createElement('button');button.type='button';button.className='cj-spot cursor-interaction';
-      button.addEventListener('click',event=>{event.stopPropagation();choose(i,event);});spots.append(button);return button;
+      button.addEventListener('pointerdown',event=>pointerShot(i,event));
+      button.addEventListener('click',event=>clickShot(i,event));spots.append(button);return button;
     });
   }
   const previewBoard=['target','empty','decoy','empty','target','empty','empty','empty','target'];
@@ -165,7 +167,7 @@ import {COLLECTIONS} from './collections.mjs';
   }
   function fire(i,event,type,bonus=0,coinReward=0) {
     const bounds=room.getBoundingClientRect(), cell=i===null?bounds:buttons[i].getBoundingClientRect();
-    const pointer=event&&event.detail>0&&Number.isFinite(event.clientX)&&Number.isFinite(event.clientY);
+    const pointer=event&&(event.type==='pointerdown'||event.detail>0)&&Number.isFinite(event.clientX)&&Number.isFinite(event.clientY);
     const x=pointer?event.clientX-bounds.left:cell.left-bounds.left+cell.width/2;
     const y=pointer?event.clientY-bounds.top:cell.top-bounds.top+cell.height/2;
     const effect=document.createElement('div'); effect.className='cj-impact '+type;
@@ -211,7 +213,20 @@ import {COLLECTIONS} from './collections.mjs';
   function toggleSound() { soundOn=!soundOn;updateSoundButton();if(soundOn)enableAudio();saveState(); }
   find('sound').addEventListener('click',toggleSound);
   document.getElementById('lobby-sound').addEventListener('click',toggleSound);
-  room.addEventListener('click',event=>choose(null,event));
+  function pointerShot(i,event) {
+    if(event.button!==0) return;
+    event.preventDefault();event.stopPropagation();
+    // Every contact fires on arrival, including overlapping non-primary fingers.
+    choose(i,event);
+  }
+  function clickShot(i,event) {
+    event.stopPropagation();
+    // Keep keyboard/assistive activation, but never fire again on pointer release.
+    if(!pointerInput||(event.detail===0&&!event.pointerType)) choose(i,event);
+  }
+  room.addEventListener('pointerdown',event=>pointerShot(null,event));
+  room.addEventListener('click',event=>clickShot(null,event));
+  room.addEventListener('contextmenu',event=>{if(phase==='hunt')event.preventDefault();});
   function stopTimer() { clearInterval(timer);clearTimeout(phaseTimer);timer=null;phaseTimer=null;phaseCallback=null; }
   function after(ms,callback) {
     stopTimer(); deadline=performance.now()+ms;
@@ -237,7 +252,8 @@ import {COLLECTIONS} from './collections.mjs';
       const wrong=tried.has(i)&&!caught.has(i);
       button.disabled=phase!=='hunt';
       button.className='cj-spot cursor-interaction'+(caught.has(i)?' is-caught':wrong?' is-mistake':'')+(i===spooked?' is-spooked':'');
-      button.innerHTML=(show&&board[i]!=='empty'?ghost(board[i]):'')+(caught.has(i)?'<span class="cj-mark" aria-hidden="true">✓</span>':wrong?'<span class="cj-mark" aria-hidden="true">×</span>':'')+(phase==='tremble'&&board[i]==='decoy'?'<span class="cj-fear" aria-hidden="true">덜덜…</span><i class="cj-sweat" aria-hidden="true"></i>':'');
+      const markup=(show&&board[i]!=='empty'?ghost(board[i]):'')+(caught.has(i)?'<span class="cj-mark" aria-hidden="true">✓</span>':wrong?'<span class="cj-mark" aria-hidden="true">×</span>':'')+(phase==='tremble'&&board[i]==='decoy'?'<span class="cj-fear" aria-hidden="true">덜덜…</span><i class="cj-sweat" aria-hidden="true"></i>':'');
+      if(button.innerHTML!==markup) button.innerHTML=markup;
       const visibleName=caught.has(i)?'명중 완료':wrong?'이미 확인한 자리':show?({target:'하얀 고양이 유령',collection:'컬렉션을 든 유령 · 선택 목표',decoy:'폭탄 유령',empty:'빈자리'}[board[i]]):'숨겨진 자리';
       button.setAttribute('aria-label',(Math.floor(i/current.gridSize)+1)+'행 '+(i%current.gridSize+1)+'열, '+visibleName);
     });
@@ -376,7 +392,7 @@ import {COLLECTIONS} from './collections.mjs';
   }
   function choose(i,event) {
     if(phase!=='hunt'||paused) return;
-    if(event?.detail>0) i=hitSlot(buttons.map(button=>button.getBoundingClientRect()),board,caught,event.clientX,event.clientY);
+    if(event&&(event.type==='pointerdown'||event.detail>0)) i=hitSlot(buttons.map(button=>button.getBoundingClientRect()),board,caught,event.clientX,event.clientY);
     const now=performance.now();
     if(now>=deadline) { endRun('timeout'); return; }
     const type=i===null||tried.has(i)?'empty':board[i];
