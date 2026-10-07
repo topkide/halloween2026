@@ -45,6 +45,25 @@
   </section>
 </main>
 <noscript>게임을 하려면 브라우저의 JavaScript를 켜주세요.</noscript>
+<dialog id="rules-dialog" aria-labelledby="rules-title">
+  <header class="rules-header">
+    <img src="assets/target.png" width="48" height="54" alt="">
+    <div><span class="kicker">HOW TO PLAY</span><h2 id="rules-title">유령 사냥 방법</h2></div>
+    <button id="rules-close" class="quiet-button" type="button" aria-label="게임 설명 닫기">닫기</button>
+  </header>
+  <div class="rules-content">
+    <ol class="rules-steps">
+      <li><b>위치를 기억해요</b><p>잠깐 보이는 하얀 유령의 위치를 외워요.</p></li>
+      <li><b>암전되면 탭!</b><p>기억한 자리를 눌러 하얀 유령을 모두 맞혀요.</p></li>
+      <li><b>콤보로 시간을 벌어요</b><p>빠르게 연속 명중하면 남은 시간이 늘어나요.</p></li>
+    </ol>
+    <div class="rules-warning">
+      <img src="assets/decoy.png" width="40" height="45" alt="">
+      <div><b>한 번의 실수면 끝!</b><p>뿔 유령·빈자리·이미 맞힌 자리를 쏘거나 시간이 다 되면 게임이 끝나요.</p></div>
+    </div>
+  </div>
+  <footer class="rules-footer"><button id="rules-start" class="primary-button" type="button">게임 시작 →</button></footer>
+</dialog>
 <dialog id="balance-dialog" aria-labelledby="balance-title">
   <header class="balance-header"><div><span class="kicker">PLAY TEST SETTINGS</span><h2 id="balance-title">밸런스 설정</h2></div><button id="balance-close" class="quiet-button" type="button" aria-label="설정 닫기">닫기</button></header>
   <form id="balance-form" novalidate>

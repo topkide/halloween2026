@@ -8,6 +8,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   const room = find('room'), spots = find('spots'), action = find('action'), effects = find('effects');
   const STATE_KEY='catjump-memory-room-state-v1', BALANCE_KEY='catjump-memory-room-balance-v1';
   const balanceButton=document.getElementById('balance-open'), balanceDialog=document.getElementById('balance-dialog');
+  const rulesDialog=document.getElementById('rules-dialog');
   const readStorage=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
   function writeStorage(key,value) {
     try { if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,JSON.stringify(value)); }
@@ -338,7 +339,13 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     }
   }
   action.addEventListener('click',()=>{
-    if(!['ready','over'].includes(phase)||balanceDialog.open) return;
+    if(!['ready','over'].includes(phase)||balanceDialog.open||rulesDialog.open) return;
+    rulesDialog.showModal();
+  });
+  document.getElementById('rules-close').addEventListener('click',()=>rulesDialog.close());
+  document.getElementById('rules-start').addEventListener('click',()=>{
+    if(!rulesDialog.open||!['ready','over'].includes(phase)||balanceDialog.open) return;
+    rulesDialog.close();
     config=structuredClone(pendingConfig);
     stopTimer();clearEffects();enableAudio();cycle=0;score=0;
     beginCycle();
@@ -352,7 +359,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   }
   const editor=createBalanceEditor({
     getConfig:()=>pendingConfig,
-    onOpen:()=>['ready','over'].includes(phase),
+    onOpen:()=>['ready','over'].includes(phase)&&!rulesDialog.open,
     onSave:value=>{
       pendingConfig=validateConfig(value);
       writeStorage(BALANCE_KEY,JSON.stringify(pendingConfig)===JSON.stringify(DEFAULT_CONFIG)?null:pendingConfig);
@@ -360,5 +367,5 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     }
   });
   balanceButton.addEventListener('click',()=>editor.open());
-  readySettings();paint();action.disabled=false;action.textContent='유령 사냥 시작 →';
+  readySettings();paint();action.disabled=false;action.textContent='도전하기 →';
 })();

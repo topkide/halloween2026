@@ -27,7 +27,7 @@ function game(options={}) {
   }
   if(options.noFilter) FakeAudioContext.prototype.createBiquadFilter=undefined;
   function element() {
-    return { dataset:{}, style:{setProperty(key,value){this[key]=value;}}, attrs:{}, children:[], handlers:{}, innerHTML:'', textContent:'', parent:null,
+    return { dataset:{}, style:{setProperty(key,value){this[key]=value;}}, attrs:{}, children:[], handlers:{}, innerHTML:'', textContent:'', parent:null,open:false,
       rect:{left:10,top:20,width:360,height:480},
       get firstElementChild() { return this.children[0]; },
       getBoundingClientRect() { return this.rect; },
@@ -35,6 +35,8 @@ function game(options={}) {
       replaceChildren() { this.children.forEach(child=>child.parent=null); this.children=[]; },
       remove() { if(this.parent) this.parent.children.splice(this.parent.children.indexOf(this),1); this.parent=null; },
       setAttribute(key, value) { this.attrs[key] = value; },
+      showModal() { this.open=true; },
+      close() { if(this.open){this.open=false;this.emit('close',{target:this});} },
       addEventListener(name, fn) { this.handlers[name] = fn; },
       emit(name,event) { this.handlers[name]?.(event); if(name==='click'&&!event.stopped) this.parent?.emit(name,event); },
       click(props={}) { const event={detail:0,clientX:0,clientY:0,target:this,stopPropagation(){this.stopped=true;},...props}; this.emit('click',event); return event; }
@@ -66,7 +68,7 @@ function game(options={}) {
     slots:() => get('spots').children,
     types(type) { return this.slots().flatMap((s, i) => (type === 'empty' ? !s.innerHTML : s.innerHTML.includes('cj-ghost ' + type)) ? [i] : []); },
     click(i,event) { return this.slots()[i].click(event); },
-    start() { get('action').click(); },
+    start() { get('action').click();if(get('rules-dialog').open)get('rules-start').click(); },
     jump(time) { now = time; },
     advance(ms) {
       const until = now + ms;
@@ -117,6 +119,41 @@ function resolveImpact(g,decoys=3){
   g.advance(279.9);assert.equal(g.phase(),'tremble');g.advance(.1);assert.equal(g.phase(),'prepare');assert.equal(g.timers.size,1);
 }
 const newest=g=>g.get('effects').children.filter(e=>e.className?.startsWith('cj-impact ')).at(-1);
+
+// Reading or dismissing the rules must never start the clock, audio, or a new run.
+const guide=game({audio:true,saved:{best:42}}),rulesDialog=guide.get('rules-dialog');
+guide.get('rules-start').click();assert.equal(guide.phase(),'ready');
+guide.get('action').click();assert.equal(rulesDialog.open,true);assert.equal(guide.phase(),'ready');
+guide.get('action').click();guide.advance(120000);
+assert.equal(rulesDialog.open,true);assert.equal(guide.phase(),'ready');assert.equal(guide.timers.size,0);
+assert.equal(guide.get('score').textContent,'명중 0');assert.equal(guide.get('best').textContent,'최고 42');
+assert.equal(guide.saved.length,0);assert.equal(guide.audioLog.contexts,0);
+guide.get('rules-close').click();assert.equal(rulesDialog.open,false);assert.equal(guide.phase(),'ready');
+guide.advance(120000);assert.equal(guide.timers.size,0);assert.equal(guide.audioLog.contexts,0);
+guide.get('action').click();guide.get('rules-start').click();
+assert.equal(rulesDialog.open,false);assert.equal(guide.phase(),'prepare');assert.equal(guide.timers.size,1);
+assert.equal(guide.audioLog.contexts,1);
+const guideBoard=enterCycle(guide);guide.click(guideBoard.target[0]);guide.click(guideBoard.empty[0]);guide.advance(1350);
+assert.equal(guide.phase(),'over');assert.equal(guide.saved.length,1);
+guide.get('action').click();assert.equal(rulesDialog.open,true);guide.advance(120000);
+assert.equal(guide.phase(),'over');assert.equal(guide.get('score').textContent,'명중 1');assert.equal(guide.timers.size,0);
+guide.get('rules-close').click();assert.equal(rulesDialog.open,false);assert.equal(guide.get('score').textContent,'명중 1');
+guide.get('action').click();guide.get('rules-start').click();
+assert.equal(rulesDialog.open,false);assert.equal(guide.phase(),'prepare');assert.equal(guide.get('score').textContent,'명중 0');
+assert.equal(guide.saved.length,1);enterCycle(guide);
+
+const exclusive=game();exclusive.get('action').click();exclusive.get('balance-open').click();
+assert.equal(exclusive.get('rules-dialog').open,true);assert.equal(exclusive.get('balance-dialog').open,false);
+assert.equal(exclusive.editor.onOpen(),false);
+exclusive.get('rules-close').click();exclusive.get('balance-open').click();
+assert.equal(exclusive.get('balance-dialog').open,true);
+exclusive.get('action').click();exclusive.get('rules-start').click();
+assert.equal(exclusive.get('rules-dialog').open,false);assert.equal(exclusive.get('balance-dialog').open,true);
+assert.equal(exclusive.phase(),'ready');assert.equal(exclusive.timers.size,0);
+exclusive.get('balance-dialog').close();exclusive.start();enterCycle(exclusive);
+exclusive.get('action').click();exclusive.get('rules-start').click();
+assert.equal(exclusive.get('rules-dialog').open,false);assert.equal(exclusive.phase(),'hunt');
+
 const g=game();g.start();let total=0;
 for(let cycle=0;cycle<30;cycle++){
   const b=enterCycle(g,cycle);
@@ -310,6 +347,6 @@ const muted=game({audio:true}),mb=startRun(muted).b,ma=muted.audioLog;muted.get(
 muted.click(mb.target[0]);muted.advance(1000);assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
 const shiver=game({audio:true}),shb=startRun(shiver).b;shb.target.forEach(i=>shiver.click(i));const tonesBefore=shiver.audioLog.tones.length;
 shiver.advance(80);assert.equal(shiver.audioLog.tones.length,tonesBefore+7);assert.ok(shiver.audioLog.tones.slice(-7).every(t=>t.stoppedAt<=.28));
-console.log('PASS: 30 cycles/177 score; stage-12 difficulty cap independent of elapsed time; slower opening and legacy balance migration; sub-ms phase/deadline boundaries; 450ms combo rearming and six-hit survival; static decoys without moving ghosts; failures, records, curse, snicker/pulse/shiver and mute.');
+console.log('PASS: rules confirmation/cancel/retry and exclusive settings; 30 cycles/177 score; stage-12 difficulty cap independent of elapsed time; slower opening and legacy balance migration; sub-ms phase/deadline boundaries; 450ms combo rearming and six-hit survival; static decoys without moving ghosts; failures, records, curse, snicker/pulse/shiver and mute.');
 
 })().catch(error=>{console.error(error);process.exitCode=1;});

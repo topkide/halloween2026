@@ -358,3 +358,31 @@ html,body { background:#100d1b!important; }
 .balance-db .balance-db-help{font-size:13px;margin-bottom:0;color:#a6bdb3}
 .balance-reset-row{justify-content:flex-end;margin-bottom:8px}
 .balance-reset-row button{font-size:14px}
+
+#rules-dialog { width:min(440px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:92svh;padding:0;border:2px solid #8c638e;border-radius:10px;background:#21182f;color:#fff3de;box-shadow:0 18px 80px #000b;overflow:hidden; }
+#rules-dialog[open] { display:flex;flex-direction:column; }
+#rules-dialog::backdrop { background:#090713d9; }
+#rules-dialog img { flex-shrink:0;image-rendering:pixelated;object-fit:contain; }
+.rules-header { display:flex;align-items:center;gap:10px;padding:20px 18px 16px;border-bottom:1px solid #ffffff18; }
+.rules-header h2 { font-size:22px;letter-spacing:-.8px;margin:4px 0 0; }
+.rules-header .quiet-button { margin-left:auto;min-height:44px;font-size:12px;padding:8px; }
+.rules-content { padding:20px 22px;overflow:auto;overscroll-behavior:contain; }
+.rules-steps { list-style:none;counter-reset:rule;margin:0;padding:0;display:grid;gap:20px; }
+.rules-steps li { position:relative;padding-left:38px;counter-increment:rule; }
+.rules-steps li::before { content:counter(rule);position:absolute;left:0;top:0;display:grid;place-items:center;width:26px;height:28px;background:#49324f;color:#ffc17d;box-shadow:2px 2px #110c1c;font-size:15px;font-weight:800; }
+.rules-steps b { font-size:16px;line-height:1.4; }
+.rules-steps p,.rules-warning p { margin:5px 0 0;font-size:13px;line-height:1.6;color:#cbbbda;word-break:keep-all;overflow-wrap:anywhere; }
+.rules-warning { display:flex;align-items:center;gap:12px;margin-top:22px;padding:13px 12px;background:#382139;border:1px solid #855073;border-radius:6px; }
+.rules-warning b { color:#ffb6c6;font-size:14px; }
+.rules-warning p { color:#e1bfd3;font-size:12px; }
+.rules-footer { padding:0 22px 20px; }
+.rules-footer .primary-button { width:100%;min-height:48px;font-size:17px;box-shadow:0 3px #9d603e; }
+@media(max-width:360px) {
+  .rules-header { padding:14px 12px;gap:7px; }
+  .rules-header h2 { font-size:20px; }
+  .rules-header img { width:40px;height:45px; }
+  .rules-content { padding:14px 16px; }
+  .rules-steps { gap:10px; }
+  .rules-warning { margin-top:12px;padding:10px;gap:10px; }
+  .rules-footer { padding:0 16px 16px; }
+}
