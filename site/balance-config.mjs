@@ -19,15 +19,6 @@ export const FIELD_GROUPS=[
     field('combo.bonusStep','추가 연속 명중마다 늘어나는 보너스',0,5),
     field('combo.bonusMax','한 번에 얻는 최대 시간 보너스',0,5)
   ]},
-  {title:'돌진하는 뿔 유령 분신',note:'분신은 서로 다른 행을 지나갑니다. 콤보 또는 난이도 비율 조건을 채우면 여러 분신이 함께 나타날 수 있습니다.',fields:[
-    field('haunt.enabled','분신 사용 · 0 끄기 / 1 켜기',0,1,1,''),
-    field('haunt.warning','돌진 전 경고 시간',0,3),
-    field('haunt.travelStart','처음 가로지르는 시간',.1,10),
-    field('haunt.travelMin','최소 가로지르는 시간',.1,10),
-    field('haunt.max','동시에 나타나는 최대 분신 수',1,4,1,'마리'),
-    field('haunt.extraAtCombo','추가 분신이 가능한 콤보',1,12,1,'연속'),
-    field('haunt.extraAtProgress','추가 분신이 가능한 난이도 비율',0,1,.01,'0~1')
-  ]},
   {title:'배치 전환',fields:[
     field('transition.firstPrepare','첫 배치 준비 시간',0,5),
     field('transition.prepare','다음 배치 준비 시간',0,5),
@@ -48,7 +39,7 @@ export function setValue(config,path,value){const keys=path.split('.'),last=keys
 export function validateConfig(input){
   if(!input||typeof input!=='object'||Array.isArray(input)||input.version!==1||input.game!=='memory-room')
     throw new Error('기억력 게임용 memory-room v1 DB가 필요합니다. 이전 사격장 v6 DB는 사용할 수 없습니다.');
-  const result={version:1,game:'memory-room',difficulty:{},combo:{},haunt:{},transition:{},effects:{}};
+  const result={version:1,game:'memory-room',difficulty:{},combo:{},transition:{},effects:{}};
   for(const group of FIELD_GROUPS)for(const f of group.fields){
     const value=getValue(input,f.path);
     if(typeof value!=='number'||!Number.isFinite(value)||value<f.min||value>f.max||(f.step===1&&!Number.isInteger(value)))
@@ -60,8 +51,7 @@ export function validateConfig(input){
     ['difficulty.huntMin','difficulty.huntStart','최소 사격 제한 시간'],
     ['difficulty.targetsStart','difficulty.targetsMax','처음 하얀 유령 수'],
     ['difficulty.decoysStart','difficulty.decoysMax','처음 뿔 유령 수'],
-    ['combo.bonusStart','combo.bonusMax','2연속 명중 보너스'],
-    ['haunt.travelMin','haunt.travelStart','분신 최소 이동 시간']
+    ['combo.bonusStart','combo.bonusMax','2연속 명중 보너스']
   ])if(getValue(result,lower)>getValue(result,upper))throw new Error(`${label}이 대응하는 시작값 또는 최대값보다 클 수 없습니다.`);
   if(result.difficulty.targetsMax+result.difficulty.decoysMax>12)throw new Error('하얀 유령과 뿔 유령의 최대 합은 12마리 이하여야 합니다.');
   return result;

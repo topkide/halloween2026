@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#100d1b">
-  <meta name="description" content="찰나에 유령의 위치를 기억하고 암전 속에서 사격하세요. 움직이는 뿔 유령을 피해 콤보로 살아남는 캣점프 할로윈 프로토타입.">
+  <meta name="description" content="찰나에 유령의 위치를 기억하고 암전 속에서 사격하세요. 기억한 하얀 유령을 빠르게 맞히고 콤보로 살아남는 캣점프 할로윈 프로토타입.">
   <title>유령이 숨은 밤 · 캣점프 할로윈</title>
   <link rel="icon" type="image/png" href="assets/target.png">
   <link rel="stylesheet" href="style.css">
@@ -26,7 +26,6 @@
       <div class="cj-shade" aria-hidden="true"></div>
       <div class="cj-spots" id="cj-spots"></div>
       <div class="cj-effects" id="cj-effects" aria-hidden="true"></div>
-      <div class="cj-haunts" id="cj-haunts"></div>
       <div class="cj-fail-splash" id="cj-fail-splash" aria-hidden="true"></div>
       <div class="cj-ready" id="cj-ready" hidden><span>눈 크게 뜨고</span><strong>READY</strong><small id="cj-ready-time">잠시 후 보여요</small></div>
       <div class="cj-room-caption" id="cj-room-caption">12개의 자리 · 유령의 위치를 기억해요</div>
@@ -37,7 +36,7 @@
         <div><span class="cj-mini target" aria-hidden="true"><i></i></span><span><b>하얀 유령</b><small>모두 명중!</small></span></div>
         <div><span class="cj-mini decoy" aria-hidden="true"><i></i></span><span><b>뿔 유령</b><small>맞히면 종료</small></span></div>
       </div>
-      <div class="cj-feedback" id="cj-feedback" role="status" aria-live="polite">움직이는 뿔 유령도 피하세요! 0.45초 연속 명중.</div>
+      <div class="cj-feedback" id="cj-feedback" role="status" aria-live="polite">하얀 유령의 위치를 기억하고 0.45초 연속 명중.</div>
       <button class="cj-main-button cursor-interaction" id="cj-action" type="button" disabled>게임 불러오는 중…</button>
       <div class="cj-rules" id="cj-rules">콤보 +0.12~0.20초 · 한 번의 오발이면 끝!</div>
       <button id="balance-open" class="cj-settings" type="button" disabled>밸런스 설정 · DB 저장 / 불러오기</button>
@@ -50,7 +49,7 @@
   <header class="balance-header"><div><span class="kicker">PLAY TEST SETTINGS</span><h2 id="balance-title">밸런스 설정</h2></div><button id="balance-close" class="quiet-button" type="button" aria-label="설정 닫기">닫기</button></header>
   <form id="balance-form" novalidate>
     <div class="balance-scroll">
-      <p class="balance-intro">기억 시간, 사냥 시간과 뿔 유령의 방해를 조정해요. 변경 사항은 이 브라우저의 다음 판부터 적용됩니다.</p>
+      <p class="balance-intro">기억·사격 시간, 유령 수와 콤보를 조절해요. 변경 사항은 이 브라우저의 다음 판부터 적용됩니다.</p>
       <section class="balance-db" aria-labelledby="balance-db-title">
         <h3 id="balance-db-title">밸런스 DB 보관 · 이동</h3>
         <p>다른 웹 주소나 브라우저에서 이 프로토타입을 플레이할 때도, 저장한 DB 파일을 불러와 같은 수치로 테스트할 수 있어요.</p>

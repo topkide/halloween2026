@@ -1,11 +1,11 @@
 import {DEFAULT_CONFIG,validateConfig} from './balance-config.mjs';
 import {createBalanceEditor} from './balance-editor.mjs';
-import {difficultyAt,comboBonus} from './game-core.mjs';
+import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
 
 (() => {
   const root = document.getElementById('cj-ghost-room');
   const find = id => root.querySelector('#cj-' + id);
-  const room = find('room'), spots = find('spots'), action = find('action'), effects = find('effects'), haunts=find('haunts');
+  const room = find('room'), spots = find('spots'), action = find('action'), effects = find('effects');
   const STATE_KEY='catjump-memory-room-state-v1', BALANCE_KEY='catjump-memory-room-balance-v1';
   const balanceButton=document.getElementById('balance-open'), balanceDialog=document.getElementById('balance-dialog');
   const readStorage=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
@@ -14,7 +14,17 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
     catch { find('storage-note').textContent='브라우저 저장이 제한되어 새로고침하면 기록과 설정이 사라져요.'; }
   }
   let pendingConfig=structuredClone(DEFAULT_CONFIG);
-  try { const saved=readStorage(BALANCE_KEY);if(saved)pendingConfig=validateConfig(saved); } catch { /* Ignore obsolete or invalid local settings. */ }
+  try {
+    const saved=readStorage(BALANCE_KEY);
+    if(saved) {
+      pendingConfig=validateConfig(saved);
+      // Upgrade the former default READY times without losing other saved tuning.
+      if(saved.haunt) {
+        if(pendingConfig.transition.firstPrepare===.25) pendingConfig.transition.firstPrepare=DEFAULT_CONFIG.transition.firstPrepare;
+        if(pendingConfig.transition.prepare===.12) pendingConfig.transition.prepare=DEFAULT_CONFIG.transition.prepare;
+      }
+    }
+  } catch { /* Ignore obsolete or invalid local settings. */ }
   let config=structuredClone(pendingConfig);
   const ghost = type => '<span class="cj-ghost '+type+'" aria-hidden="true"></span>';
   const buttons = Array.from({length:12},(_,i) => {
@@ -25,8 +35,7 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
   let phase='ready', cycle=0, score=0, current=difficultyAt(config,0,0), spooked=null, runStarted=0, board=['target','empty','decoy','empty','target','empty','empty','decoy','empty','target','empty','empty'];
   let caught=new Set(), tried=new Set(), timer=null, phaseTimer=null, deadline=0, duration=0, best=0;
   let soundOn=true, audio=null, audioMaster=null, lastSummary=null, shotNoise=null;
-  let combo=0, lastHit=-Infinity, hauntSerial=0, lastPulse=-Infinity;
-  const hauntTimers=new Set();
+  let combo=0, lastHit=-Infinity, lastPulse=-Infinity;
   const voices=new Set();
   function applySaved(snapshot) {
     const saved = snapshot;
@@ -80,8 +89,7 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
       oscillator.onended=()=>{voices.delete(oscillator);oscillator.disconnect();gain.disconnect();if(vowel)vowel.disconnect();};
       oscillator.start(now+at); oscillator.stop(now+at+length);
     };
-    if(type==='reveal') { tone(880,1760,0,.08,.18); return; }
-    if(type==='haunt') { tone(440,180,0,.18,.16,'triangle');tone(740,320,.035,.13,.07,'sawtooth',1500);return; }
+    if(type==='reveal') { tone(150,760,0,.11,.16,'triangle');tone(360,1120,.025,.09,.08,'sine');return; }
     if(type==='pulse') { tone(90,48,0,.06,.20,'sine');return; }
     if(type==='snicker') {
       [430,490,405].forEach((f,n)=>{
@@ -149,39 +157,8 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
   }
   function clearEffects() {
     effects.replaceChildren();
-    clearHaunts();
     voices.forEach(voice=>{try{voice.stop();}catch{}});
     voices.clear();
-  }
-  function clearHaunts() {
-    hauntTimers.forEach(id=>clearTimeout(id));hauntTimers.clear();haunts.replaceChildren();
-  }
-  function summonHaunt() {
-    if(phase!=='hunt'||!config.haunt.enabled) return;
-    const limit=combo>=config.haunt.extraAtCombo||current.pressure>=config.haunt.extraAtProgress?config.haunt.max:1;
-    if(haunts.children.length>=limit) return;
-    const occupied=new Set(Array.from(haunts.children,node=>Number(node.dataset.row)));
-    const rows=Array.from(new Set(board.flatMap((type,i)=>type==='target'&&!caught.has(i)?[Math.floor(i/3)]:[]))).filter(row=>!occupied.has(row));
-    if(!rows.length) return;
-    const row=rows[Math.floor(Math.random()*rows.length)],bounds=room.getBoundingClientRect(),cell=buttons[row*3].getBoundingClientRect();
-    const lane=document.createElement('div');lane.className='cj-haunt';lane.dataset.row=String(row);
-    const reverse=hauntSerial++%2===1,travel=Math.round((config.haunt.travelStart-(config.haunt.travelStart-config.haunt.travelMin)*current.pressure)*1000);
-    lane.style.setProperty('--warning',config.haunt.warning*1000+'ms');
-    lane.dataset.direction=reverse?'left':'right';lane.style.top=(cell.top-bounds.top+cell.height/2)+'px';
-    lane.style.setProperty('--from',(reverse?bounds.width+70:-70)+'px');
-    lane.style.setProperty('--to',(reverse?-70:bounds.width+70)+'px');lane.style.setProperty('--travel',travel+'ms');
-    const warning=document.createElement('span');warning.className='cj-haunt-warning';warning.textContent='!';warning.setAttribute('aria-hidden','true');
-    const runner=document.createElement('button');runner.type='button';runner.className='cj-haunt-runner cursor-interaction';runner.setAttribute('aria-label','돌진하는 뿔 유령 · 누르면 게임 종료');runner.innerHTML=ghost('decoy');
-    runner.addEventListener('click',event=>{
-      event.stopPropagation();if(phase!=='hunt')return;
-      if(performance.now()>=deadline){endRun('timeout');return;}
-      const r=runner.getBoundingClientRect(),b=room.getBoundingClientRect();
-      const point={x:event.detail>0?event.clientX-b.left:r.left-b.left+r.width/2,y:event.detail>0?event.clientY-b.top:r.top-b.top+r.height/2};
-      shotSound('decoy');endRun('decoy',null,point);
-    });
-    lane.append(warning);lane.append(runner);haunts.append(lane);shotSound('haunt');
-    const cleanup=setTimeout(()=>{hauntTimers.delete(cleanup);lane.remove();summonHaunt();},config.haunt.warning*1000+travel);
-    hauntTimers.add(cleanup);
   }
   function curse() {
     if(!config.effects.fogEnabled) return;
@@ -245,7 +222,7 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
     armExpiry(onEnd);
   }
   function beginCycle() {
-    stopTimer(); clearEffects(); caught=new Set(); tried=new Set(); combo=0;lastHit=-Infinity;hauntSerial=0;lastPulse=-Infinity;
+    stopTimer(); clearEffects(); caught=new Set(); tried=new Set(); combo=0;lastHit=-Infinity;lastPulse=-Infinity;
     spooked=null;find('fail-splash').replaceChildren();room.dataset.failure='';
     const elapsed=Math.max(0,performance.now()-runStarted);
     current=difficultyAt(config,elapsed,cycle);
@@ -278,14 +255,14 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
   function beginHunt() {
     phase='hunt'; paint();
     find('phase').textContent='찾아봐요 · '+caught.size+' / '+current.targets+'마리';
-    find('room-caption').textContent=config.haunt.enabled?'돌진하는 뿔 유령도 쏘면 안 돼요!':'기억한 하얀 유령만 쏘세요!';
-    setMessage((config.haunt.enabled?'분신을 피하고 ':'')+config.combo.window.toFixed(2)+'초 안에 연속 명중!');
+    find('room-caption').textContent='기억한 자리 그대로, 빠르게 연속 명중!';
+    setMessage(config.combo.window.toFixed(2)+'초 안에 연속 명중!');
     action.textContent='빠르게 2연속 → 시간 회복';
     startClock(current.hunt,()=>endRun('timeout'));
-    summonHaunt();
   }
   function choose(i,event) {
     if(phase!=='hunt') return;
+    if(event?.detail>0) i=hitSlot(buttons.map(button=>button.getBoundingClientRect()),board,caught,event.clientX,event.clientY);
     const now=performance.now();
     if(now>=deadline) { endRun('timeout'); return; }
     const type=i===null||tried.has(i)?'empty':board[i];
@@ -310,7 +287,7 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
     find('phase').textContent='찾아봐요 · '+caught.size+' / '+current.targets+'마리';
     action.textContent=combo+' COMBO · '+(current.targets-caught.size)+'마리 남음';
     if(caught.size===current.targets) {
-      stopTimer();clearHaunts();phase='impact';paint();find('clock').textContent='';
+      stopTimer();phase='impact';paint();find('clock').textContent='';
       action.textContent='전부 명중!';setMessage('살아남은 뿔 유령들이 겁먹었어요!');
       after(config.transition.impact*1000,()=>{
         effects.replaceChildren();phase='tremble';paint();shotSound('shiver');
@@ -319,11 +296,11 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
         action.textContent='덜덜덜… 다음 유령이 온다!';
         after(config.transition.tremble*1000,()=>{cycle++;beginCycle();});
       });
-    } else { curse();summonHaunt(); }
+    } else { curse(); }
   }
-  function endRun(reason,i=null,hitPoint=null) {
+  function endRun(reason,i=null) {
     if(phase!=='hunt') return;
-    stopTimer();clearHaunts();
+    stopTimer();
     effects.replaceChildren();room.dataset.failure=reason;
     phase=reason==='empty'?'laugh':reason==='decoy'?'scare-reveal':'over';
     spooked=reason==='decoy'?i:null;
@@ -336,22 +313,20 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
       setMessage('으하하핫! 유령들이 비웃어요!');action.textContent='유령들이 비웃는 중…';
       shotSound('laugh');after(1350,showResult);
     } else if(reason==='decoy') {
-      if(hitPoint) {
-        const mark=document.createElement('span');mark.className='cj-danger-mark';mark.innerHTML=ghost('decoy')+'<b>×</b>';mark.style.left=hitPoint.x+'px';mark.style.top=hitPoint.y+'px';find('fail-splash').append(mark);
-      }
       find('room-caption').textContent='킥킥킥! 나를 쐈네?';setMessage('킥킥킥! 뿔 유령이 다가와요!');action.textContent='앗! 뿔 유령이다!';
       shotSound('snicker');
-      after(350,()=>{
+      after(80,()=>{
         find('fail-splash').replaceChildren();
         phase='scare-pop';paint();
-        const bounds=room.getBoundingClientRect(),cell=i===null?null:buttons[i].getBoundingClientRect();
-        const x=hitPoint?hitPoint.x:cell.left-bounds.left+cell.width/2,y=hitPoint?hitPoint.y:cell.top-bounds.top+cell.height/2;
+        const cell=buttons[i].getBoundingClientRect();
+        const x=cell.left+cell.width/2,y=cell.top+cell.height/2;
         const actor=document.createElement('div');actor.className='cj-pop-actor';
         actor.style.left=x+'px';actor.style.top=y+'px';
-        actor.style.setProperty('--tx',(bounds.width/2-x)+'px');actor.style.setProperty('--ty',(bounds.height*.44-y)+'px');
+        actor.style.setProperty('--tx',(window.innerWidth/2-x)+'px');actor.style.setProperty('--ty',(window.innerHeight*.44-y)+'px');
+        actor.style.setProperty('--pop-scale',Math.min(window.innerWidth*.92,window.innerHeight*.78,520)/64);
         actor.innerHTML=ghost('decoy');find('fail-splash').append(actor);
         const caption=document.createElement('div');caption.className='cj-pop-caption';caption.innerHTML='<b>킥킥킥!</b><span>나를 쏘면 안 되지~</span>';find('fail-splash').append(caption);
-        shotSound('boo');after(1100,showResult);
+        shotSound('boo');after(900,showResult);
       });
     } else showResult();
     function showResult() {
@@ -372,7 +347,7 @@ import {difficultyAt,comboBonus} from './game-core.mjs';
   function readySettings() {
     if(phase==='ready') {
       find('clock').textContent=pendingConfig.difficulty.memoryStart.toFixed(2)+'초 기억';
-      find('feedback').textContent=(pendingConfig.haunt.enabled?'움직이는 뿔 유령도 피하세요! ':'')+pendingConfig.combo.window.toFixed(2)+'초 연속 명중.';
+      find('feedback').textContent='하얀 유령의 위치를 기억하고 '+pendingConfig.combo.window.toFixed(2)+'초 연속 명중.';
     }
     find('rules').textContent='콤보 +'+pendingConfig.combo.bonusStart.toFixed(2)+'~'+pendingConfig.combo.bonusMax.toFixed(2)+'초 · 한 번의 오발이면 끝!';
   }

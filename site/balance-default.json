@@ -18,18 +18,9 @@
     "bonusStep": 0.04,
     "bonusMax": 0.2
   },
-  "haunt": {
-    "enabled": 1,
-    "warning": 0.12,
-    "travelStart": 0.68,
-    "travelMin": 0.52,
-    "max": 2,
-    "extraAtCombo": 2,
-    "extraAtProgress": 0.5
-  },
   "transition": {
-    "firstPrepare": 0.25,
-    "prepare": 0.12,
+    "firstPrepare": 0.8,
+    "prepare": 0.65,
     "blackout": 0.04,
     "impact": 0.08,
     "tremble": 0.28

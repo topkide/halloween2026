@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {difficultyAt, comboBonus} from '../game-core.mjs';
+import {difficultyAt, comboBonus, hitSlot} from '../game-core.mjs';
 import {DEFAULT_CONFIG} from '../balance-config.mjs';
 
 const roundedSeconds = value => Math.round(value * 1000) / 1000;
@@ -76,4 +76,30 @@ test('custom combo bonuses are milliseconds, grow per hit, saturate, and can be 
   Object.assign(config.combo, {bonusStart: 0.0146, bonusStep: 0, bonusMax: 0.1});
   assert.equal(comboBonus(config, 2), 15);
   assert.equal(comboBonus(config, 1000), 15);
+});
+
+test('aim margin accepts near edges but preserves forbidden and already caught slots', () => {
+  const rects=[
+    {left:100,top:100,width:80,height:72},
+    {left:190,top:100,width:80,height:72},
+    {left:100,top:182,width:80,height:72}
+  ];
+  const board=['target','empty','empty'],caught=new Set();
+  for(const [x,y] of [[84,136],[196,136],[140,84],[140,188]]) {
+    assert.equal(hitSlot(rects,board,caught,x,y),0,'16px near miss should count as a hit');
+  }
+  assert.equal(hitSlot(rects,board,caught,83,136),null,'distant empty room must remain a miss');
+  assert.equal(hitSlot(rects,board,caught,197,136),1,'deep inside an empty slot must remain empty');
+  assert.equal(hitSlot(rects,['target','decoy','empty'],caught,192,136),1,'do not redirect a forbidden tap');
+  assert.equal(hitSlot(rects,['target','target','empty'],new Set([1]),192,136),1,'do not redirect a repeated tap');
+  assert.equal(hitSlot(rects,board,new Set([0]),196,136),1,'caught targets cannot attract another hit');
+  assert.equal(hitSlot(rects,board,caught,NaN,136),null);
+});
+
+test('overlapping aim margins choose the nearest live target center', () => {
+  const rects=[{left:0,top:0,width:80,height:80},{left:100,top:0,width:80,height:80}];
+  const board=['target','target'],caught=new Set();
+  assert.equal(hitSlot(rects,board,caught,89,40),0);
+  assert.equal(hitSlot(rects,board,caught,91,40),1);
+  assert.equal(hitSlot(rects,['decoy','empty'],caught,81,40),0,'gap nearest a forbidden slot still fails');
 });
