@@ -1,6 +1,6 @@
 import {DEFAULT_CONFIG,validateConfig,parseBalanceDB} from './balance-config.mjs?v=20261008-miss';
 import {createBalanceEditor} from './balance-editor.mjs?v=20261008-miss';
-import {difficultyAt,comboBonus,hitSlot,createBoard,coinsPerGhost} from './game-core.mjs?v=20261008-miss';
+import {difficultyAt,comboBonus,hitSlot,createBoard,coinsPerGhost,comboCoinMultiplier} from './game-core.mjs?v=20261008-combo-coins';
 import {COLLECTIONS} from './collections.mjs';
 
 (() => {
@@ -159,7 +159,7 @@ import {COLLECTIONS} from './collections.mjs';
     } else if(type==='decoy') { tone(210,65,.02,.26,.45); tone(160,55,.07,.18,.28); }
     else tone(95,48,.02,.08,.3,'triangle');
   }
-  function fire(i,event,type,bonus=0) {
+  function fire(i,event,type,bonus=0,coinReward=0) {
     const bounds=room.getBoundingClientRect(), cell=i===null?bounds:buttons[i].getBoundingClientRect();
     const pointer=event&&event.detail>0&&Number.isFinite(event.clientX)&&Number.isFinite(event.clientY);
     const x=pointer?event.clientX-bounds.left:cell.left-bounds.left+cell.width/2;
@@ -181,7 +181,7 @@ import {COLLECTIONS} from './collections.mjs';
         const angle=n*Math.PI*2/7;
         markup+='<i class="cj-smoke" style="--dx:'+Math.round(Math.cos(angle)*94)+'px;--dy:'+Math.round(Math.sin(angle)*80-18)+'px"></i>';
       }
-      markup+='<span class="cj-hit-text">'+(type==='collection'?'컬렉션 획득!':combo>1?'<b class="cj-combo-number">'+combo+'</b> COMBO!':'PERFECT!')+(bonus?'<small>+'+(bonus/1000).toFixed(2)+'초</small>':'')+'<small class="cj-hit-coins">+'+coinsPerGhost(highestCycle)+' 코인</small></span>';
+      markup+='<span class="cj-hit-text">'+(type==='collection'?'컬렉션 획득!':combo>1?'<b class="cj-combo-number">'+combo+'</b> COMBO!':'PERFECT!')+(bonus?'<small>+'+(bonus/1000).toFixed(2)+'초</small>':'')+'<small class="cj-hit-coins">+'+coinReward+' 코인'+(comboCoinMultiplier(combo)>1?' · ×'+comboCoinMultiplier(combo):'')+'</small></span>';
     } else {
       markup+='<span class="cj-hit-text">'+(type==='decoy'?'앗!':'MISS<small>−'+config.difficulty.missPenalty.toFixed(2)+'초</small><em>으하하!</em>')+'</span>';
     }
@@ -225,7 +225,7 @@ import {COLLECTIONS} from './collections.mjs';
     find('score').textContent='명중 '+score;
     find('best').textContent='최고 '+Math.max(best,score);
     find('collection-count').textContent='수집 '+runItems.length+' / 2';
-    find('coin-rate').textContent='마리당 '+coinsPerGhost(highestCycle)+' 코인';
+    find('coin-rate').textContent='기본 '+coinsPerGhost(highestCycle)+' 코인';
     find('run-coins').textContent=runCoins.toLocaleString('ko-KR');
     const revealed=['ready','memory','scare-reveal','scare-pop','continue','over'].includes(phase);
     buttons.forEach((button,i)=>{
@@ -265,6 +265,9 @@ import {COLLECTIONS} from './collections.mjs';
     display.hidden=combo<2||phase!=='hunt';display.textContent=combo+' COMBO';
     display.dataset.tier=String(Math.min(3,Math.floor(combo/3)));
     display.style.setProperty('--combo-scale',String(1+Math.min(8,Math.max(0,combo-2))*.05));
+    const multiplier=phase==='hunt'?comboCoinMultiplier(combo):1;
+    find('coin-multiplier').textContent='코인 ×'+multiplier;
+    find('coin-multiplier').dataset.tier=String(multiplier-1);
   }
   function armExpiry(onEnd) {
     clearTimeout(phaseTimer);
@@ -371,9 +374,10 @@ import {COLLECTIONS} from './collections.mjs';
     const now=performance.now();
     if(now>=deadline) { endRun('timeout'); return; }
     const type=i===null||tried.has(i)?'empty':board[i];
-    let bonus=0;
+    let bonus=0,coinReward=0;
     if(type==='target'||type==='collection') {
       combo=now-lastHit<=config.combo.window*1000?combo+1:1;lastHit=now;
+      coinReward=coinsPerGhost(highestCycle)*comboCoinMultiplier(combo);
       if(combo>=2) {
         bonus=comboBonus(config,combo);
         deadline+=bonus;armExpiry(()=>endRun('timeout'));
@@ -381,12 +385,12 @@ import {COLLECTIONS} from './collections.mjs';
       action.dataset.combo='active';action.style.setProperty('--chain','100%');
       clockValue((deadline-now)/1000);
     } else { combo=0;lastHit=-Infinity;action.dataset.combo='';action.style.setProperty('--chain','0%'); }
-    fire(i,event,type,bonus);
+    fire(i,event,type,bonus,coinReward);
     if(i!==null) tried.add(i);
     if(type==='target'||type==='collection') {
       caught.add(i);
       score++;
-      runCoins+=coinsPerGhost(highestCycle);
+      runCoins+=coinReward;
       if(type==='collection'&&roundItem&&runItems.length<2) {
         runItems.push(roundItem);profile.collection.push(roundItem);saveProgress();
       }
@@ -482,7 +486,7 @@ import {COLLECTIONS} from './collections.mjs';
   function showFinalResult() {
     abortAd();continueDialog.close();phase='over';paint();settleRun();renderResult();
     action.disabled=false;action.textContent='다시 도전 →';
-    document.getElementById('result-status').textContent='모은 코인을 받았어요! 이번 판 최고 단가: 마리당 '+coinsPerGhost(highestCycle)+' 코인';
+    document.getElementById('result-status').textContent='콤보 보너스까지 모두 받았어요! 이번 판 최고 기본 단가: '+coinsPerGhost(highestCycle)+' 코인';
     if(!resultDialog.open) resultDialog.showModal();
   }
   function abortAd() { clearTimeout(adTimer);adTimer=null;adRunning=false; }

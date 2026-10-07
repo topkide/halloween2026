@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {difficultyAt, createBoard, comboBonus, coinsPerGhost, hitSlot} from '../game-core.mjs';
+import {difficultyAt, createBoard, comboBonus, coinsPerGhost, comboCoinMultiplier, hitSlot} from '../game-core.mjs';
 import {DEFAULT_CONFIG} from '../balance-config.mjs';
 
 const roundedSeconds = value => Math.round(value * 1000) / 1000;
@@ -136,6 +136,10 @@ test('coin reward per ghost rises by one every five waves without a late-game ca
   for(const [cycle,coins] of [[-1,1],[0,1],[4,1],[5,2],[9,2],[10,3],[14,3],[15,4],[100,21]]) {
     assert.equal(coinsPerGhost(cycle),coins,`wave ${cycle+1}`);
   }
+});
+
+test('coin multipliers start on the third, sixth and ninth hits and cap at four',()=>{
+  assert.deepEqual([0,1,2,3,5,6,8,9,10,100].map(comboCoinMultiplier),[1,1,1,2,2,3,3,4,4,4]);
 });
 
 test('aim margin accepts near edges but preserves forbidden and already caught slots', () => {

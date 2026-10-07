@@ -493,6 +493,10 @@ body:has(#cj-ghost-room[data-storage-failed="true"]) .storage-warning { display:
 
 /* Combo emphasis stays within the timer bar and the tap's visual effect. */
 #cj-ghost-room #cj-coin-rate { grid-column:1;grid-row:1;align-self:center;justify-self:start;z-index:1;margin-left:4px;padding:1px 3px;background:#412d27e8;color:#ffe7b0;font:700 9px/16px monospace;white-space:nowrap;pointer-events:none; }
+#cj-ghost-room #cj-coin-multiplier { grid-column:1;grid-row:3;justify-self:start;align-self:center;padding:3px 9px;border:1px solid #70637e;border-radius:2px;background:#251e33;color:#bfb1d0;font:800 13px/18px monospace;white-space:nowrap;pointer-events:none; }
+#cj-ghost-room #cj-coin-multiplier[data-tier="1"] { border-color:#e9bd79;background:#503720;color:#ffe9b0; }
+#cj-ghost-room #cj-coin-multiplier[data-tier="2"] { border-color:#ffa970;background:#67372e;color:#ffd89c;box-shadow:0 0 8px #ffad7040; }
+#cj-ghost-room #cj-coin-multiplier[data-tier="3"] { border-color:#ff9bb9;background:#6b294b;color:#ffd9e6;box-shadow:0 0 10px #ff89ad60; }
 #cj-ghost-room .cj-hit-text .cj-hit-coins { color:#ffdf84;font-size:12px;text-shadow:2px 2px #594131; }
 #cj-ghost-room #cj-combo-display { grid-column:1;grid-row:1;align-self:center;justify-self:center;z-index:1;max-width:calc(100% - 12px);padding:1px 7px;background:#261a2bea;border:1px solid #e9bd79;color:#ffe9b0;font:900 calc(10px * var(--combo-scale,1))/16px monospace;letter-spacing:.3px;white-space:nowrap;pointer-events:none;transition:font-size .09s ease-out,color .09s; }
 #cj-ghost-room #cj-combo-display[data-tier="1"] { border-color:#ffe196;color:#fff2bd; }

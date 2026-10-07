@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 // Pin a representative balance for timing regressions, independent of live tuning.
 (async()=>{
 const {validateConfig,parseBalanceDB,DEFAULT_CONFIG:LIVE_DEFAULTS}=await import('../balance-config.mjs');
-const {difficultyAt,createBoard,comboBonus,coinsPerGhost,hitSlot}=await import('../game-core.mjs');
+const {difficultyAt,createBoard,comboBonus,coinsPerGhost,comboCoinMultiplier,hitSlot}=await import('../game-core.mjs');
 const {COLLECTIONS}=await import('../collections.mjs');
 const DEFAULT_CONFIG=validateConfig({"version": 1, "game": "memory-room", "difficulty": {"rampRounds": 12, "memoryStart": 0.5, "memoryMin": 0.32, "huntStart": 1.6, "huntMin": 0.7, "missPenalty": 0.4, "targetsStart": 4, "targetsMax": 6, "decoysStart": 3, "decoysMax": 5}, "combo": {"window": 0.45, "bonusStart": 0.12, "bonusStep": 0.04, "bonusMax": 0.2}, "transition": {"firstPrepare": 0.25, "prepare": 0.12, "blackout": 0.04, "impact": 0.08, "tremble": 0.28}, "effects": {"fogEnabled": 1, "fogDuration": 0.48, "heartbeatBelow": 0.7, "heartbeatInterval": 0.22}});
 const script=fs.readFileSync(require('node:path').join(__dirname,'../app.mjs'),'utf8').replace(/^import .*;$/gm,'');
@@ -62,7 +62,7 @@ function game(options={}) {
   if(options.progress!==undefined)storage.set(PROGRESS_KEY,JSON.stringify(options.progress));
   const controlledMath=Object.create(Math);controlledMath.random=options.random||(()=>.5);
   vm.runInNewContext(script, {
-    DEFAULT_CONFIG:options.defaults||DEFAULT_CONFIG,validateConfig,parseBalanceDB,difficultyAt,createBoard,comboBonus,coinsPerGhost,hitSlot,COLLECTIONS,structuredClone,Math:controlledMath,
+    DEFAULT_CONFIG:options.defaults||DEFAULT_CONFIG,validateConfig,parseBalanceDB,difficultyAt,createBoard,comboBonus,coinsPerGhost,comboCoinMultiplier,hitSlot,COLLECTIONS,structuredClone,Math:controlledMath,
     createBalanceEditor(callbacks){editor=callbacks;return {open(){if(callbacks.onOpen()===false)return;get('balance-dialog').open=true;}};},
     localStorage:{getItem:key=>options.corruptStorage?'broken json':storage.get(key)??null,
       setItem(key,value){if(options.blockStorage)throw Error('Storage denied');storage.set(key,value);if(key==='catjump-memory-room-state-v1')saved.push(JSON.parse(value));if(key===PROGRESS_KEY)progressSaved.push(JSON.parse(value));},
@@ -175,23 +175,27 @@ continuing.get('rules-close').click();assert.equal(continuing.get('result-dialog
 continuing.get('result-back').click();assert.equal(continuing.phase(),'ready');assert.equal(progress(continuing).wallet,2);
 
 const {g:larger,b:largerBoard}=sampleCycle(12);assert.equal(largerBoard.grid,5);
-assert.equal(larger.get('coin-rate').textContent,'마리당 3 코인');
-larger.click(largerBoard.target[0]);larger.advance(largerBoard.hunt);
+assert.equal(larger.get('coin-rate').textContent,'기본 3 코인');
+largerBoard.target.slice(0,3).forEach(i=>larger.click(i));
+assert.equal(larger.get('coin-multiplier').textContent,'코인 ×2');assert.match(impactText(larger),/\+6 코인/);
+larger.click(largerBoard.decoy[0]);larger.advance(980);
 assert.equal(wallet(larger),0);
 const smaller=continueAd(larger,12);assert.equal(smaller.grid,4);
-assert.equal(larger.get('coin-rate').textContent,'마리당 3 코인');
+assert.equal(larger.get('coin-rate').textContent,'기본 3 코인');
+assert.equal(larger.get('coin-multiplier').textContent,'코인 ×1');
 larger.click(smaller.target[0]);assert.match(impactText(larger),/\+3 코인/);
 larger.advance(smaller.hunt);assert.equal(larger.phase(),'over');assert.equal(larger.get('result-dialog').open,true);
-assert.equal(larger.saved.at(-1).result.caught,65);assert.equal(larger.saved.at(-1).result.reward,122);
-assert.equal(larger.get('result-caught').textContent,'65마리');assert.equal(larger.get('result-reward').textContent,'+122');
-assert.equal(wallet(larger),122);assert.equal(larger.progressSaved.length,1);
-larger.get('result-double').click();larger.advance(2999.9);assert.equal(wallet(larger),122);
-larger.advance(.1);assert.equal(wallet(larger),244);assert.equal(larger.saved.at(-1).result.reward,244);
-assert.equal(larger.saved.at(-1).result.caught,65);
-larger.get('result-double').click();larger.advance(5000);assert.equal(wallet(larger),244);assert.equal(larger.progressSaved.length,2);
-const resetCoins=startRun(larger).b;assert.equal(larger.get('coin-rate').textContent,'마리당 1 코인');
+assert.equal(larger.saved.at(-1).result.caught,67);assert.equal(larger.saved.at(-1).result.reward,219);
+assert.equal(larger.get('result-caught').textContent,'67마리');assert.equal(larger.get('result-reward').textContent,'+219');
+assert.equal(wallet(larger),219);assert.equal(larger.progressSaved.length,1);
+larger.get('result-double').click();larger.advance(2999.9);assert.equal(wallet(larger),219);
+larger.advance(.1);assert.equal(wallet(larger),438);assert.equal(larger.saved.at(-1).result.reward,438);
+assert.equal(larger.saved.at(-1).result.caught,67);
+larger.get('result-double').click();larger.advance(5000);assert.equal(wallet(larger),438);assert.equal(larger.progressSaved.length,2);
+const resetCoins=startRun(larger).b;assert.equal(larger.get('coin-rate').textContent,'기본 1 코인');
+assert.equal(larger.get('coin-multiplier').textContent,'코인 ×1');
 larger.click(resetCoins.target[0]);assert.match(impactText(larger),/\+1 코인/);
-pauseAndWait(larger);larger.get('pause-quit').click();assert.equal(wallet(larger),245);
+pauseAndWait(larger);larger.get('pause-quit').click();assert.equal(wallet(larger),439);
 assert.equal(larger.saved.at(-1).result.caught,1);assert.equal(larger.saved.at(-1).result.reward,1);
 
 const {g:cancelAd,b:cancelBoard}=startRun();cancelAd.click(cancelBoard.target[0]);cancelAd.click(cancelBoard.decoy[0]);cancelAd.advance(980);
@@ -225,21 +229,23 @@ rare.click(secondRare.decoy[0]);rare.advance(980);const afterRareContinue=contin
 assert.equal(afterRareContinue.collection.length,0);assert.equal(rare.get('collection-count').textContent,'수집 2 / 2');
 afterRareContinue.target.forEach(i=>rare.click(i));resolveImpact(rare);
 const afterRareCap=enterCycle(rare,1,true);assert.equal(afterRareCap.collection.length,0);rare.click(afterRareCap.decoy[0]);rare.advance(980);
-assert.equal(rare.phase(),'over');assert.equal(progress(rare).wallet,10);assert.equal(rare.saved.at(-1).result.collections.length,2);
+assert.equal(rare.phase(),'over');assert.equal(progress(rare).wallet,15);assert.equal(rare.saved.at(-1).result.collections.length,2);
 rare.get('result-back').click();const newRareBoard=startRun(rare).b;assert.equal(newRareBoard.collection.length,1);
 rare.click(newRareBoard.collection[0]);assert.deepEqual(progress(rare).collection,COLLECTIONS.slice(0,3).map(item=>item.id));
 rare.click(newRareBoard.decoy[0]);rare.advance(980);assert.equal(rare.phase(),'continue');decline(rare);
-assert.equal(wallet(rare),11);assert.equal(tickets(rare),1);
+assert.equal(wallet(rare),16);assert.equal(tickets(rare),1);
 
 const {g:ignoredRare,b:irb}=startRun(game({random:()=>0}));assert.equal(irb.collection.length,1);
 irb.target.forEach(i=>ignoredRare.click(i));assert.equal(ignoredRare.phase(),'impact');assert.equal(wallet(ignoredRare),0);
 assert.equal(ignoredRare.progressSaved.length,0);resolveImpact(ignoredRare);
 assert.equal(enterCycle(ignoredRare,1).collection.length,1);
 const {g:valuableRare,b:vrb}=sampleCycle(5,{random:()=>0});assert.equal(vrb.collection.length,1);
-valuableRare.click(vrb.collection[0]);assert.match(impactText(valuableRare),/\+2 코인/);
+vrb.target.slice(0,2).forEach(i=>valuableRare.click(i));
+valuableRare.click(vrb.collection[0]);assert.match(impactText(valuableRare),/\+4 코인/);
+assert.equal(valuableRare.get('coin-multiplier').textContent,'코인 ×2');
 assert.equal(wallet(valuableRare),0);valuableRare.click(vrb.decoy[0]);valuableRare.advance(980);decline(valuableRare);
-assert.equal(valuableRare.saved.at(-1).result.caught,23);assert.equal(valuableRare.saved.at(-1).result.reward,24);
-assert.equal(wallet(valuableRare),24);
+assert.equal(valuableRare.saved.at(-1).result.caught,25);assert.equal(valuableRare.saved.at(-1).result.reward,42);
+assert.equal(wallet(valuableRare),42);
 for(const [random,count] of [[.049,1],[.05,0]])assert.equal(startRun(game({random:()=>random})).b.collection.length,count);
 const {b:alreadyOwned}=startRun(game({random:()=>0,progress:{wallet:0,collection:COLLECTIONS.map(item=>item.id),characterClaimed:true}}));
 assert.equal(alreadyOwned.collection.length,0);
@@ -256,8 +262,11 @@ fullCollection.get('lobby-collection').click();fullCollection.get('collection-cl
 assert.equal(progress(fullCollection).characterClaimed,true);assert.equal(wallet(fullCollection),7);assert.equal(fullCollection.progressSaved.length,1);
 
 for(const gap of [220,230]){
-  const {g:quick,b}=startRun(game({defaults:LIVE_DEFAULTS}));quick.click(b.target[0]);quick.advance(gap);quick.click(b.target[1]);
-  assert.match(impactText(quick),gap===220?/2 COMBO!/:/PERFECT!/);
+  const {g:quick,b}=startRun(game({defaults:LIVE_DEFAULTS}));quick.click(b.target[0]);quick.click(b.target[1]);quick.advance(gap);quick.click(b.target[2]);
+  assert.match(impactText(quick),gap===220?/3 COMBO!/:/PERFECT!/);
+  assert.equal(quick.get('coin-multiplier').textContent,'코인 ×1');
+  assert.match(impactText(quick),gap===220?/\+2 코인/:/\+1 코인/);
+  pauseAndWait(quick);quick.get('pause-quit').click();assert.equal(wallet(quick),gap===220?4:3);
 }
 
 for(const [lobby,want] of [
@@ -426,12 +435,12 @@ decline(dueHunt);assert.equal(dueHunt.saved.length,1);assert.equal(dueHunt.saved
 const g=game();g.start();let total=0,earnedCoins=0;
 for(let cycle=0;cycle<30;cycle++){
   const b=enterCycle(g,cycle),rate=1+Math.floor(cycle/5);
-  assert.equal(g.get('coin-rate').textContent,'마리당 '+rate+' 코인');
-  b.target.forEach((i,n)=>{g.click(i);total++;earnedCoins+=rate;assert.equal(g.get('score').textContent,'명중 '+total);assert.match(impactText(g),n===0?/PERFECT!/:new RegExp((n+1)+' COMBO!'));assert.ok(impactText(g).includes('+'+rate+' 코인'));});
+  assert.equal(g.get('coin-rate').textContent,'기본 '+rate+' 코인');assert.equal(g.get('coin-multiplier').textContent,'코인 ×1');
+  b.target.forEach((i,n)=>{const multiplier=[1,1,2,2,2,3][n];g.click(i);total++;earnedCoins+=rate*multiplier;assert.equal(g.get('score').textContent,'명중 '+total);assert.match(impactText(g),n===0?/PERFECT!/:new RegExp((n+1)+' COMBO!'));assert.ok(impactText(g).includes('+'+rate*multiplier+' 코인'));assert.equal(g.get('coin-multiplier').textContent,'코인 ×'+(g.phase()==='hunt'?multiplier:1));});
   assert.equal(g.saved.length,0);resolveImpact(g,b.decoy.length);
 }
 assert.equal(total,171);assert.equal(g.get('best').textContent,'최고 '+total);
-assert.equal(earnedCoins,620);assert.equal(wallet(g),0);
+assert.equal(earnedCoins,1128);assert.equal(wallet(g),0);
 assert.equal(tickets(g),2);
 const finalBoard=enterCycle(g,30);g.click(finalBoard.decoy[0]);assert.equal(g.phase(),'scare-reveal');assertLocked(g);
 assert.equal(g.saved.length,0);g.advance(980);decline(g);assert.equal(g.timers.size,0);
@@ -453,30 +462,36 @@ miss.advance(1000);assert.equal(miss.phase(),'continue');assert.equal(miss.saved
 decline(miss);assert.equal(miss.saved.length,1);assert.equal(miss.saved[0].result.reason,'시간 초과');
 
 // The miss clears the chain; a new pair restores time and replaces the shortened timeout.
-const recoveryConfig=structuredClone(DEFAULT_CONFIG);recoveryConfig.difficulty.targetsStart=5;recoveryConfig.difficulty.decoysStart=2;
+const recoveryConfig=structuredClone(DEFAULT_CONFIG);recoveryConfig.difficulty.targetsStart=6;recoveryConfig.difficulty.decoysStart=2;
 const {g:recovery,b:recoveryBoard}=startRun(game({defaults:recoveryConfig}));
 recovery.click(recoveryBoard.target[0]);recovery.advance(100);recovery.click(recoveryBoard.target[1]);
-assert.equal(recovery.get('clock').textContent,'1.62초');recovery.click(recoveryBoard.empty[0]);
-assert.equal(recovery.get('clock').textContent,'1.22초');assert.equal(recovery.get('action').dataset.combo,'');
+recovery.click(recoveryBoard.target[2]);assert.equal(recovery.get('coin-multiplier').textContent,'코인 ×2');
+assert.equal(recovery.get('clock').textContent,'1.78초');recovery.click(recoveryBoard.empty[0]);
+assert.equal(recovery.get('clock').textContent,'1.38초');assert.equal(recovery.get('action').dataset.combo,'');
+assert.equal(recovery.get('coin-multiplier').textContent,'코인 ×1');
 assert.equal(recovery.get('action').style['--chain'],'0%');
-recovery.click(recoveryBoard.target[2]);assert.match(impactText(recovery),/PERFECT!/);
-assert.doesNotMatch(impactText(recovery),/\+[\d.]+초/);assert.equal(recovery.get('clock').textContent,'1.22초');
-recovery.advance(100);recovery.click(recoveryBoard.target[3]);
-assert.match(impactText(recovery),/2 COMBO!.*\+0\.12초/);assert.equal(recovery.get('clock').textContent,'1.24초');
-recovery.advance(1120);assert.equal(recovery.phase(),'hunt');
-recovery.advance(119.9);assert.equal(recovery.phase(),'hunt');recovery.click(recoveryBoard.target[4]);
-assert.equal(recovery.phase(),'impact');assert.equal(recovery.get('score').textContent,'명중 5');
+recovery.click(recoveryBoard.target[3]);assert.match(impactText(recovery),/PERFECT!.*\+1 코인/);
+assert.doesNotMatch(impactText(recovery),/\+[\d.]+초/);assert.equal(recovery.get('clock').textContent,'1.38초');
+recovery.advance(100);recovery.click(recoveryBoard.target[4]);
+assert.match(impactText(recovery),/2 COMBO!.*\+0\.12초/);assert.equal(recovery.get('clock').textContent,'1.40초');
+recovery.advance(1280);assert.equal(recovery.phase(),'hunt');
+recovery.advance(119.9);assert.equal(recovery.phase(),'hunt');recovery.click(recoveryBoard.target[5]);
+assert.equal(recovery.phase(),'impact');assert.equal(recovery.get('score').textContent,'명중 6');
+pauseAndWait(recovery);recovery.get('pause-quit').click();assert.equal(wallet(recovery),7);
 
 // Repeated captured/empty slots and genuine outside taps all charge time, without a cooldown.
-const {g:repeat,b:rb}=startRun();repeat.click(rb.target[0]);repeat.click(rb.target[0]);
-assert.equal(repeat.phase(),'hunt');assert.equal(repeat.get('clock').textContent,'1.20초');
-assert.equal(repeat.get('score').textContent,'명중 1');assert.ok(repeat.slots()[rb.target[0]].className.includes('is-caught'));
-repeat.click(rb.empty[0]);assert.equal(repeat.get('clock').textContent,'0.80초');
-repeat.click(rb.empty[0]);assert.equal(repeat.get('clock').textContent,'0.40초');assertHidden(repeat);
+const {g:repeat,b:rb}=startRun();rb.target.slice(0,3).forEach(i=>repeat.click(i));
+assert.equal(repeat.get('coin-multiplier').textContent,'코인 ×2');repeat.click(rb.target[0]);
+assert.equal(repeat.phase(),'hunt');assert.equal(repeat.get('clock').textContent,'1.48초');
+assert.equal(repeat.get('coin-multiplier').textContent,'코인 ×1');
+assert.equal(repeat.get('score').textContent,'명중 3');assert.ok(repeat.slots()[rb.target[0]].className.includes('is-caught'));
+repeat.click(rb.empty[0]);assert.equal(repeat.get('clock').textContent,'1.08초');
+repeat.click(rb.empty[0]);assert.equal(repeat.get('clock').textContent,'0.68초');assertHidden(repeat);
 repeat.get('room').click({detail:1,clientX:-100,clientY:-100});
+assert.equal(repeat.phase(),'hunt');assert.equal(repeat.get('clock').textContent,'0.28초');repeat.advance(280);
 assert.equal(repeat.phase(),'continue');assert.equal(repeat.timers.size,0);assert.equal(repeat.saved.length,0);
-decline(repeat);assert.equal(repeat.saved[0].result.caught,1);assert.equal(repeat.saved[0].result.reason,'시간 초과');
-assert.equal(repeat.saved[0].result.reward,1);assert.equal(wallet(repeat),1);
+decline(repeat);assert.equal(repeat.saved[0].result.caught,3);assert.equal(repeat.saved[0].result.reason,'시간 초과');
+assert.equal(repeat.saved[0].result.reward,4);assert.equal(wallet(repeat),4);
 
 const {g:missPause,b:mpb}=startRun();missPause.click(mpb.empty[0]);missPause.advance(100);
 pauseAndWait(missPause);resume(missPause);
@@ -554,7 +569,11 @@ const delayedNext=enterCycle(delayed,1);assert.deepEqual([delayedNext.memory,del
 delayed.advance(1518);decline(delayed);delayed.start();
 assert.deepEqual([enterCycle(delayed).memory,parseFloat(delayed.get('clock').textContent)],[500,1.6]);
 for(const [cycle,memory,hunt,grid,targets] of [[0,1600,2800,3,3],[4,1400,2461,3,4],[5,1350,2376,4,4],[11,1050,1867,4,6],[12,1000,1783,5,7],[23,450,850,5,10]]){
-  const {b}=sampleCycle(cycle,{defaults:LIVE_DEFAULTS});assert.deepEqual([b.memory,b.hunt,b.grid,b.target.length],[memory,hunt,grid,targets]);
+  const {g:live,b}=sampleCycle(cycle,{defaults:LIVE_DEFAULTS});assert.deepEqual([b.memory,b.hunt,b.grid,b.target.length],[memory,hunt,grid,targets]);
+  if(cycle===23){
+    b.target.forEach((i,n)=>{live.click(i);const multiplier=[1,1,2,2,2,3,3,3,4,4][n];assert.equal(live.get('coin-multiplier').textContent,'코인 ×'+(live.phase()==='hunt'?multiplier:1));assert.ok(impactText(live).includes('+'+5*multiplier+' 코인'));});
+    pauseAndWait(live);live.get('pause-quit').click();assert.equal(wallet(live),1150);assert.equal(live.saved.at(-1).result.caught,156);
+  }
 }
 const {g:rapid,b:rapidBoard}=sampleCycle(11),rapidStart=rapid.now();
 for(const [index,at] of [180,570,760,930,1110,1300].entries()){
@@ -672,6 +691,6 @@ const muted=game({audio:true}),mb=startRun(muted).b,ma=muted.audioLog;muted.get(
 muted.click(mb.target[0]);muted.advance(1000);assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
 const shiver=game({audio:true}),shb=startRun(shiver).b;shb.target.forEach(i=>shiver.click(i));const tonesBefore=shiver.audioLog.tones.length;
 shiver.advance(80);assert.equal(shiver.audioLog.tones.length,tonesBefore+7);assert.ok(shiver.audioLog.tones.slice(-7).every(t=>t.stoppedAt<=.28));
-console.log('PASS: rising coin rates, continue rate preservation, weighted settlement/doubling, collection coins and new-run reset; exact miss penalties, immediate recovery, combo reset/recovery and shortened deadline preservation; horn failure; 3-second continue/reward ads and cancellation; rare 5% optional collection, half-memory fade, per-run cap and persistence; 3x3 to 5x5 grids and further difficulty growth; 30 cycles/171 fixture score/620 coins; 220ms live combo boundary; lobby tickets/modals, pause/deadline preservation, failure effects, migration and sound regressions.');
+console.log('PASS: combo coin x1/x2/x3/x4 thresholds, rising base rates, continue rate preservation, weighted settlement/doubling, collection coins and new-run reset; exact miss penalties, immediate recovery, combo reset/recovery and shortened deadline preservation; horn failure; 3-second continue/reward ads and cancellation; rare 5% optional collection, half-memory fade, per-run cap and persistence; 3x3 to 5x5 grids and further difficulty growth; 30 cycles/171 fixture score/1128 coins; 220ms live combo boundary; lobby tickets/modals, pause/deadline preservation, failure effects, migration and sound regressions.');
 
 })().catch(error=>{console.error(error);process.exitCode=1;});

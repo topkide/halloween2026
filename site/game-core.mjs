@@ -45,6 +45,10 @@ export function coinsPerGhost(cycle) {
   return 1+Math.floor(Math.max(0,cycle)/5);
 }
 
+export function comboCoinMultiplier(combo) {
+  return Math.min(4,1+Math.floor(Math.max(0,combo)/3));
+}
+
 // A small aim margin helps rapid taps without overriding a forbidden/caught slot.
 export function hitSlot(rects, board, caught, x, y, padding=16) {
   if(!Number.isFinite(x)||!Number.isFinite(y)) return null;
