@@ -6,10 +6,11 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   const root = document.getElementById('cj-ghost-room');
   const find = id => root.querySelector('#cj-' + id);
   const room = find('room'), spots = find('spots'), action = find('action'), effects = find('effects');
-  const STATE_KEY='catjump-memory-room-state-v1', BALANCE_KEY='catjump-memory-room-balance-v1';
+  const STATE_KEY='catjump-memory-room-state-v1', BALANCE_KEY='catjump-memory-room-balance-v1', LOBBY_KEY='catjump-event-lobby-v1';
   const balanceButton=document.getElementById('balance-open'), balanceDialog=document.getElementById('balance-dialog');
   const rulesDialog=document.getElementById('rules-dialog');
   const pauseDialog=document.getElementById('pause-dialog');
+  const eventDialog=document.getElementById('event-dialog');
   const readStorage=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
   function writeStorage(key,value) {
     try { if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,JSON.stringify(value)); }
@@ -28,6 +29,9 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     }
   } catch { /* Ignore obsolete or invalid local settings. */ }
   let config=structuredClone(pendingConfig);
+  const savedLobby=readStorage(LOBBY_KEY);
+  let tickets=Number.isInteger(savedLobby?.tickets)&&savedLobby.tickets>=0&&savedLobby.tickets<=30?savedLobby.tickets:3;
+  let eventConfirm=null;
   const ghost = type => '<span class="cj-ghost '+type+'" aria-hidden="true"></span>';
   const buttons = Array.from({length:12},(_,i) => {
     const button = document.createElement('button');
@@ -61,6 +65,10 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     find('sound').textContent=soundOn?'♪ ON':'♪ OFF';
     find('sound').setAttribute('aria-label',soundOn?'사운드 켜짐':'사운드 꺼짐');
     find('sound').setAttribute('aria-pressed',String(soundOn));
+    const lobbySound=document.getElementById('lobby-sound');
+    lobbySound.textContent=soundOn?'♪ ON':'♪ OFF';
+    lobbySound.setAttribute('aria-label',soundOn?'사운드 켜짐':'사운드 꺼짐');
+    lobbySound.setAttribute('aria-pressed',String(soundOn));
     if(audioMaster) audioMaster.gain.value=soundOn ? 0.28 : 0;
   }
   function enableAudio() {
@@ -172,7 +180,9 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     veil.style.setProperty('--fog',config.effects.fogDuration+'s');
     effects.append(veil);veil.addEventListener('animationend',event=>{if(event.target===veil)veil.remove();});
   }
-  find('sound').addEventListener('click',()=>{soundOn=!soundOn;updateSoundButton();if(soundOn)enableAudio();saveState();});
+  function toggleSound() { soundOn=!soundOn;updateSoundButton();if(soundOn)enableAudio();saveState(); }
+  find('sound').addEventListener('click',toggleSound);
+  document.getElementById('lobby-sound').addEventListener('click',toggleSound);
   room.addEventListener('click',event=>choose(null,event));
   function stopTimer() { clearInterval(timer);clearTimeout(phaseTimer);timer=null;phaseTimer=null;phaseCallback=null; }
   function after(ms,callback) {
@@ -253,8 +263,8 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   }
   document.getElementById('pause-resume').addEventListener('click',resume);
   pauseDialog.addEventListener('cancel',event=>{event.preventDefault();resume();});
-  document.getElementById('pause-quit').addEventListener('click',()=>{
-    if(!paused) return;
+  function returnToLobby() {
+    if(!paused&&phase!=='over') return;
     stopTimer();clearEffects();paused=null;
     root.dataset.paused=room.dataset.paused='false';pauseDialog.close();
     best=Math.max(best,score);saveState();
@@ -265,7 +275,9 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     find('phase').textContent='찰나를 기억하고, 명중!';find('time-fill').style.width='100%';
     find('room-caption').textContent='12개의 자리 · 유령의 위치를 기억해요';
     action.disabled=false;action.textContent='도전하기 →';
-  });
+  }
+  document.getElementById('pause-quit').addEventListener('click',returnToLobby);
+  find('home').addEventListener('click',returnToLobby);
   function beginCycle() {
     stopTimer(); clearEffects(); caught=new Set(); tried=new Set(); combo=0;lastHit=-Infinity;lastPulse=-Infinity;
     spooked=null;find('fail-splash').replaceChildren();room.dataset.failure='';
@@ -382,14 +394,55 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
       setMessage(score+'마리 명중 · 최고 기록 '+best+'마리');
     }
   }
-  action.addEventListener('click',()=>{
-    if(!['ready','over'].includes(phase)||balanceDialog.open||rulesDialog.open) return;
-    rulesDialog.showModal();
+  function updateTickets() {
+    document.getElementById('lobby-tickets').textContent=tickets+' / 30';
+  }
+  function saveTickets() {
+    updateTickets();writeStorage(LOBBY_KEY,{tickets});
+  }
+  function openEvent(title,body,label='',confirm=null) {
+    if(!['ready','over'].includes(phase)||balanceDialog.open||rulesDialog.open||eventDialog.open) return;
+    document.getElementById('event-title').textContent=title;
+    document.getElementById('event-body').innerHTML=body;
+    const button=document.getElementById('event-confirm');
+    button.textContent=label;button.hidden=!label;eventConfirm=confirm;
+    eventDialog.showModal();
+  }
+  function offerTickets() {
+    if(tickets===30) {
+      openEvent('플레이 기회가 가득 찼어요','<p>최대 30회까지 보관할 수 있어요.<br>유령 소탕에 도전해 보세요!</p>');
+      return;
+    }
+    openEvent(tickets===0?'플레이 기회가 없어요':'플레이 기회 +3',
+      '<p>기회 3회를 받아 다시 도전해요.</p><p class="event-note">광고 없이 기회를 받는 체험 기능입니다.<br>일반게임의 300m 기록은 아직 연결되지 않았어요.</p>',
+      '기회 +3 받기',()=>{
+        const added=Math.min(3,30-tickets);tickets+=added;saveTickets();
+        document.getElementById('lobby-status').textContent='플레이 기회 '+added+'회 획득! 현재 '+tickets+'회';
+      });
+  }
+  document.getElementById('event-close').addEventListener('click',()=>eventDialog.close());
+  eventDialog.addEventListener('close',()=>{eventConfirm=null;});
+  document.getElementById('event-confirm').addEventListener('click',()=>{
+    if(!eventDialog.open) return;
+    const confirm=eventConfirm;eventDialog.close();if(confirm)confirm();
   });
+  document.getElementById('lobby-bonus').addEventListener('click',offerTickets);
+  document.getElementById('lobby-package').addEventListener('click',()=>openEvent('특별 패키지','<p>할로윈 특별 패키지를 준비하고 있어요.</p><p class="event-note">구성과 가격은 추후 정해집니다.</p>'));
+  document.getElementById('lobby-shop').addEventListener('click',()=>openEvent('상품 교환소','<p>모은 유령 구슬로 이벤트 상품을 교환해요.</p><p class="event-note">현재 보유량은 화면 체험용 예시이며,<br>교환 상품은 준비 중이에요.</p>'));
+  document.getElementById('lobby-collection').addEventListener('click',()=>openEvent('컬렉션','<div class="event-ghosts"><figure><img src="assets/target.png" width="64" height="72" alt="흰색 고양이 유령"><figcaption>흰색 유령<small>위치를 기억하고 잡아요</small></figcaption></figure><figure><img src="assets/decoy.png" width="64" height="72" alt="보라색 뿔 유령"><figcaption>뿔 유령<small>맞히면 게임 종료!</small></figcaption></figure></div>'));
+  document.getElementById('lobby-close').addEventListener('click',()=>openEvent('캣점프 할로윈','<p>유령들이 다시 찾아오길 기다리고 있어요.</p>','이벤트 다시 열기'));
+  function openRules() {
+    if(!['ready','over'].includes(phase)||balanceDialog.open||rulesDialog.open||eventDialog.open) return;
+    if(tickets===0) { offerTickets();return; }
+    rulesDialog.showModal();
+  }
+  action.addEventListener('click',openRules);
+  document.getElementById('lobby-start').addEventListener('click',()=>{if(phase==='ready')openRules();});
   document.getElementById('rules-close').addEventListener('click',()=>rulesDialog.close());
   document.getElementById('rules-start').addEventListener('click',()=>{
-    if(!rulesDialog.open||!['ready','over'].includes(phase)||balanceDialog.open) return;
+    if(!rulesDialog.open||!['ready','over'].includes(phase)||balanceDialog.open||eventDialog.open||tickets<1) return;
     rulesDialog.close();
+    tickets--;saveTickets();
     config=structuredClone(pendingConfig);
     stopTimer();clearEffects();enableAudio();cycle=0;score=0;
     beginCycle();
@@ -403,7 +456,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   }
   const editor=createBalanceEditor({
     getConfig:()=>pendingConfig,
-    onOpen:()=>['ready','over'].includes(phase)&&!rulesDialog.open,
+    onOpen:()=>['ready','over'].includes(phase)&&!rulesDialog.open&&!eventDialog.open,
     onSave:value=>{
       pendingConfig=validateConfig(value);
       writeStorage(BALANCE_KEY,JSON.stringify(pendingConfig)===JSON.stringify(DEFAULT_CONFIG)?null:pendingConfig);
@@ -411,5 +464,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     }
   });
   balanceButton.addEventListener('click',()=>editor.open());
+  document.getElementById('lobby-settings').addEventListener('click',()=>editor.open());
+  updateTickets();document.getElementById('lobby-start').disabled=false;
   readySettings();paint();action.disabled=false;action.textContent='도전하기 →';
 })();

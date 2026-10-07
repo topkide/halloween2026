@@ -4,14 +4,54 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#100d1b">
-  <meta name="description" content="찰나에 유령의 위치를 기억하고 암전 속에서 사격하세요. 기억한 하얀 유령을 빠르게 맞히고 콤보로 살아남는 캣점프 할로윈 프로토타입.">
-  <title>유령이 숨은 밤 · 캣점프 할로윈</title>
+  <meta name="description" content="캣점프 할로윈 이벤트 유령 소탕 대작전! 유령의 위치를 기억하고 암전 속에서 빠르게 사격하세요.">
+  <title>유령 소탕 대작전! · 캣점프 할로윈</title>
   <link rel="icon" type="image/png" href="assets/target.png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261008-lobby">
 </head>
 <body>
 <main>
   <section id="cj-ghost-room" lang="ko" data-phase="ready" data-paused="false" aria-label="캣점프 할로윈 기억력 게임 프로토타입">
+    <div class="cj-lobby" aria-label="할로윈 이벤트 로비">
+      <header class="lobby-masthead">
+        <span class="lobby-kicker">CAT JUMP · HALLOWEEN EVENT</span>
+        <h1 class="lobby-title"><span>유령 소탕</span><strong>대작전!</strong></h1>
+        <button id="lobby-close" class="lobby-close" type="button" aria-label="이벤트 나가기">×</button>
+        <div class="lobby-dates">이벤트 기간 · 일정 미정</div>
+      </header>
+      <div class="lobby-scene">
+        <div class="lobby-scene-art" aria-hidden="true"></div>
+        <div class="lobby-scene-toolbar">
+          <button id="lobby-package" class="lobby-package" type="button"><span class="lobby-gift" aria-hidden="true"></span>특별 패키지</button>
+          <div class="lobby-wallet" aria-label="유령 재화"><img class="lobby-currency-icon" src="assets/target.png" width="28" height="32" alt=""><strong id="lobby-currency">12,345</strong></div>
+        </div>
+        <div class="lobby-spirits" aria-hidden="true">
+          <img class="lobby-ghost lobby-ghost-main" src="assets/target.png" width="128" height="144" alt="">
+          <img class="lobby-ghost lobby-ghost-right" src="assets/decoy.png" width="80" height="90" alt="">
+          <img class="lobby-ghost lobby-ghost-left" src="assets/target.png" width="64" height="72" alt="">
+          <img class="lobby-ghost lobby-ghost-small" src="assets/decoy.png" width="56" height="63" alt="">
+        </div>
+        <div class="lobby-scene-tools">
+          <button id="lobby-sound" type="button" aria-label="사운드 켜짐" aria-pressed="true">♪ ON</button>
+          <button id="lobby-settings" type="button" aria-label="밸런스 설정">설정</button>
+        </div>
+      </div>
+      <footer class="lobby-footer">
+        <div class="lobby-chances">
+          <div class="lobby-distance">
+            <p>일반게임에서 300m 오를 때마다<br>플레이 기회 +1 (최대 30회)</p>
+            <div class="lobby-progress-track"><i aria-hidden="true"></i><span id="lobby-progress">20 / 300m</span></div>
+          </div>
+          <button id="lobby-bonus" class="lobby-bonus" type="button"><span class="lobby-video" aria-hidden="true"></span><b>기회 +3</b><small>체험</small></button>
+        </div>
+        <div class="lobby-actions">
+          <button id="lobby-shop" type="button">상품교환소</button>
+          <button id="lobby-collection" type="button">컬렉션</button>
+          <button id="lobby-start" class="lobby-start" type="button" disabled><b>게임 시작</b><small>기회 <span id="lobby-tickets">3 / 30</span></small></button>
+        </div>
+        <p id="lobby-status" class="lobby-sr-only" role="status" aria-live="polite"></p>
+      </footer>
+    </div>
     <header class="cj-play-hud" aria-label="게임 진행">
       <div class="cj-time-track" aria-hidden="true"><div id="cj-time-fill"></div></div>
       <button id="cj-pause" class="cj-pause" type="button" aria-label="일시정지" disabled><span aria-hidden="true"></span></button>
@@ -34,6 +74,7 @@
         <div class="cj-hud"><span id="cj-score">명중 0</span><span id="cj-best">최고 0</span><button id="cj-sound" class="cj-sound cursor-interaction" type="button" aria-label="사운드 켜짐" aria-pressed="true">♪ ON</button></div>
         <div class="cj-feedback" id="cj-feedback" role="status" aria-live="polite">하얀 유령의 위치를 기억하고 0.45초 연속 명중.</div>
         <button class="cj-main-button cursor-interaction" id="cj-action" type="button" disabled>게임 불러오는 중…</button>
+        <button class="cj-home quiet-button" id="cj-home" type="button">이벤트 메인</button>
         <button id="balance-open" class="cj-settings" type="button" disabled>밸런스 설정 · DB 저장 / 불러오기</button>
         <p id="cj-storage-note" class="cj-storage-note" role="status"></p>
       </div>
@@ -42,6 +83,11 @@
   </section>
 </main>
 <noscript>게임을 하려면 브라우저의 JavaScript를 켜주세요.</noscript>
+<dialog id="event-dialog" aria-labelledby="event-title">
+  <header class="event-header"><h2 id="event-title">이벤트 안내</h2><button id="event-close" class="quiet-button" type="button" aria-label="이벤트 안내 닫기">×</button></header>
+  <div id="event-body"></div>
+  <button id="event-confirm" class="primary-button" type="button" hidden>확인</button>
+</dialog>
 <dialog id="rules-dialog" aria-labelledby="rules-title">
   <header class="rules-header">
     <button id="rules-close" class="quiet-button" type="button" aria-label="게임 설명 닫기">닫기</button>
@@ -76,6 +122,6 @@
     <footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">적용하고 닫기</button></footer>
   </form>
 </dialog>
-<script type="module" src="app.mjs"></script>
+<script type="module" src="app.mjs?v=20261008-lobby"></script>
 </body>
 </html>

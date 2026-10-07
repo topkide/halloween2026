@@ -8,6 +8,7 @@ const {validateConfig,parseBalanceDB,DEFAULT_CONFIG:LIVE_DEFAULTS}=await import(
 const {difficultyAt,comboBonus,hitSlot}=await import('../game-core.mjs');
 const DEFAULT_CONFIG=validateConfig({"version": 1, "game": "memory-room", "difficulty": {"rampRounds": 12, "memoryStart": 0.5, "memoryMin": 0.32, "huntStart": 1.6, "huntMin": 0.7, "targetsStart": 4, "targetsMax": 6, "decoysStart": 3, "decoysMax": 5}, "combo": {"window": 0.45, "bonusStart": 0.12, "bonusStep": 0.04, "bonusMax": 0.2}, "transition": {"firstPrepare": 0.25, "prepare": 0.12, "blackout": 0.04, "impact": 0.08, "tremble": 0.28}, "effects": {"fogEnabled": 1, "fogDuration": 0.48, "heartbeatBelow": 0.7, "heartbeatInterval": 0.22}});
 const script=fs.readFileSync(require('node:path').join(__dirname,'../app.mjs'),'utf8').replace(/^import .*;$/gm,'');
+const EVENT_KEY='catjump-event-lobby-v1';
 function game(options={}) {
   let now = 0, serial = 0;
   const timers = new Map(), nodes = new Map(), created = [], saved = [],storage=new Map();let editor;
@@ -46,6 +47,7 @@ function game(options={}) {
   const root = { dataset:{},querySelector:selector => get(selector.slice(4)) };
   if(options.saved!==undefined)storage.set('catjump-memory-room-state-v1',JSON.stringify(options.saved));
   if(options.config!==undefined)storage.set('catjump-memory-room-balance-v1',JSON.stringify(options.config));
+  if(options.lobby!==undefined)storage.set(EVENT_KEY,JSON.stringify(options.lobby));
   vm.runInNewContext(script, {
     DEFAULT_CONFIG:options.defaults||DEFAULT_CONFIG,validateConfig,parseBalanceDB,difficultyAt,comboBonus,hitSlot,structuredClone,
     createBalanceEditor(callbacks){editor=callbacks;return {open(){if(callbacks.onOpen()===false)return;get('balance-dialog').open=true;}};},
@@ -68,7 +70,7 @@ function game(options={}) {
     slots:() => get('spots').children,
     types(type) { return this.slots().flatMap((s, i) => (type === 'empty' ? !s.innerHTML : s.innerHTML.includes('cj-ghost ' + type)) ? [i] : []); },
     click(i,event) { return this.slots()[i].click(event); },
-    start() { get('action').click();if(get('rules-dialog').open)get('rules-start').click(); },
+    start() { get(this.phase()==='ready'?'lobby-start':'action').click();if(get('rules-dialog').open)get('rules-start').click(); },
     jump(time) { now = time; },
     advance(ms) {
       const until = now + ms;
@@ -119,9 +121,62 @@ function resolveImpact(g,decoys=3){
   g.advance(279.9);assert.equal(g.phase(),'tremble');g.advance(.1);assert.equal(g.phase(),'prepare');assert.equal(g.timers.size,1);
 }
 const newest=g=>g.get('effects').children.filter(e=>e.className?.startsWith('cj-impact ')).at(-1);
+const tickets=g=>parseInt(g.get('lobby-tickets').textContent,10);
+
+for(const [lobby,want] of [
+  [undefined,3],[null,3],[{},3],[[],3],[{tickets:0},0],[{tickets:8},8],[{tickets:30},30],
+  [{tickets:-1},3],[{tickets:31},3],[{tickets:1.5},3],[{tickets:'8'},3],[{tickets:Infinity},3]
+])assert.equal(tickets(game({lobby})),want);
+assert.equal(tickets(game({corruptStorage:true})),3);
+
+const emptyLobby=game({lobby:{tickets:0}});
+emptyLobby.get('lobby-start').click();assert.equal(emptyLobby.get('event-dialog').open,true);
+assert.equal(emptyLobby.get('rules-dialog').open,false);assert.match(emptyLobby.get('event-confirm').textContent,/\+3/);
+emptyLobby.get('rules-start').click();assert.equal(emptyLobby.phase(),'ready');assert.equal(emptyLobby.timers.size,0);
+emptyLobby.get('event-close').click();assert.equal(tickets(emptyLobby),0);
+emptyLobby.get('lobby-start').click();emptyLobby.get('event-confirm').click();
+assert.equal(tickets(emptyLobby),3);assert.deepEqual(JSON.parse(emptyLobby.storage.get(EVENT_KEY)),{tickets:3});
+assert.equal(emptyLobby.phase(),'ready');assert.equal(emptyLobby.get('rules-dialog').open,false);assert.equal(emptyLobby.timers.size,0);
+emptyLobby.get('event-confirm').click();assert.equal(tickets(emptyLobby),3);
+emptyLobby.start();assert.equal(tickets(emptyLobby),2);enterCycle(emptyLobby);
+emptyLobby.get('lobby-start').click();emptyLobby.get('lobby-bonus').click();emptyLobby.get('lobby-settings').click();
+assert.equal(emptyLobby.get('rules-dialog').open,false);assert.equal(emptyLobby.get('event-dialog').open,false);
+assert.equal(emptyLobby.get('balance-dialog').open,false);assert.equal(emptyLobby.phase(),'hunt');
+
+const {g:lastTicket}=startRun(game({lobby:{tickets:1}}));assert.equal(tickets(lastTicket),0);
+lastTicket.advance(1600);assert.equal(lastTicket.phase(),'over');lastTicket.get('action').click();
+assert.equal(lastTicket.get('rules-dialog').open,false);assert.equal(lastTicket.get('event-dialog').open,true);
+lastTicket.get('event-close').click();lastTicket.get('home').click();
+assert.equal(lastTicket.phase(),'ready');assert.equal(tickets(lastTicket),0);assert.equal(lastTicket.timers.size,0);
+lastTicket.advance(120000);assert.equal(lastTicket.phase(),'ready');assert.equal(tickets(lastTicket),0);
+
+const bonusLobby=game({lobby:{tickets:28}});
+bonusLobby.get('lobby-bonus').click();assert.equal(tickets(bonusLobby),28);
+bonusLobby.get('event-close').click();bonusLobby.get('event-confirm').click();assert.equal(tickets(bonusLobby),28);
+bonusLobby.get('lobby-bonus').click();bonusLobby.get('event-confirm').click();
+assert.equal(tickets(bonusLobby),30);assert.deepEqual(JSON.parse(bonusLobby.storage.get(EVENT_KEY)),{tickets:30});
+bonusLobby.get('lobby-bonus').click();assert.equal(bonusLobby.get('event-dialog').open,true);
+assert.equal(bonusLobby.get('event-confirm').hidden,true);bonusLobby.get('event-confirm').click();assert.equal(tickets(bonusLobby),30);
+assert.equal(tickets(game({lobby:JSON.parse(bonusLobby.storage.get(EVENT_KEY))})),30);
+
+const previewLobby=game();
+for(const id of ['lobby-package','lobby-shop','lobby-collection','lobby-close']){
+  const before=[...previewLobby.storage.entries()];
+  previewLobby.get(id).click();assert.equal(previewLobby.get('event-dialog').open,true);
+  previewLobby.get('lobby-start').click();previewLobby.get('rules-start').click();previewLobby.get('lobby-settings').click();
+  assert.equal(previewLobby.get('rules-dialog').open,false);assert.equal(previewLobby.get('balance-dialog').open,false);
+  previewLobby.advance(120000);assert.equal(previewLobby.phase(),'ready');assert.equal(previewLobby.timers.size,0);
+  previewLobby.get('event-close').click();assert.equal(tickets(previewLobby),3);assert.deepEqual([...previewLobby.storage.entries()],before);
+}
+previewLobby.get('lobby-settings').click();assert.equal(previewLobby.get('balance-dialog').open,true);
+previewLobby.get('lobby-bonus').click();previewLobby.get('lobby-start').click();
+assert.equal(previewLobby.get('event-dialog').open,false);assert.equal(previewLobby.get('rules-dialog').open,false);
+previewLobby.get('balance-dialog').close();previewLobby.get('lobby-start').click();previewLobby.get('lobby-bonus').click();
+assert.equal(previewLobby.get('rules-dialog').open,true);assert.equal(previewLobby.get('event-dialog').open,false);
 
 // Reading or dismissing the rules must never start the clock, audio, or a new run.
 const guide=game({audio:true,saved:{best:42}}),rulesDialog=guide.get('rules-dialog');
+assert.equal(tickets(guide),3);
 guide.get('rules-start').click();assert.equal(guide.phase(),'ready');
 guide.get('action').click();assert.equal(rulesDialog.open,true);assert.equal(guide.phase(),'ready');
 guide.get('action').click();guide.advance(120000);
@@ -130,16 +185,20 @@ assert.equal(guide.get('score').textContent,'명중 0');assert.equal(guide.get('
 assert.equal(guide.saved.length,0);assert.equal(guide.audioLog.contexts,0);
 guide.get('rules-close').click();assert.equal(rulesDialog.open,false);assert.equal(guide.phase(),'ready');
 guide.advance(120000);assert.equal(guide.timers.size,0);assert.equal(guide.audioLog.contexts,0);
+assert.equal(tickets(guide),3);assert.equal(guide.storage.has(EVENT_KEY),false);
 guide.get('action').click();guide.get('rules-start').click();
 assert.equal(rulesDialog.open,false);assert.equal(guide.phase(),'prepare');assert.equal(guide.timers.size,1);
+assert.equal(tickets(guide),2);assert.deepEqual(JSON.parse(guide.storage.get(EVENT_KEY)),{tickets:2});
 assert.equal(guide.audioLog.contexts,1);
 const guideBoard=enterCycle(guide);guide.click(guideBoard.target[0]);guide.click(guideBoard.empty[0]);guide.advance(1350);
 assert.equal(guide.phase(),'over');assert.equal(guide.saved.length,1);
 guide.get('action').click();assert.equal(rulesDialog.open,true);guide.advance(120000);
 assert.equal(guide.phase(),'over');assert.equal(guide.get('score').textContent,'명중 1');assert.equal(guide.timers.size,0);
 guide.get('rules-close').click();assert.equal(rulesDialog.open,false);assert.equal(guide.get('score').textContent,'명중 1');
+assert.equal(tickets(guide),2);
 guide.get('action').click();guide.get('rules-start').click();
 assert.equal(rulesDialog.open,false);assert.equal(guide.phase(),'prepare');assert.equal(guide.get('score').textContent,'명중 0');
+assert.equal(tickets(guide),1);
 assert.equal(guide.saved.length,1);enterCycle(guide);
 
 const exclusive=game();exclusive.get('action').click();exclusive.get('balance-open').click();
@@ -181,6 +240,7 @@ memoryPause.advance(40);assert.equal(memoryPause.phase(),'hunt');
 
 const {g:chainPause,b:cpb}=startRun();chainPause.click(cpb.target[0]);chainPause.advance(100);
 pauseAndWait(chainPause);resume(chainPause,true);chainPause.advance(350);chainPause.click(cpb.target[1]);
+assert.equal(tickets(chainPause),2);
 assert.match(newest(chainPause).innerHTML,/2 COMBO!.*\+0\.12초/);
 assert.equal(chainPause.get('clock').textContent,'1.27초');
 chainPause.advance(1269.9);assert.equal(chainPause.phase(),'hunt');chainPause.advance(.1);
@@ -203,7 +263,9 @@ quitPause.get('pause-quit').click();assert.equal(quitPause.get('pause-dialog').o
 assert.equal(quitPause.phase(),'ready');assert.equal(quitPause.timers.size,0);
 const quitSaves=quitPause.saved.length;
 quitPause.advance(120000);assert.equal(quitPause.phase(),'ready');assert.equal(quitPause.saved.length,quitSaves);
+assert.equal(tickets(quitPause),2);
 quitPause.start();enterCycle(quitPause);assert.equal(quitPause.get('score').textContent,'명중 0');
+assert.equal(tickets(quitPause),1);
 
 function assertPauseUnavailable(g){
   const phase=g.phase();assert.equal(g.get('pause').disabled,true);g.get('pause').click();
@@ -232,6 +294,7 @@ for(let cycle=0;cycle<30;cycle++){
   assert.equal(g.saved.length,0);resolveImpact(g,b.decoy.length);
 }
 assert.equal(total,177);assert.equal(g.get('best').textContent,'최고 177');
+assert.equal(tickets(g),2);
 const finalBoard=enterCycle(g,30);g.click(finalBoard.empty[0]);assert.equal(g.phase(),'laugh');assertLocked(g);
 assert.equal(g.saved.length,1);assert.equal(g.saved[0].best,177);
 assert.equal(g.saved[0].result.caught,177);assert.equal(g.slots().filter(s=>s.innerHTML.includes('cj-ha')).length,11);
@@ -418,6 +481,6 @@ const muted=game({audio:true}),mb=startRun(muted).b,ma=muted.audioLog;muted.get(
 muted.click(mb.target[0]);muted.advance(1000);assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
 const shiver=game({audio:true}),shb=startRun(shiver).b;shb.target.forEach(i=>shiver.click(i));const tonesBefore=shiver.audioLog.tones.length;
 shiver.advance(80);assert.equal(shiver.audioLog.tones.length,tonesBefore+7);assert.ok(shiver.audioLog.tones.slice(-7).every(t=>t.stoppedAt<=.28));
-console.log('PASS: pause/resume preserves memory, combo, deadlines and phase transitions; pause quit cleanup and failure lockout; rules confirmation/cancel/retry and exclusive settings; 30 cycles/177 score; stage-12 difficulty cap independent of elapsed time; slower opening and legacy balance migration; sub-ms phase/deadline boundaries; 450ms combo rearming and six-hit survival; static decoys without moving ghosts; failures, records, curse, snicker/pulse/shiver and mute.');
+console.log('PASS: lobby ticket validation, confirmation-only spending, zero-ticket gate, +3 cap and preview modal isolation; pause/resume preserves memory, combo, deadlines and phase transitions; pause quit cleanup and failure lockout; rules confirmation/cancel/retry and exclusive settings; 30 cycles/177 score; stage-12 difficulty cap independent of elapsed time; slower opening and legacy balance migration; sub-ms phase/deadline boundaries; 450ms combo rearming and six-hit survival; static decoys without moving ghosts; failures, records, curse, snicker/pulse/shiver and mute.');
 
 })().catch(error=>{console.error(error);process.exitCode=1;});
