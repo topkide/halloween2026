@@ -154,6 +154,77 @@ exclusive.get('balance-dialog').close();exclusive.start();enterCycle(exclusive);
 exclusive.get('action').click();exclusive.get('rules-start').click();
 assert.equal(exclusive.get('rules-dialog').open,false);assert.equal(exclusive.phase(),'hunt');
 
+function pauseAndWait(g){
+  const phase=g.phase(),score=g.get('score').textContent,saves=g.saved.length;
+  g.get('pause').click();assert.equal(g.get('pause-dialog').open,true);
+  assert.equal(g.get('room').dataset.paused,'true');assert.equal(g.root.dataset.paused,'true');
+  assert.equal(g.timers.size,0);g.advance(120000);
+  g.slots().forEach((_,i)=>g.click(i));g.get('room').click();g.start();
+  assert.equal(g.phase(),phase);assert.equal(g.get('score').textContent,score);assert.equal(g.saved.length,saves);
+  assert.equal(g.timers.size,0);assert.equal(g.get('pause-dialog').open,true);
+}
+function resume(g,cancel=false){
+  if(cancel){
+    const event={preventDefault(){this.defaultPrevented=true;}};
+    g.get('pause-dialog').emit('cancel',event);assert.equal(event.defaultPrevented,true);
+  }else g.get('pause-resume').click();
+  assert.equal(g.get('pause-dialog').open,false);
+  assert.equal(g.get('room').dataset.paused,'false');assert.equal(g.root.dataset.paused,'false');
+}
+
+const memoryPause=game();memoryPause.start();memoryPause.advance(250+120);
+assert.equal(memoryPause.phase(),'memory');const remembered=memoryPause.slots().map(slot=>slot.innerHTML);
+pauseAndWait(memoryPause);assert.deepEqual(memoryPause.slots().map(slot=>slot.innerHTML),remembered);
+resume(memoryPause);memoryPause.advance(379.9);assert.equal(memoryPause.phase(),'memory');
+memoryPause.advance(.1);assert.equal(memoryPause.phase(),'hide');
+memoryPause.advance(40);assert.equal(memoryPause.phase(),'hunt');
+
+const {g:chainPause,b:cpb}=startRun();chainPause.click(cpb.target[0]);chainPause.advance(100);
+pauseAndWait(chainPause);resume(chainPause,true);chainPause.advance(350);chainPause.click(cpb.target[1]);
+assert.match(newest(chainPause).innerHTML,/2 COMBO!.*\+0\.12초/);
+assert.equal(chainPause.get('clock').textContent,'1.27초');
+chainPause.advance(1269.9);assert.equal(chainPause.phase(),'hunt');chainPause.advance(.1);
+assert.equal(chainPause.phase(),'over');assert.equal(chainPause.saved[0].result.caught,2);assert.equal(chainPause.timers.size,0);
+
+for(const [phase,elapsed,remaining,next] of [
+  ['prepare',100,150,'memory'],['hide',250+500+10,30,'hunt'],
+  ['impact',30,50,'tremble'],['tremble',80+100,180,'prepare']
+]){
+  const transitionPause=game();transitionPause.start();
+  if(['impact','tremble'].includes(phase))enterCycle(transitionPause).target.forEach(i=>transitionPause.click(i));
+  transitionPause.advance(elapsed);assert.equal(transitionPause.phase(),phase);
+  pauseAndWait(transitionPause);resume(transitionPause);
+  transitionPause.advance(remaining-.1);assert.equal(transitionPause.phase(),phase);
+  transitionPause.advance(.1);assert.equal(transitionPause.phase(),next);
+}
+
+const {g:quitPause,b:qpb}=startRun();quitPause.click(qpb.target[0]);pauseAndWait(quitPause);
+quitPause.get('pause-quit').click();assert.equal(quitPause.get('pause-dialog').open,false);
+assert.equal(quitPause.phase(),'ready');assert.equal(quitPause.timers.size,0);
+const quitSaves=quitPause.saved.length;
+quitPause.advance(120000);assert.equal(quitPause.phase(),'ready');assert.equal(quitPause.saved.length,quitSaves);
+quitPause.start();enterCycle(quitPause);assert.equal(quitPause.get('score').textContent,'명중 0');
+
+function assertPauseUnavailable(g){
+  const phase=g.phase();assert.equal(g.get('pause').disabled,true);g.get('pause').click();
+  assert.equal(g.get('pause-dialog').open,false);assert.equal(g.phase(),phase);
+}
+const failPause=game();assertPauseUnavailable(failPause);
+let failureBoard=startRun(failPause).b;failPause.click(failureBoard.empty[0]);assertPauseUnavailable(failPause);
+failPause.advance(1350);assertPauseUnavailable(failPause);
+failureBoard=startRun(failPause).b;failPause.click(failureBoard.decoy[0]);assertPauseUnavailable(failPause);
+failPause.advance(80);assertPauseUnavailable(failPause);failPause.advance(900);assertPauseUnavailable(failPause);
+
+// A pause click queued at the deadline must finish exactly once, not revive expired time.
+const duePrepare=game({audio:true});duePrepare.start();duePrepare.jump(duePrepare.now()+250);duePrepare.get('pause').click();
+assert.equal(duePrepare.get('pause-dialog').open,false);assert.equal(duePrepare.phase(),'memory');assert.equal(duePrepare.timers.size,2);
+duePrepare.advance(0);assert.equal(duePrepare.audioLog.tones.length,2);
+duePrepare.advance(500);assert.equal(duePrepare.phase(),'hide');
+const {g:dueHunt}=startRun();dueHunt.jump(dueHunt.now()+1600);dueHunt.get('pause').click();
+assert.equal(dueHunt.get('pause-dialog').open,false);assert.equal(dueHunt.phase(),'over');assert.equal(dueHunt.timers.size,0);
+dueHunt.get('pause-resume').click();dueHunt.advance(120000);
+assert.equal(dueHunt.phase(),'over');assert.equal(dueHunt.saved.length,1);assert.equal(dueHunt.saved[0].result.reason,'시간 초과');
+
 const g=game();g.start();let total=0;
 for(let cycle=0;cycle<30;cycle++){
   const b=enterCycle(g,cycle);
@@ -347,6 +418,6 @@ const muted=game({audio:true}),mb=startRun(muted).b,ma=muted.audioLog;muted.get(
 muted.click(mb.target[0]);muted.advance(1000);assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
 const shiver=game({audio:true}),shb=startRun(shiver).b;shb.target.forEach(i=>shiver.click(i));const tonesBefore=shiver.audioLog.tones.length;
 shiver.advance(80);assert.equal(shiver.audioLog.tones.length,tonesBefore+7);assert.ok(shiver.audioLog.tones.slice(-7).every(t=>t.stoppedAt<=.28));
-console.log('PASS: rules confirmation/cancel/retry and exclusive settings; 30 cycles/177 score; stage-12 difficulty cap independent of elapsed time; slower opening and legacy balance migration; sub-ms phase/deadline boundaries; 450ms combo rearming and six-hit survival; static decoys without moving ghosts; failures, records, curse, snicker/pulse/shiver and mute.');
+console.log('PASS: pause/resume preserves memory, combo, deadlines and phase transitions; pause quit cleanup and failure lockout; rules confirmation/cancel/retry and exclusive settings; 30 cycles/177 score; stage-12 difficulty cap independent of elapsed time; slower opening and legacy balance migration; sub-ms phase/deadline boundaries; 450ms combo rearming and six-hit survival; static decoys without moving ghosts; failures, records, curse, snicker/pulse/shiver and mute.');
 
 })().catch(error=>{console.error(error);process.exitCode=1;});

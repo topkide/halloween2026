@@ -9,6 +9,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   const STATE_KEY='catjump-memory-room-state-v1', BALANCE_KEY='catjump-memory-room-balance-v1';
   const balanceButton=document.getElementById('balance-open'), balanceDialog=document.getElementById('balance-dialog');
   const rulesDialog=document.getElementById('rules-dialog');
+  const pauseDialog=document.getElementById('pause-dialog');
   const readStorage=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
   function writeStorage(key,value) {
     try { if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,JSON.stringify(value)); }
@@ -33,8 +34,9 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     button.type='button'; button.className='cj-spot cursor-interaction';
     button.addEventListener('click',event=>{ event.stopPropagation(); choose(i,event); }); spots.append(button); return button;
   });
-  let phase='ready', cycle=0, score=0, current=difficultyAt(config,0), spooked=null, board=['target','empty','decoy','empty','target','empty','empty','decoy','empty','target','empty','empty'];
-  let caught=new Set(), tried=new Set(), timer=null, phaseTimer=null, deadline=0, duration=0, best=0;
+  const previewBoard=['target','empty','decoy','empty','target','empty','empty','decoy','empty','target','empty','empty'];
+  let phase='ready', cycle=0, score=0, current=difficultyAt(config,0), spooked=null, board=previewBoard.slice();
+  let caught=new Set(), tried=new Set(), timer=null, phaseTimer=null, phaseCallback=null, paused=null, deadline=0, duration=0, best=0;
   let soundOn=true, audio=null, audioMaster=null, lastSummary=null, shotNoise=null;
   let combo=0, lastHit=-Infinity, lastPulse=-Infinity;
   const voices=new Set();
@@ -158,6 +160,9 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   }
   function clearEffects() {
     effects.replaceChildren();
+    silence();
+  }
+  function silence() {
     voices.forEach(voice=>{try{voice.stop();}catch{}});
     voices.clear();
   }
@@ -169,14 +174,17 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   }
   find('sound').addEventListener('click',()=>{soundOn=!soundOn;updateSoundButton();if(soundOn)enableAudio();saveState();});
   room.addEventListener('click',event=>choose(null,event));
-  function stopTimer() { clearInterval(timer);clearTimeout(phaseTimer);timer=null;phaseTimer=null; }
+  function stopTimer() { clearInterval(timer);clearTimeout(phaseTimer);timer=null;phaseTimer=null;phaseCallback=null; }
   function after(ms,callback) {
     stopTimer(); deadline=performance.now()+ms;
-    phaseTimer=setTimeout(()=>{phaseTimer=null;callback();},ms);
+    phaseCallback=()=>{phaseTimer=null;phaseCallback=null;callback();};
+    phaseTimer=setTimeout(phaseCallback,ms);
   }
   function setMessage(message) { find('feedback').textContent=message; }
   function paint() {
     room.dataset.phase=phase;
+    root.dataset.phase=phase;
+    find('pause').disabled=!['prepare','memory','hide','hunt','impact','tremble'].includes(phase);
     balanceButton.disabled=!['ready','over'].includes(phase);
     if(phase!=='hunt') { root.dataset.urgent='false';action.dataset.combo=''; }
     find('score').textContent='명중 '+score;
@@ -211,17 +219,53 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   }
   function armExpiry(onEnd) {
     clearTimeout(phaseTimer);
-    phaseTimer=setTimeout(()=>{stopTimer();clockValue(0);onEnd();},Math.max(0,deadline-performance.now()));
+    phaseCallback=()=>{stopTimer();clockValue(0);onEnd();};
+    phaseTimer=setTimeout(phaseCallback,Math.max(0,deadline-performance.now()));
+  }
+  function tickClock() {
+    clockValue(Math.max(0,(deadline-performance.now())/1000));
   }
   function startClock(seconds,onEnd) {
     stopTimer(); duration=seconds; deadline=performance.now()+seconds*1000;
     clockValue(seconds);
-    timer=setInterval(()=>{
-      const remaining=Math.max(0,(deadline-performance.now())/1000);
-      clockValue(remaining);
-    },25);
+    timer=setInterval(tickClock,25);
     armExpiry(onEnd);
   }
+  find('pause').addEventListener('click',()=>{
+    if(paused||find('pause').disabled||!phaseCallback) return;
+    const now=performance.now();
+    if(now>=deadline) { const finish=phaseCallback;stopTimer();finish();return; }
+    if(timer!==null) tickClock();
+    paused={at:now,callback:phaseCallback,clock:timer!==null};
+    stopTimer();silence();
+    root.dataset.paused=room.dataset.paused='true';
+    pauseDialog.showModal();
+  });
+  function resume() {
+    if(!paused) return;
+    const saved=paused,elapsed=performance.now()-saved.at;
+    deadline+=elapsed;lastHit+=elapsed;lastPulse+=elapsed;
+    paused=null;root.dataset.paused=room.dataset.paused='false';
+    pauseDialog.close();enableAudio();
+    phaseCallback=saved.callback;
+    if(saved.clock) { tickClock();timer=setInterval(tickClock,25); }
+    phaseTimer=setTimeout(phaseCallback,Math.max(0,deadline-performance.now()));
+  }
+  document.getElementById('pause-resume').addEventListener('click',resume);
+  pauseDialog.addEventListener('cancel',event=>{event.preventDefault();resume();});
+  document.getElementById('pause-quit').addEventListener('click',()=>{
+    if(!paused) return;
+    stopTimer();clearEffects();paused=null;
+    root.dataset.paused=room.dataset.paused='false';pauseDialog.close();
+    best=Math.max(best,score);saveState();
+    phase='ready';cycle=0;score=0;combo=0;lastHit=-Infinity;lastPulse=-Infinity;
+    board=previewBoard.slice();caught.clear();tried.clear();spooked=null;
+    find('fail-splash').replaceChildren();room.dataset.failure='';
+    paint();readySettings();
+    find('phase').textContent='찰나를 기억하고, 명중!';find('time-fill').style.width='100%';
+    find('room-caption').textContent='12개의 자리 · 유령의 위치를 기억해요';
+    action.disabled=false;action.textContent='도전하기 →';
+  });
   function beginCycle() {
     stopTimer(); clearEffects(); caught=new Set(); tried=new Set(); combo=0;lastHit=-Infinity;lastPulse=-Infinity;
     spooked=null;find('fail-splash').replaceChildren();room.dataset.failure='';
@@ -244,7 +288,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     action.disabled=true; action.textContent='집중! 곧 나타나요';
     after((cycle===0?config.transition.firstPrepare:config.transition.prepare)*1000,()=>{
       phase='memory';paint();shotSound('reveal');
-      find('phase').textContent='지금! '+current.targets+'마리 기억';
+      find('phase').textContent='사라지기까지';
       action.textContent='기억해!';
       startClock(current.memory,()=>{
         phase='hide';paint();find('phase').textContent='암전!';find('clock').textContent='';
@@ -254,14 +298,14 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   }
   function beginHunt() {
     phase='hunt'; paint();
-    find('phase').textContent='찾아봐요 · '+caught.size+' / '+current.targets+'마리';
+    find('phase').textContent='찾는 시간 · '+caught.size+' / '+current.targets;
     find('room-caption').textContent='기억한 자리 그대로, 빠르게 연속 명중!';
     setMessage(config.combo.window.toFixed(2)+'초 안에 연속 명중!');
     action.textContent='빠르게 2연속 → 시간 회복';
     startClock(current.hunt,()=>endRun('timeout'));
   }
   function choose(i,event) {
-    if(phase!=='hunt') return;
+    if(phase!=='hunt'||paused) return;
     if(event?.detail>0) i=hitSlot(buttons.map(button=>button.getBoundingClientRect()),board,caught,event.clientX,event.clientY);
     const now=performance.now();
     if(now>=deadline) { endRun('timeout'); return; }
@@ -284,7 +328,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
       setMessage(bonus?combo+' COMBO! +'+(bonus/1000).toFixed(2)+'초 회복!':'명중! '+config.combo.window.toFixed(2)+'초 안에 다음 유령!');
     } else { endRun(type,i);return; }
     paint();
-    find('phase').textContent='찾아봐요 · '+caught.size+' / '+current.targets+'마리';
+    find('phase').textContent='찾는 시간 · '+caught.size+' / '+current.targets;
     action.textContent=combo+' COMBO · '+(current.targets-caught.size)+'마리 남음';
     if(caught.size===current.targets) {
       stopTimer();phase='impact';paint();find('clock').textContent='';
