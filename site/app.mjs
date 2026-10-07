@@ -1,6 +1,6 @@
-import {DEFAULT_CONFIG,validateConfig,parseBalanceDB} from './balance-config.mjs?v=20261008-collections';
-import {createBalanceEditor} from './balance-editor.mjs?v=20261008-collections';
-import {difficultyAt,comboBonus,hitSlot,createBoard} from './game-core.mjs?v=20261008-collections';
+import {DEFAULT_CONFIG,validateConfig,parseBalanceDB} from './balance-config.mjs?v=20261008-miss';
+import {createBalanceEditor} from './balance-editor.mjs?v=20261008-miss';
+import {difficultyAt,comboBonus,hitSlot,createBoard,coinsPerGhost} from './game-core.mjs?v=20261008-miss';
 import {COLLECTIONS} from './collections.mjs';
 
 (() => {
@@ -43,6 +43,7 @@ import {COLLECTIONS} from './collections.mjs';
   if(profile.collection.length!==COLLECTIONS.length) profile.characterClaimed=false;
   let runItems=[],roundItem=null,continueUsed=false,settled=false,doubled=false,runElapsed=0,legStarted=null,adTimer=null,adRunning=false;
   let failureReason=null,selectedItem=COLLECTIONS[0].id;
+  let runCoins=0,highestCycle=0;
   const itemIcon=id=>'<img class="collection-icon" src="assets/collection-'+id+'.svg" alt="">';
   const ghost = type => '<span class="cj-ghost '+(type==='collection'?'target collector':type)+'" aria-hidden="true">'+(type==='collection'&&roundItem?'<img class="collection-carry" src="assets/collection-'+roundItem+'.svg" alt="">':'')+'</span>';
   let buttons=[];
@@ -74,7 +75,7 @@ import {COLLECTIONS} from './collections.mjs';
   applySaved(readStorage(STATE_KEY));
   function saveResult(reason) {
     best=Math.max(best,score);
-    lastSummary={game:'캣점프 유령이 숨은 밤',mode:'무한 사냥 · 판당 이어하기 1회',result:'게임 종료',reason:({empty:'허공 사격',decoy:'금지 유령 명중',timeout:'시간 초과',quit:'도전 종료'})[reason],caught:score,best,collections:runItems.slice(),reward:score*(doubled?2:1),playTime:Math.floor(runElapsed/1000)};
+    lastSummary={game:'캣점프 유령이 숨은 밤',mode:'무한 사냥 · 판당 이어하기 1회',result:'게임 종료',reason:({decoy:'금지 유령 명중',timeout:'시간 초과',quit:'도전 종료'})[reason],caught:score,best,collections:runItems.slice(),reward:runCoins*(doubled?2:1),playTime:Math.floor(runElapsed/1000)};
     saveState();
   }
   function saveState() {
@@ -180,9 +181,9 @@ import {COLLECTIONS} from './collections.mjs';
         const angle=n*Math.PI*2/7;
         markup+='<i class="cj-smoke" style="--dx:'+Math.round(Math.cos(angle)*94)+'px;--dy:'+Math.round(Math.sin(angle)*80-18)+'px"></i>';
       }
-      markup+='<span class="cj-hit-text">'+(type==='collection'?'컬렉션 획득!':combo>1?'<b class="cj-combo-number">'+combo+'</b> COMBO!':'PERFECT!')+(bonus?'<small>+'+(bonus/1000).toFixed(2)+'초</small>':'')+'</span>';
+      markup+='<span class="cj-hit-text">'+(type==='collection'?'컬렉션 획득!':combo>1?'<b class="cj-combo-number">'+combo+'</b> COMBO!':'PERFECT!')+(bonus?'<small>+'+(bonus/1000).toFixed(2)+'초</small>':'')+'<small class="cj-hit-coins">+'+coinsPerGhost(highestCycle)+' 코인</small></span>';
     } else {
-      markup+='<span class="cj-hit-text">'+(type==='decoy'?'앗!':'MISS')+'</span>';
+      markup+='<span class="cj-hit-text">'+(type==='decoy'?'앗!':'MISS<small>−'+config.difficulty.missPenalty.toFixed(2)+'초</small><em>으하하!</em>')+'</span>';
     }
     effect.innerHTML=markup; effects.append(effect);
     effect.addEventListener('animationend',e=>{if(e.target===effect)effect.remove();});
@@ -224,13 +225,14 @@ import {COLLECTIONS} from './collections.mjs';
     find('score').textContent='명중 '+score;
     find('best').textContent='최고 '+Math.max(best,score);
     find('collection-count').textContent='수집 '+runItems.length+' / 2';
-    const revealed=['ready','memory','laugh','scare-reveal','scare-pop','continue','over'].includes(phase);
+    find('coin-rate').textContent='마리당 '+coinsPerGhost(highestCycle)+' 코인';
+    const revealed=['ready','memory','scare-reveal','scare-pop','continue','over'].includes(phase);
     buttons.forEach((button,i)=>{
       const show=phase==='tremble'?board[i]==='decoy':revealed;
       const wrong=tried.has(i)&&!caught.has(i);
       button.disabled=phase!=='hunt';
       button.className='cj-spot cursor-interaction'+(caught.has(i)?' is-caught':wrong?' is-mistake':'')+(i===spooked?' is-spooked':'');
-      button.innerHTML=(show&&board[i]!=='empty'?ghost(board[i]):'')+(caught.has(i)?'<span class="cj-mark" aria-hidden="true">✓</span>':wrong?'<span class="cj-mark" aria-hidden="true">×</span>':'')+(phase==='laugh'&&board[i]!=='empty'?'<span class="cj-ha" aria-hidden="true">'+(i%2?'하하핫!':'으하하!')+'</span>':'')+(phase==='tremble'&&board[i]==='decoy'?'<span class="cj-fear" aria-hidden="true">덜덜…</span><i class="cj-sweat" aria-hidden="true"></i>':'');
+      button.innerHTML=(show&&board[i]!=='empty'?ghost(board[i]):'')+(caught.has(i)?'<span class="cj-mark" aria-hidden="true">✓</span>':wrong?'<span class="cj-mark" aria-hidden="true">×</span>':'')+(phase==='tremble'&&board[i]==='decoy'?'<span class="cj-fear" aria-hidden="true">덜덜…</span><i class="cj-sweat" aria-hidden="true"></i>':'');
       const visibleName=caught.has(i)?'명중 완료':wrong?'이미 확인한 자리':show?({target:'하얀 고양이 유령',collection:'컬렉션을 든 유령 · 선택 목표',decoy:'보라색 뿔 유령',empty:'빈자리'}[board[i]]):'숨겨진 자리';
       button.setAttribute('aria-label',(Math.floor(i/current.gridSize)+1)+'행 '+(i%current.gridSize+1)+'열, '+visibleName);
     });
@@ -322,6 +324,7 @@ import {COLLECTIONS} from './collections.mjs';
     stopTimer(); clearEffects(); caught=new Set(); tried=new Set(); combo=0;lastHit=-Infinity;lastPulse=-Infinity;
     spooked=null;find('fail-splash').replaceChildren();room.dataset.failure='';
     current=difficultyAt(config,cycle);
+    highestCycle=Math.max(highestCycle,cycle);
     if(continueUsed) { current.memory=Math.round(current.memory*1.15*1000)/1000;current.hunt=Math.round(current.hunt*1.15*1000)/1000; }
     resizeGrid(current.gridSize);
     const ramp=current.pressure;
@@ -376,16 +379,26 @@ import {COLLECTIONS} from './collections.mjs';
       }
       action.dataset.combo='active';action.style.setProperty('--chain','100%');
       clockValue((deadline-now)/1000);
-    } else combo=0;
+    } else { combo=0;lastHit=-Infinity;action.dataset.combo='';action.style.setProperty('--chain','0%'); }
     fire(i,event,type,bonus);
     if(i!==null) tried.add(i);
     if(type==='target'||type==='collection') {
       caught.add(i);
       score++;
+      runCoins+=coinsPerGhost(highestCycle);
       if(type==='collection'&&roundItem&&runItems.length<2) {
         runItems.push(roundItem);profile.collection.push(roundItem);saveProgress();
       }
       setMessage(bonus?combo+' COMBO! +'+(bonus/1000).toFixed(2)+'초 회복!':'명중! '+config.combo.window.toFixed(2)+'초 안에 다음 유령!');
+    } else if(type==='empty') {
+      deadline-=Math.round(config.difficulty.missPenalty*1000);
+      paint();clockValue(Math.max(0,(deadline-now)/1000));
+      if(now>=deadline) { endRun('timeout');return; }
+      armExpiry(()=>endRun('timeout'));
+      shotSound('laugh');
+      setMessage('빈자리! −'+config.difficulty.missPenalty.toFixed(2)+'초 · 콤보로 만회하세요!');
+      action.textContent='다시 2연속 → 시간 회복';
+      return;
     } else { endRun(type,i);return; }
     paint();
     const requiredCaught=[...caught].filter(index=>board[index]==='target').length;
@@ -408,17 +421,13 @@ import {COLLECTIONS} from './collections.mjs';
     stopTimer();
     stopRunClock();failureReason=reason;
     effects.replaceChildren();room.dataset.failure=reason;
-    phase=reason==='empty'?'laugh':reason==='decoy'?'scare-reveal':'over';
+    phase=reason==='decoy'?'scare-reveal':'over';
     spooked=reason==='decoy'?i:null;
     paint();
     find('clock').textContent='';find('time-fill').style.width='0%';
     find('phase').textContent='게임 종료 · '+score+'마리 명중';
     action.disabled=true;
-    if(reason==='empty') {
-      find('room-caption').textContent='으하하핫! 거긴 빈자리야~';
-      setMessage('으하하핫! 유령들이 비웃어요!');action.textContent='유령들이 비웃는 중…';
-      shotSound('laugh');after(1350,showResult);
-    } else if(reason==='decoy') {
+    if(reason==='decoy') {
       find('room-caption').textContent='킥킥킥! 나를 쐈네?';setMessage('킥킥킥! 뿔 유령이 다가와요!');action.textContent='앗! 뿔 유령이다!';
       shotSound('snicker');
       after(80,()=>{
@@ -456,7 +465,7 @@ import {COLLECTIONS} from './collections.mjs';
   }
   function settleRun() {
     if(settled) return;
-    settled=true;profile.wallet=Math.min(Number.MAX_SAFE_INTEGER,profile.wallet+score);
+    settled=true;profile.wallet=Math.min(Number.MAX_SAFE_INTEGER,profile.wallet+runCoins);
     saveProgress();saveResult(failureReason);
   }
   function renderResult() {
@@ -464,15 +473,15 @@ import {COLLECTIONS} from './collections.mjs';
     document.getElementById('result-time').textContent=Math.floor(seconds/60)+'분 '+seconds%60+'초';
     document.getElementById('result-caught').textContent=score+'마리';
     document.getElementById('result-collections').innerHTML=runItems.length?runItems.map(id=>'<span class="result-collection">'+itemIcon(id)+'<span>'+COLLECTIONS.find(item=>item.id===id).name+'</span></span>').join(''):'<span class="result-empty">이번 판에는 획득하지 못했어요</span>';
-    document.getElementById('result-reward').textContent='+'+score*(doubled?2:1);
-    document.getElementById('result-double').disabled=doubled||score===0||adRunning;
+    document.getElementById('result-reward').textContent='+'+runCoins*(doubled?2:1);
+    document.getElementById('result-double').disabled=doubled||runCoins===0||adRunning;
     document.getElementById('result-double').textContent=doubled?'2배 보상 받음':'▷ 광고 보고 보상 2배';
     document.getElementById('result-retry').textContent='재도전 ('+tickets+'/30)';
   }
   function showFinalResult() {
     abortAd();continueDialog.close();phase='over';paint();settleRun();renderResult();
     action.disabled=false;action.textContent='다시 도전 →';
-    document.getElementById('result-status').textContent='잡은 유령 1마리당 유령 구슬 1개를 받았어요.';
+    document.getElementById('result-status').textContent='모은 코인을 받았어요! 이번 판 최고 단가: 마리당 '+coinsPerGhost(highestCycle)+' 코인';
     if(!resultDialog.open) resultDialog.showModal();
   }
   function abortAd() { clearTimeout(adTimer);adTimer=null;adRunning=false; }
@@ -499,9 +508,9 @@ import {COLLECTIONS} from './collections.mjs';
     });
   });
   document.getElementById('result-double').addEventListener('click',()=>{
-    if(phase!=='over'||!resultDialog.open||doubled||score===0) return;
+    if(phase!=='over'||!resultDialog.open||doubled||runCoins===0) return;
     previewAd(document.getElementById('result-double'),document.getElementById('result-status'),()=>{
-      doubled=true;profile.wallet=Math.min(Number.MAX_SAFE_INTEGER,profile.wallet+score);saveProgress();saveResult(failureReason);renderResult();
+      doubled=true;profile.wallet=Math.min(Number.MAX_SAFE_INTEGER,profile.wallet+runCoins);saveProgress();saveResult(failureReason);renderResult();
       document.getElementById('result-status').textContent='2배 보상이 지급되었어요!';
     });
   });
@@ -590,7 +599,7 @@ import {COLLECTIONS} from './collections.mjs';
     tickets--;saveTickets();
     config=structuredClone(pendingConfig);
     stopTimer();clearEffects();enableAudio();cycle=0;score=0;
-    runItems=[];continueUsed=false;settled=false;doubled=false;runElapsed=0;legStarted=performance.now();failureReason=null;
+    runItems=[];continueUsed=false;settled=false;doubled=false;runElapsed=0;legStarted=performance.now();failureReason=null;runCoins=0;highestCycle=0;
     beginCycle();
   });
   function readySettings() {
@@ -598,7 +607,7 @@ import {COLLECTIONS} from './collections.mjs';
       find('clock').textContent=pendingConfig.difficulty.memoryStart.toFixed(2)+'초 기억';
       find('feedback').textContent='하얀 유령의 위치를 기억하고 '+pendingConfig.combo.window.toFixed(2)+'초 연속 명중.';
     }
-    find('rules').textContent='콤보 +'+pendingConfig.combo.bonusStart.toFixed(2)+'~'+pendingConfig.combo.bonusMax.toFixed(2)+'초 · 한 번의 오발이면 끝!';
+    find('rules').textContent='빈자리 −'+pendingConfig.difficulty.missPenalty.toFixed(2)+'초 · 뿔 유령은 즉시 종료!';
   }
   const editor=createBalanceEditor({
     getConfig:()=>pendingConfig,

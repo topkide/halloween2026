@@ -187,9 +187,11 @@ button:disabled.cj-settings { opacity:.4; }
 #cj-ghost-room .cj-fragment:nth-of-type(3n) { width:10px;height:6px;background:#fff4b8; }
 #cj-ghost-room .cj-fragment:nth-of-type(4n) { width:4px;height:4px;background:#d69cff; }
 #cj-ghost-room .cj-smoke { width:64px;height:60px;left:-32px;top:-30px;background:repeating-linear-gradient(0deg,#776683 0 6px,#9586a5 6px 12px);box-shadow:inset -12px -8px #4c3c6240; }
-#cj-ghost-room .cj-hit-text { width:146px;left:-73px;top:-18px;font:bold 22px/1.2 monospace;color:#fff5c4;text-shadow:3px 3px #5c293f,-2px -2px #30203e,2px -2px #30203e,-2px 2px #30203e;z-index:2; }
+#cj-ghost-room .cj-hit-text { width:146px;left:calc(-73px + var(--label-x,0px));top:-18px;font:bold 22px/1.2 monospace;color:#fff5c4;text-shadow:3px 3px #5c293f,-2px -2px #30203e,2px -2px #30203e,-2px 2px #30203e;z-index:2; }
 #cj-ghost-room .cj-impact.decoy .cj-hit-text { color:#ff799f; }
 #cj-ghost-room .cj-impact.empty .cj-hit-text { font-size:16px;color:#dbb8ca; }
+#cj-ghost-room .cj-impact.empty .cj-hit-text small { font-size:25px;color:#ff9aab;text-shadow:2px 2px #612839; }
+#cj-ghost-room .cj-impact.empty .cj-hit-text em { display:block;margin-top:3px;color:#bba5d1;font-size:12px;font-style:normal; }
 #cj-ghost-room .cj-impact.repeat .cj-hit-cross,#cj-ghost-room .cj-impact.empty .cj-hit-cross { width:44px;left:-22px;background:#b9a9c2; }
 #cj-ghost-room .cj-impact.repeat .cj-hit-cross:after,#cj-ghost-room .cj-impact.empty .cj-hit-cross:after { height:44px;top:-19px;left:19px;background:#b9a9c2; }
 #cj-ghost-room .cj-main-button { background:linear-gradient(#ffd78b 0 3px,#ffb355 3px);box-shadow:0 4px #9e5238,inset 0 -3px #e78745; }
@@ -373,6 +375,7 @@ html,body { background:#100d1b!important; }
 .rules-content { flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:24px 18px calc(24px + 10svh);overflow:auto; }
 .rules-content h2 { margin:0;font-size:28px;line-height:1.2;font-weight:800;letter-spacing:-.7px;color:#ffe0a8;text-shadow:2px 2px #73444d; }
 .rules-content p { margin:0;text-align:center;font-size:clamp(18px,5.5vw,26px);line-height:1.9;font-weight:700;word-break:keep-all;color:#fff0d5; }
+.rules-content .rules-warning { font-size:15px;line-height:1.7;color:#e4aab2;font-weight:500; }
 .rules-footer { flex-shrink:0;padding:12px 24px calc(24px + env(safe-area-inset-bottom)); }
 .rules-footer .primary-button { width:100%;min-height:64px;border:2px solid #ffd895;border-radius:2px;background:linear-gradient(#ffd68a 0 3px,#ffb15c 3px);box-shadow:0 4px #9b553b;font-size:22px;font-weight:800; }
 #pause-dialog { width:min(340px,calc(100vw - 40px));max-width:calc(100vw - 40px);margin:auto;padding:28px 22px 22px;border:3px solid #95647c;border-radius:2px;background:#251d33;color:#fff3de;text-align:center;box-shadow:6px 6px #020106; }
@@ -485,6 +488,8 @@ body:has(#cj-ghost-room[data-storage-failed="true"]) .storage-warning { display:
 #cj-ghost-room[data-phase="continue"] .cj-pause { visibility:hidden; }
 
 /* Combo emphasis stays within the timer bar and the tap's visual effect. */
+#cj-ghost-room #cj-coin-rate { grid-column:1;grid-row:1;align-self:center;justify-self:start;z-index:1;margin-left:4px;padding:1px 3px;background:#412d27e8;color:#ffe7b0;font:700 9px/16px monospace;white-space:nowrap;pointer-events:none; }
+#cj-ghost-room .cj-hit-text .cj-hit-coins { color:#ffdf84;font-size:12px;text-shadow:2px 2px #594131; }
 #cj-ghost-room #cj-combo-display { grid-column:1;grid-row:1;align-self:center;justify-self:center;z-index:1;max-width:calc(100% - 12px);padding:1px 7px;background:#261a2bea;border:1px solid #e9bd79;color:#ffe9b0;font:900 calc(10px * var(--combo-scale,1))/16px monospace;letter-spacing:.3px;white-space:nowrap;pointer-events:none;transition:font-size .09s ease-out,color .09s; }
 #cj-ghost-room #cj-combo-display[data-tier="1"] { border-color:#ffe196;color:#fff2bd; }
 #cj-ghost-room #cj-combo-display[data-tier="2"] { border-color:#ffa970;color:#ffd89c;box-shadow:0 0 0 1px #bd6a4240; }

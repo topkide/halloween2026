@@ -27,15 +27,15 @@ test('every numeric field enforces finite values, ranges and integer controls',(
     if(field.step===1){const config=structuredClone(DEFAULT_CONFIG);setValue(config,field.path,field.min+.5);assert.throws(()=>validateConfig(config));}
   }
 });
-test('cross-field limits protect timers and reserve one of the 36 positions',()=>{
+test('cross-field limits protect timers and reserve one of the 25 positions',()=>{
   for(const [path,value] of [
     ['difficulty.memoryMin',DEFAULT_CONFIG.difficulty.memoryStart+.1],['difficulty.huntMin',DEFAULT_CONFIG.difficulty.huntStart+.1],
     ['difficulty.targetsStart',DEFAULT_CONFIG.difficulty.targetsMax+1],['difficulty.decoysStart',DEFAULT_CONFIG.difficulty.decoysMax+1],
-    ['difficulty.targetsMax',27],['combo.bonusStart',.3]
+    ['difficulty.targetsMax',16],['combo.bonusStart',.3]
   ]){const config=structuredClone(DEFAULT_CONFIG);setValue(config,path,value);assert.throws(()=>validateConfig(config),path);}
-  const full=structuredClone(DEFAULT_CONFIG);full.difficulty.targetsMax=26;
+  const full=structuredClone(DEFAULT_CONFIG);full.difficulty.targetsMax=15;
   const clean=validateConfig(full);
-  assert.equal(clean.difficulty.targetsMax+clean.difficulty.decoysMax,35);
+  assert.equal(clean.difficulty.targetsMax+clean.difficulty.decoysMax,24);
   const former=structuredClone(DEFAULT_CONFIG);
   Object.assign(former.difficulty,{targetsStart:4,targetsMax:6,decoysStart:3,decoysMax:5});
   assert.deepEqual(validateConfig(former),former,'previous smaller-room configurations remain valid');
@@ -61,18 +61,76 @@ test('v1 files discard retired moving-ghost settings and preserve other tuning',
 
 test('time-based DBs adopt round progression and refresh only former default timings',()=>{
   const legacy=structuredClone(DEFAULT_CONFIG);
-  delete legacy.difficulty.rampRounds;legacy.difficulty.rampSeconds=30;
+  delete legacy.difficulty.rampRounds;delete legacy.difficulty.missPenalty;legacy.difficulty.rampSeconds=30;
   legacy.difficulty.memoryStart=.5;legacy.difficulty.huntStart=1.6;legacy.combo.window=.6;
   const migrated=parseBalanceDB(JSON.stringify(legacy));
   assert.equal(migrated.difficulty.rampRounds,DEFAULT_CONFIG.difficulty.rampRounds);
   assert.equal(migrated.difficulty.memoryStart,DEFAULT_CONFIG.difficulty.memoryStart);
   assert.equal(migrated.difficulty.huntStart,DEFAULT_CONFIG.difficulty.huntStart);
+  assert.equal(migrated.difficulty.missPenalty,DEFAULT_CONFIG.difficulty.missPenalty);
   assert.equal('rampSeconds' in migrated.difficulty,false);assert.equal(migrated.combo.window,.6);
   legacy.difficulty.memoryStart=.9;legacy.difficulty.huntStart=3;
   const custom=parseBalanceDB(JSON.stringify(legacy));
   assert.equal(custom.difficulty.memoryStart,.9);assert.equal(custom.difficulty.huntStart,3);
   for(const invalid of [null,'30',0,-1,601]) {
     legacy.difficulty.rampSeconds=invalid;assert.throws(()=>parseBalanceDB(JSON.stringify(legacy)));
+  }
+});
+
+test('older round-based DBs receive the miss penalty without changing other custom settings',()=>{
+  const legacy=structuredClone(DEFAULT_CONFIG);
+  delete legacy.difficulty.missPenalty;
+  Object.assign(legacy.difficulty,{rampRounds:30,memoryStart:1.9,huntStart:3.4});
+  legacy.combo.window=.5;
+  assert.equal(DEFAULT_CONFIG.difficulty.missPenalty,.4);
+  const migrated=parseBalanceDB(JSON.stringify(legacy));
+  assert.deepEqual(migrated,{
+    ...legacy,difficulty:{...legacy.difficulty,missPenalty:.4}
+  });
+  assert.deepEqual(parseBalanceDB(serializeBalanceDB(migrated)),migrated);
+  assert.throws(()=>validateConfig(legacy),'direct validation still requires the complete schema');
+});
+
+test('valid legacy 6×6 counts shrink to the 5×5 capacity while preserving other tuning',()=>{
+  for(const [counts,expected] of [
+    [{targetsStart:30,targetsMax:34,decoysStart:1,decoysMax:1},{targetsStart:23,targetsMax:23,decoysStart:1,decoysMax:1}],
+    [{targetsStart:4,targetsMax:10,decoysStart:20,decoysMax:25},{targetsStart:4,targetsMax:10,decoysStart:14,decoysMax:14}]
+  ]) {
+    const legacy=structuredClone(DEFAULT_CONFIG);
+    delete legacy.difficulty.missPenalty;
+    Object.assign(legacy.difficulty,counts,{memoryStart:2.1,huntStart:4.3});
+    legacy.combo.window=.38;
+    const migrated=parseBalanceDB(JSON.stringify(legacy));
+    assert.deepEqual(migrated,{
+      ...legacy,difficulty:{...legacy.difficulty,...expected,missPenalty:DEFAULT_CONFIG.difficulty.missPenalty}
+    });
+    assert.deepEqual(parseBalanceDB(serializeBalanceDB(migrated)),migrated);
+    legacy.difficulty.missPenalty=.4;
+    assert.throws(()=>parseBalanceDB(JSON.stringify(legacy)),'current-schema oversized counts must be rejected, not silently reduced');
+  }
+  for(const counts of [
+    {targetsStart:30,targetsMax:25,decoysStart:1,decoysMax:1},
+    {targetsStart:4,targetsMax:26,decoysStart:1,decoysMax:10},
+    {targetsStart:0,targetsMax:30,decoysStart:1,decoysMax:1},
+    {targetsStart:4,targetsMax:25.5,decoysStart:1,decoysMax:1}
+  ]) {
+    const malformed=structuredClone(DEFAULT_CONFIG);
+    delete malformed.difficulty.missPenalty;
+    Object.assign(malformed.difficulty,counts);
+    assert.throws(()=>parseBalanceDB(JSON.stringify(malformed)),'migration must not legitimize an invalid legacy count tuple');
+  }
+});
+
+test('custom miss penalties round-trip at fractional values and bounds, while invalid present values are rejected',()=>{
+  for(const missPenalty of [.05,.375,5]) {
+    const config=structuredClone(DEFAULT_CONFIG);
+    config.difficulty.missPenalty=missPenalty;
+    assert.equal(parseBalanceDB(serializeBalanceDB(config)).difficulty.missPenalty,missPenalty);
+  }
+  for(const missPenalty of [0,-.1,5.01,null,'0.4']) {
+    const config=structuredClone(DEFAULT_CONFIG);
+    config.difficulty.missPenalty=missPenalty;
+    assert.throws(()=>parseBalanceDB(JSON.stringify(config)),`invalid explicit penalty ${missPenalty} must not be replaced by a default`);
   }
 });
 

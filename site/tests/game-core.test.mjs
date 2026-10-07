@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {difficultyAt, createBoard, comboBonus, hitSlot} from '../game-core.mjs';
+import {difficultyAt, createBoard, comboBonus, coinsPerGhost, hitSlot} from '../game-core.mjs';
 import {DEFAULT_CONFIG} from '../balance-config.mjs';
 
 const roundedSeconds = value => Math.round(value * 1000) / 1000;
@@ -15,7 +15,7 @@ test('default difficulty starts at configured values and stops changing at the c
   assert.deepEqual(difficultyAt(DEFAULT_CONFIG, -1), start);
   const atCap = difficultyAt(DEFAULT_CONFIG, d.rampRounds-1);
   assert.deepEqual(atCap, {
-    gridSize: 6, targets: d.targetsMax, decoys: d.decoysMax,
+    gridSize: 5, targets: d.targetsMax, decoys: d.decoysMax,
     memory: roundedSeconds(d.memoryMin), hunt: roundedSeconds(d.huntMin), pressure: 1
   });
   assert.deepEqual(difficultyAt(DEFAULT_CONFIG, 1000), atCap);
@@ -42,21 +42,21 @@ test('timing advances every wave while targets and decoys increase more graduall
     gridSize: 3, targets: 2, decoys: 2, memory: 0.8, hunt: 2.2, pressure: 0.5
   });
   assert.deepEqual(difficultyAt(config, 100), {
-    gridSize: 6, targets: 7, decoys: 3, memory: 0.4, hunt: 1.2, pressure: 1
+    gridSize: 5, targets: 7, decoys: 3, memory: 0.4, hunt: 1.2, pressure: 1
   });
   assert.deepEqual(difficultyAt(config, 4), {
-    gridSize: 4, targets: 3, decoys: 3, memory: 0.4, hunt: 1.2, pressure: 1
+    gridSize: 3, targets: 3, decoys: 3, memory: 0.4, hunt: 1.2, pressure: 1
   });
   assert.deepEqual(config, before, 'difficulty calculation must not change the balance DB');
 });
 
-test('rooms grow from 3×3 to 6×6, then only count and timing difficulty continue growing', () => {
-  for (const [cycle, size] of [[0,3],[2,3],[3,4],[6,4],[7,5],[10,5],[11,6],[12,6],[23,6],[1000,6]]) {
+test('rooms grow from 3×3 to 5×5, then only count and timing difficulty continue growing', () => {
+  for (const [cycle, size] of [[0,3],[2,3],[4,3],[5,4],[7,4],[11,4],[12,5],[13,5],[23,5],[1000,5]]) {
     assert.equal(difficultyAt(DEFAULT_CONFIG, cycle).gridSize, size, `wave ${cycle+1}`);
   }
-  const firstFullRoom=difficultyAt(DEFAULT_CONFIG,11), late=difficultyAt(DEFAULT_CONFIG,23);
-  assert.equal(firstFullRoom.targets,6);
-  assert.equal(firstFullRoom.decoys,6);
+  const firstFullRoom=difficultyAt(DEFAULT_CONFIG,12), late=difficultyAt(DEFAULT_CONFIG,23);
+  assert.equal(firstFullRoom.targets,7);
+  assert.equal(firstFullRoom.decoys,7);
   assert.equal(late.targets,10);
   assert.equal(late.decoys,9);
   assert.ok(late.memory<firstFullRoom.memory&&late.hunt<firstFullRoom.hunt);
@@ -66,8 +66,8 @@ const seededRandom=seed=>()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/2*
 
 test('random boards preserve every ghost count and reserve an empty collection slot at all room sizes', () => {
   const crowded=structuredClone(DEFAULT_CONFIG);
-  Object.assign(crowded.difficulty,{targetsStart:34,targetsMax:34,decoysStart:1,decoysMax:1});
-  for(const config of [DEFAULT_CONFIG,crowded]) for(const cycle of [0,2,3,6,7,10,11,23,1000]) {
+  Object.assign(crowded.difficulty,{targetsStart:23,targetsMax:23,decoysStart:1,decoysMax:1});
+  for(const config of [DEFAULT_CONFIG,crowded]) for(const cycle of [0,4,5,11,12,23,1000]) {
     const current=difficultyAt(config,cycle), before=structuredClone(current);
     const board=createBoard(current,cycle,seededRandom(cycle+1));
     assert.equal(board.length,current.gridSize**2);
@@ -78,20 +78,20 @@ test('random boards preserve every ghost count and reserve an empty collection s
     assert.deepEqual(current,before,'layout generation must not alter difficulty settings');
     assert.deepEqual(createBoard(current,cycle,seededRandom(cycle+1)),board,'same seed reproduces the layout');
   }
-  const current=difficultyAt(DEFAULT_CONFIG,11);
-  assert.notDeepEqual(createBoard(current,11,seededRandom(1)),createBoard(current,11,seededRandom(2)));
+  const current=difficultyAt(DEFAULT_CONFIG,12);
+  assert.notDeepEqual(createBoard(current,12,seededRandom(1)),createBoard(current,12,seededRandom(2)));
 });
 
-test('late 6×6 rooms spread targets further apart without shrinking the room', () => {
-  const current={gridSize:6,targets:6,decoys:5};
+test('late 5×5 rooms spread targets further apart without shrinking the room', () => {
+  const current={gridSize:5,targets:6,decoys:5};
   const spacing=board=>{
     const targets=board.flatMap((type,i)=>type==='target'?[i]:[]);
     return targets.reduce((sum,a)=>sum+Math.min(...targets.filter(b=>b!==a).map(b=>
-      Math.abs(a%6-b%6)+Math.abs(Math.floor(a/6)-Math.floor(b/6)))),0)/targets.length;
+      Math.abs(a%5-b%5)+Math.abs(Math.floor(a/5)-Math.floor(b/5)))),0)/targets.length;
   };
   let earlySpacing=0,lateSpacing=0;
   for(let seed=1;seed<=24;seed++) {
-    earlySpacing+=spacing(createBoard(current,11,seededRandom(seed)));
+    earlySpacing+=spacing(createBoard(current,12,seededRandom(seed)));
     lateSpacing+=spacing(createBoard(current,23,seededRandom(seed)));
   }
   assert.ok(lateSpacing>earlySpacing*1.25,'later layouts should noticeably separate the same number of targets');
@@ -130,6 +130,12 @@ test('custom combo bonuses are milliseconds, grow per hit, saturate, and can be 
   Object.assign(config.combo, {bonusStart: 0.0146, bonusStep: 0, bonusMax: 0.1});
   assert.equal(comboBonus(config, 2), 15);
   assert.equal(comboBonus(config, 1000), 15);
+});
+
+test('coin reward per ghost rises by one every five waves without a late-game cap',()=>{
+  for(const [cycle,coins] of [[-1,1],[0,1],[4,1],[5,2],[9,2],[10,3],[14,3],[15,4],[100,21]]) {
+    assert.equal(coinsPerGhost(cycle),coins,`wave ${cycle+1}`);
+  }
 });
 
 test('aim margin accepts near edges but preserves forbidden and already caught slots', () => {

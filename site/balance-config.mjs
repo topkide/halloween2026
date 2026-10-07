@@ -5,13 +5,14 @@ export const FIELD_GROUPS=[
     field('difficulty.memoryStart','처음 유령을 보여주는 시간',.05,10),
     field('difficulty.memoryMin','최소 노출 시간',.05,10),
     field('difficulty.huntStart','처음 사격 제한 시간',.1,60),
-    field('difficulty.huntMin','최소 사격 제한 시간',.1,60)
+    field('difficulty.huntMin','최소 사격 제한 시간',.1,60),
+    field('difficulty.missPenalty','빈자리 사격 시간 차감',.05,5)
   ]},
-  {title:'유령 수와 방 크기',note:'3×3 → 4×4 → 5×5 → 6×6 (1·4·8·12번째 배치). 흰색은 3배치마다, 뿔 유령은 2배치마다 늘어나며 현재 방 크기에 맞춰 제한됩니다. 최대 합은 35마리입니다.',fields:[
-    field('difficulty.targetsStart','처음 하얀 유령 수',1,34,1,'마리'),
-    field('difficulty.targetsMax','최대 하얀 유령 수',1,34,1,'마리'),
-    field('difficulty.decoysStart','처음 뿔 유령 수',0,34,1,'마리'),
-    field('difficulty.decoysMax','최대 뿔 유령 수',0,34,1,'마리')
+  {title:'유령 수와 방 크기',note:'3×3에서 5회, 4×4에서 7회 진행한 뒤 13번째부터 5×5를 유지합니다. 흰색은 3배치마다, 뿔 유령은 2배치마다 늘어나며 현재 방 크기에 맞춰 제한됩니다. 최대 합은 24마리입니다.',fields:[
+    field('difficulty.targetsStart','처음 하얀 유령 수',1,23,1,'마리'),
+    field('difficulty.targetsMax','최대 하얀 유령 수',1,23,1,'마리'),
+    field('difficulty.decoysStart','처음 뿔 유령 수',0,23,1,'마리'),
+    field('difficulty.decoysMax','최대 뿔 유령 수',0,23,1,'마리')
   ]},
   {title:'연속 명중',note:'첫 명중에는 시간 보너스가 없습니다. 두 번째 명중부터 기본 보너스와 증가량을 적용하며 최대값을 넘지 않습니다.',fields:[
     field('combo.window','콤보를 이어갈 수 있는 간격',.05,5),
@@ -53,12 +54,22 @@ export function validateConfig(input){
     ['difficulty.decoysStart','difficulty.decoysMax','처음 뿔 유령 수'],
     ['combo.bonusStart','combo.bonusMax','2연속 명중 보너스']
   ])if(getValue(result,lower)>getValue(result,upper))throw new Error(`${label}이 대응하는 시작값 또는 최대값보다 클 수 없습니다.`);
-  if(result.difficulty.targetsMax+result.difficulty.decoysMax>35)throw new Error('하얀 유령과 뿔 유령의 최대 합은 35마리 이하여야 합니다.');
+  if(result.difficulty.targetsMax+result.difficulty.decoysMax>24)throw new Error('하얀 유령과 뿔 유령의 최대 합은 24마리 이하여야 합니다.');
   return result;
 }
 export function parseBalanceDB(text){
   let input;try{input=JSON.parse(text);}catch{throw new Error('올바른 JSON 파일을 선택해 주세요.');}
   const d=input?.difficulty;
+  if(input?.version===1&&input.game==='memory-room'&&d&&typeof d==='object'&&!Array.isArray(d)&&!('missPenalty' in d)) {
+    d.missPenalty=DEFAULT_CONFIG.difficulty.missPenalty;
+    // Fit valid older 6×6 settings into the new 5×5 cap; keep timing and combo tuning.
+    const counts=[d.targetsStart,d.targetsMax,d.decoysStart,d.decoysMax];
+    if(counts.every(value=>Number.isInteger(value)&&value>=0&&value<=34)&&d.targetsStart>=1&&
+      d.targetsStart<=d.targetsMax&&d.decoysStart<=d.decoysMax&&d.targetsMax+d.decoysMax>24&&d.targetsMax+d.decoysMax<=35) {
+      d.targetsMax=Math.min(d.targetsMax,23);d.decoysMax=Math.min(d.decoysMax,24-d.targetsMax);
+      d.targetsStart=Math.min(d.targetsStart,d.targetsMax);d.decoysStart=Math.min(d.decoysStart,d.decoysMax);
+    }
+  }
   // Convert the former time-based DB; keep intentionally customized timings.
   if(input?.version===1&&input.game==='memory-room'&&d&&typeof d==='object'&&
     !('rampRounds' in d)&&Number.isFinite(d.rampSeconds)&&d.rampSeconds>=1&&d.rampSeconds<=600){

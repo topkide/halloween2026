@@ -7,7 +7,7 @@
   <meta name="description" content="캣점프 할로윈 이벤트 유령 소탕 대작전! 유령의 위치를 기억하고 암전 속에서 빠르게 사격하세요.">
   <title>유령 소탕 대작전! · 캣점프 할로윈</title>
   <link rel="icon" type="image/png" href="assets/target.png">
-  <link rel="stylesheet" href="style.css?v=20261008-collections">
+  <link rel="stylesheet" href="style.css?v=20261008-miss">
 </head>
 <body>
 <main>
@@ -54,6 +54,7 @@
     </div>
     <header class="cj-play-hud" aria-label="게임 진행">
       <div class="cj-time-track" aria-hidden="true"><div id="cj-time-fill"></div></div>
+      <span id="cj-coin-rate">마리당 1 코인</span>
       <span id="cj-combo-display" hidden></span>
       <button id="cj-pause" class="cj-pause" type="button" aria-label="일시정지" disabled><span aria-hidden="true"></span></button>
       <div class="cj-stage-strip"><span id="cj-phase">찰나를 기억하고, 명중!</span><span id="cj-collection-count" aria-label="이번 판 수집">수집 0/2</span><strong id="cj-clock">위치를 기억해요</strong></div>
@@ -78,7 +79,7 @@
         <button class="cj-home quiet-button" id="cj-home" type="button">이벤트 메인</button>
         <button id="balance-open" class="cj-settings" type="button" disabled>밸런스 설정 · DB 저장 / 불러오기</button>
       </div>
-      <div class="cj-rules" id="cj-rules" hidden>콤보 +0.12~0.20초 · 한 번의 오발이면 끝!</div>
+      <div class="cj-rules" id="cj-rules" hidden>빈자리는 시간 감소 · 뿔 유령은 즉시 종료!</div>
     </div>
     <p id="cj-storage-note" class="storage-warning lobby-storage-warning" role="status"></p>
   </section>
@@ -96,6 +97,7 @@
   <div class="rules-content">
     <h2 id="rules-title">게임 설명</h2>
     <p>흰색 유령의 위치를 기억하고,<br>사라진 유령을 잡으세요!</p>
+    <p class="rules-warning">빈자리는 시간 감소,<br>뿔 유령은 바로 종료!</p>
   </div>
   <footer class="rules-footer"><button id="rules-start" class="primary-button" type="button">게임 시작</button></footer>
 </dialog>
@@ -115,7 +117,7 @@
   <div id="continue-description" class="continue-description">
     <p>광고 시청 후 계속 플레이할 수 있어요.</p>
     <p>난이도는 일부 하락합니다.</p>
-    <small>이어하기는 한 판에 1회만 가능해요.</small>
+    <small>모은 코인과 마리당 보상은 유지돼요.<br>이어하기는 한 판에 1회만 가능해요.</small>
   </div>
   <div class="run-actions">
     <button id="continue-back" class="quiet-button" type="button">그만하기</button>
@@ -134,7 +136,7 @@
     <h3>획득 컬렉션</h3>
     <div id="result-collections"></div>
   </section>
-  <div class="result-currency"><span>획득 유령 재화</span><div><img src="assets/target.png" width="28" height="32" alt=""><strong id="result-reward">0</strong></div></div>
+  <div class="result-currency"><span>획득 코인</span><div><img src="assets/target.png" width="28" height="32" alt=""><strong id="result-reward">0</strong></div></div>
   <button id="result-double" class="ad-button result-double" type="button"><span class="ad-play" aria-hidden="true"></span><b>광고 보고 보상 2배</b><small>체험</small></button>
   <div class="run-actions result-actions">
     <button id="result-back" class="quiet-button" type="button">이벤트 메인</button>
@@ -175,6 +177,6 @@
     <footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">적용하고 닫기</button></footer>
   </form>
 </dialog>
-<script type="module" src="app.mjs?v=20261008-collections"></script>
+<script type="module" src="app.mjs?v=20261008-miss"></script>
 </body>
 </html>

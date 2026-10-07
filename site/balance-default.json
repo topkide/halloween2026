@@ -7,6 +7,7 @@
     "memoryMin": 0.45,
     "huntStart": 2.8,
     "huntMin": 0.85,
+    "missPenalty": 0.4,
     "targetsStart": 3,
     "targetsMax": 10,
     "decoysStart": 1,
