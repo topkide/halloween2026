@@ -26,6 +26,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Validate game and balance DB
+        run: |
+          node --test site/tests/*.test.mjs
+          node site/tests/gameplay.test.cjs
+          python3 site/tests/check-ui.py
+
       - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v5
