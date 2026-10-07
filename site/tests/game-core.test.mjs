@@ -7,38 +7,45 @@ const roundedSeconds = value => Math.round(value * 1000) / 1000;
 
 test('default difficulty starts at configured values and stops changing at the cap', () => {
   const d = DEFAULT_CONFIG.difficulty;
-  const start = difficultyAt(DEFAULT_CONFIG, 0, 0);
+  const start = difficultyAt(DEFAULT_CONFIG, 0);
   assert.deepEqual(start, {
     targets: d.targetsStart, decoys: d.decoysStart,
     memory: roundedSeconds(d.memoryStart), hunt: roundedSeconds(d.huntStart), pressure: 0
   });
-  assert.deepEqual(difficultyAt(DEFAULT_CONFIG, -1000, 0), start);
-  const atCap = difficultyAt(DEFAULT_CONFIG, d.rampSeconds * 1000, 1000);
+  assert.deepEqual(difficultyAt(DEFAULT_CONFIG, -1), start);
+  const atCap = difficultyAt(DEFAULT_CONFIG, d.rampRounds-1);
   assert.deepEqual(atCap, {
     targets: d.targetsMax, decoys: d.decoysMax,
     memory: roundedSeconds(d.memoryMin), hunt: roundedSeconds(d.huntMin), pressure: 1
   });
-  assert.deepEqual(difficultyAt(DEFAULT_CONFIG, d.rampSeconds * 10000, 1000), atCap);
+  assert.deepEqual(difficultyAt(DEFAULT_CONFIG, 1000), atCap);
+  let previous=start;
+  for(let cycle=1;cycle<d.rampRounds;cycle++) {
+    const current=difficultyAt(DEFAULT_CONFIG,cycle);
+    assert.ok(current.memory<=previous.memory&&current.hunt<=previous.hunt);
+    assert.equal(current.pressure,cycle/(d.rampRounds-1));
+    previous=current;
+  }
 });
 
-test('custom difficulty uses elapsed milliseconds while wave counts advance independently', () => {
+test('each completed wave advances timing and counts until their configured caps', () => {
   const config = structuredClone(DEFAULT_CONFIG);
   config.difficulty = {
-    rampSeconds: 12, memoryStart: 1.2, memoryMin: 0.4, huntStart: 3.2, huntMin: 1.2,
+    rampRounds: 5, memoryStart: 1.2, memoryMin: 0.4, huntStart: 3.2, huntMin: 1.2,
     targetsStart: 2, targetsMax: 7, decoysStart: 1, decoysMax: 3
   };
   const before = structuredClone(config);
-  assert.deepEqual(difficultyAt(config, 3000, 0), {
-    targets: 2, decoys: 1, memory: 1, hunt: 2.7, pressure: 0.25
+  assert.deepEqual(difficultyAt(config, 1), {
+    targets: 3, decoys: 2, memory: 1, hunt: 2.7, pressure: 0.25
   });
-  assert.deepEqual(difficultyAt(config, 6000, 1), {
-    targets: 3, decoys: 2, memory: 0.8, hunt: 2.2, pressure: 0.5
+  assert.deepEqual(difficultyAt(config, 2), {
+    targets: 4, decoys: 3, memory: 0.8, hunt: 2.2, pressure: 0.5
   });
-  assert.deepEqual(difficultyAt(config, 0, 100), {
-    targets: 7, decoys: 3, memory: 1.2, hunt: 3.2, pressure: 0
+  assert.deepEqual(difficultyAt(config, 100), {
+    targets: 7, decoys: 3, memory: 0.4, hunt: 1.2, pressure: 1
   });
-  assert.deepEqual(difficultyAt(config, 12000, 0), {
-    targets: 2, decoys: 1, memory: 0.4, hunt: 1.2, pressure: 1
+  assert.deepEqual(difficultyAt(config, 4), {
+    targets: 6, decoys: 3, memory: 0.4, hunt: 1.2, pressure: 1
   });
   assert.deepEqual(config, before, 'difficulty calculation must not change the balance DB');
 });
@@ -49,8 +56,8 @@ test('constant custom limits stay constant and fractional times round to millise
     memoryStart: 0.7514, memoryMin: 0.7514, huntStart: 2.0046, huntMin: 2.0046,
     targetsStart: 3, targetsMax: 3, decoysStart: 2, decoysMax: 2
   });
-  for (const elapsed of [0, config.difficulty.rampSeconds * 500, config.difficulty.rampSeconds * 2000]) {
-    const result = difficultyAt(config, elapsed, 20);
+  for (const cycle of [0, config.difficulty.rampRounds-1, 1000]) {
+    const result = difficultyAt(config, cycle);
     assert.equal(result.memory, 0.751);
     assert.equal(result.hunt, 2.005);
     assert.equal(result.targets, 3);

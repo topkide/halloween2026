@@ -29,7 +29,7 @@ test('every numeric field enforces finite values, ranges and integer controls',(
 });
 test('cross-field limits protect timers and the 12 positions',()=>{
   for(const [path,value] of [
-    ['difficulty.memoryMin',1],['difficulty.huntMin',2],
+    ['difficulty.memoryMin',DEFAULT_CONFIG.difficulty.memoryStart+.1],['difficulty.huntMin',DEFAULT_CONFIG.difficulty.huntStart+.1],
     ['difficulty.targetsStart',7],['difficulty.decoysStart',6],
     ['difficulty.targetsMax',8],['combo.bonusStart',.3]
   ]){const config=structuredClone(DEFAULT_CONFIG);setValue(config,path,value);assert.throws(()=>validateConfig(config),path);}
@@ -53,6 +53,23 @@ test('v1 files discard retired moving-ghost settings and preserve other tuning',
   assert.deepEqual(clean.difficulty,legacy.difficulty);assert.deepEqual(clean.combo,legacy.combo);
   assert.equal(legacy.haunt.enabled,1);assert.equal(serializeBalanceDB(clean).includes('haunt'),false);
   assert.equal(FIELD_GROUPS.some(group=>group.fields.some(field=>field.path.startsWith('haunt.'))),false);
+});
+
+test('time-based DBs adopt round progression and refresh only former default timings',()=>{
+  const legacy=structuredClone(DEFAULT_CONFIG);
+  delete legacy.difficulty.rampRounds;legacy.difficulty.rampSeconds=30;
+  legacy.difficulty.memoryStart=.5;legacy.difficulty.huntStart=1.6;legacy.combo.window=.6;
+  const migrated=parseBalanceDB(JSON.stringify(legacy));
+  assert.equal(migrated.difficulty.rampRounds,DEFAULT_CONFIG.difficulty.rampRounds);
+  assert.equal(migrated.difficulty.memoryStart,DEFAULT_CONFIG.difficulty.memoryStart);
+  assert.equal(migrated.difficulty.huntStart,DEFAULT_CONFIG.difficulty.huntStart);
+  assert.equal('rampSeconds' in migrated.difficulty,false);assert.equal(migrated.combo.window,.6);
+  legacy.difficulty.memoryStart=.9;legacy.difficulty.huntStart=3;
+  const custom=parseBalanceDB(JSON.stringify(legacy));
+  assert.equal(custom.difficulty.memoryStart,.9);assert.equal(custom.difficulty.huntStart,3);
+  for(const invalid of [null,'30',0,-1,601]) {
+    legacy.difficulty.rampSeconds=invalid;assert.throws(()=>parseBalanceDB(JSON.stringify(legacy)));
+  }
 });
 
 test('editor gates opening, applies/reset values, and discards stale imports',async()=>{

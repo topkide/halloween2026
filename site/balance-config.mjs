@@ -1,7 +1,7 @@
 const field=(path,label,min,max,step=.01,unit='초')=>({path,label,min,max,step,unit});
 export const FIELD_GROUPS=[
-  {title:'기억과 사격 시간',note:'플레이 경과 시간에 따라 시작값에서 최솟값까지 줄어듭니다. 각 배치를 시작할 때 정한 시간은 해당 배치에서 유지합니다.',fields:[
-    field('difficulty.rampSeconds','최고 난이도까지 걸리는 시간',1,600,.1),
+  {title:'기억과 사격 시간',note:'배치를 클리어할 때마다 시작값에서 최솟값까지 줄어듭니다. 최고 난이도에 도달하면 이후 배치에서도 같은 시간을 유지합니다.',fields:[
+    field('difficulty.rampRounds','최고 난이도가 되는 배치',2,100,1,'번째'),
     field('difficulty.memoryStart','처음 유령을 보여주는 시간',.05,10),
     field('difficulty.memoryMin','최소 노출 시간',.05,10),
     field('difficulty.huntStart','처음 사격 제한 시간',.1,60),
@@ -56,14 +56,25 @@ export function validateConfig(input){
   if(result.difficulty.targetsMax+result.difficulty.decoysMax>12)throw new Error('하얀 유령과 뿔 유령의 최대 합은 12마리 이하여야 합니다.');
   return result;
 }
-export function parseBalanceDB(text){let input;try{input=JSON.parse(text);}catch{throw new Error('올바른 JSON 파일을 선택해 주세요.');}return validateConfig(input);}
+export function parseBalanceDB(text){
+  let input;try{input=JSON.parse(text);}catch{throw new Error('올바른 JSON 파일을 선택해 주세요.');}
+  const d=input?.difficulty;
+  // Convert the former time-based DB; keep intentionally customized timings.
+  if(input?.version===1&&input.game==='memory-room'&&d&&typeof d==='object'&&
+    !('rampRounds' in d)&&Number.isFinite(d.rampSeconds)&&d.rampSeconds>=1&&d.rampSeconds<=600){
+    d.rampRounds=DEFAULT_CONFIG.difficulty.rampRounds;
+    if(d.memoryStart===.5)d.memoryStart=DEFAULT_CONFIG.difficulty.memoryStart;
+    if(d.huntStart===1.6)d.huntStart=DEFAULT_CONFIG.difficulty.huntStart;
+  }
+  return validateConfig(input);
+}
 export const serializeBalanceDB=config=>JSON.stringify(validateConfig(config),null,2)+'\n';
 
 async function loadDefaults(){
   const url=new URL('./balance-default.json',import.meta.url);
   if(url.protocol==='file:'){
     const {readFile}=await import('node:fs/promises');
-    return parseBalanceDB(await readFile(url,'utf8'));
+    return validateConfig(JSON.parse(await readFile(url,'utf8')));
   }
   const response=await fetch(url,{cache:'no-cache'});
   if(!response.ok)throw new Error('기본 밸런스 DB를 불러오지 못했습니다. 페이지를 새로고침해 주세요.');

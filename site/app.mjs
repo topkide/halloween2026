@@ -1,4 +1,4 @@
-import {DEFAULT_CONFIG,validateConfig} from './balance-config.mjs';
+import {DEFAULT_CONFIG,validateConfig,parseBalanceDB} from './balance-config.mjs';
 import {createBalanceEditor} from './balance-editor.mjs';
 import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
 
@@ -17,7 +17,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   try {
     const saved=readStorage(BALANCE_KEY);
     if(saved) {
-      pendingConfig=validateConfig(saved);
+      pendingConfig=parseBalanceDB(JSON.stringify(saved));
       // Upgrade the former default READY times without losing other saved tuning.
       if(saved.haunt) {
         if(pendingConfig.transition.firstPrepare===.25) pendingConfig.transition.firstPrepare=DEFAULT_CONFIG.transition.firstPrepare;
@@ -32,7 +32,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
     button.type='button'; button.className='cj-spot cursor-interaction';
     button.addEventListener('click',event=>{ event.stopPropagation(); choose(i,event); }); spots.append(button); return button;
   });
-  let phase='ready', cycle=0, score=0, current=difficultyAt(config,0,0), spooked=null, runStarted=0, board=['target','empty','decoy','empty','target','empty','empty','decoy','empty','target','empty','empty'];
+  let phase='ready', cycle=0, score=0, current=difficultyAt(config,0), spooked=null, board=['target','empty','decoy','empty','target','empty','empty','decoy','empty','target','empty','empty'];
   let caught=new Set(), tried=new Set(), timer=null, phaseTimer=null, deadline=0, duration=0, best=0;
   let soundOn=true, audio=null, audioMaster=null, lastSummary=null, shotNoise=null;
   let combo=0, lastHit=-Infinity, lastPulse=-Infinity;
@@ -224,11 +224,10 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   function beginCycle() {
     stopTimer(); clearEffects(); caught=new Set(); tried=new Set(); combo=0;lastHit=-Infinity;lastPulse=-Infinity;
     spooked=null;find('fail-splash').replaceChildren();room.dataset.failure='';
-    const elapsed=Math.max(0,performance.now()-runStarted);
-    current=difficultyAt(config,elapsed,cycle);
+    current=difficultyAt(config,cycle);
     const ramp=current.pressure;
     room.dataset.pace=ramp===1?'max':'rising';
-    find('rules').textContent='노출 '+current.memory.toFixed(2)+'초 · 기본 '+current.hunt.toFixed(2)+'초 · '+(ramp===1?'난이도 고정':Math.floor(elapsed/1000)+'/'+config.difficulty.rampSeconds+'초');
+    find('rules').textContent='배치 '+(cycle+1)+' · 기억 '+current.memory.toFixed(2)+'초 · 사격 '+current.hunt.toFixed(2)+'초';
     const order=Array.from({length:12},(_,i)=>i);
     for(let i=order.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
     board=Array(12).fill('empty');
@@ -341,7 +340,7 @@ import {difficultyAt,comboBonus,hitSlot} from './game-core.mjs';
   action.addEventListener('click',()=>{
     if(!['ready','over'].includes(phase)||balanceDialog.open) return;
     config=structuredClone(pendingConfig);
-    stopTimer();clearEffects();enableAudio();cycle=0;score=0;runStarted=performance.now();
+    stopTimer();clearEffects();enableAudio();cycle=0;score=0;
     beginCycle();
   });
   function readySettings() {

@@ -4,9 +4,9 @@ const assert = require('node:assert/strict');
 
 // Pin a representative balance for timing regressions, independent of live tuning.
 (async()=>{
-const {validateConfig,DEFAULT_CONFIG:LIVE_DEFAULTS}=await import('../balance-config.mjs');
+const {validateConfig,parseBalanceDB,DEFAULT_CONFIG:LIVE_DEFAULTS}=await import('../balance-config.mjs');
 const {difficultyAt,comboBonus,hitSlot}=await import('../game-core.mjs');
-const DEFAULT_CONFIG=validateConfig({"version": 1, "game": "memory-room", "difficulty": {"rampSeconds": 30, "memoryStart": 0.5, "memoryMin": 0.32, "huntStart": 1.6, "huntMin": 0.7, "targetsStart": 4, "targetsMax": 6, "decoysStart": 3, "decoysMax": 5}, "combo": {"window": 0.45, "bonusStart": 0.12, "bonusStep": 0.04, "bonusMax": 0.2}, "transition": {"firstPrepare": 0.25, "prepare": 0.12, "blackout": 0.04, "impact": 0.08, "tremble": 0.28}, "effects": {"fogEnabled": 1, "fogDuration": 0.48, "heartbeatBelow": 0.7, "heartbeatInterval": 0.22}});
+const DEFAULT_CONFIG=validateConfig({"version": 1, "game": "memory-room", "difficulty": {"rampRounds": 12, "memoryStart": 0.5, "memoryMin": 0.32, "huntStart": 1.6, "huntMin": 0.7, "targetsStart": 4, "targetsMax": 6, "decoysStart": 3, "decoysMax": 5}, "combo": {"window": 0.45, "bonusStart": 0.12, "bonusStep": 0.04, "bonusMax": 0.2}, "transition": {"firstPrepare": 0.25, "prepare": 0.12, "blackout": 0.04, "impact": 0.08, "tremble": 0.28}, "effects": {"fogEnabled": 1, "fogDuration": 0.48, "heartbeatBelow": 0.7, "heartbeatInterval": 0.22}});
 const script=fs.readFileSync(require('node:path').join(__dirname,'../app.mjs'),'utf8').replace(/^import .*;$/gm,'');
 function game(options={}) {
   let now = 0, serial = 0;
@@ -45,7 +45,7 @@ function game(options={}) {
   if(options.saved!==undefined)storage.set('catjump-memory-room-state-v1',JSON.stringify(options.saved));
   if(options.config!==undefined)storage.set('catjump-memory-room-balance-v1',JSON.stringify(options.config));
   vm.runInNewContext(script, {
-    DEFAULT_CONFIG:options.defaults||DEFAULT_CONFIG,validateConfig,difficultyAt,comboBonus,hitSlot,structuredClone,
+    DEFAULT_CONFIG:options.defaults||DEFAULT_CONFIG,validateConfig,parseBalanceDB,difficultyAt,comboBonus,hitSlot,structuredClone,
     createBalanceEditor(callbacks){editor=callbacks;return {open(){if(callbacks.onOpen()===false)return;get('balance-dialog').open=true;}};},
     localStorage:{getItem:key=>options.corruptStorage?'broken json':storage.get(key)??null,
       setItem(key,value){if(options.blockStorage)throw Error('Storage denied');storage.set(key,value);if(key==='catjump-memory-room-state-v1')saved.push(JSON.parse(value));},
@@ -61,12 +61,12 @@ function game(options={}) {
   get('spots').parent=get('room');
   get('spots').children.forEach((button,i)=>button.rect={left:30+(i%3)*110,top:66+Math.floor(i/3)*90,width:100,height:80});
   return {
-    get, root, nodes, created, saved, timers, audioLog, storage, editor,runStart:0,now:()=>now,
+    get, root, nodes, created, saved, timers, audioLog, storage, editor,now:()=>now,
     phase:() => get('room').dataset.phase,
     slots:() => get('spots').children,
     types(type) { return this.slots().flatMap((s, i) => (type === 'empty' ? !s.innerHTML : s.innerHTML.includes('cj-ghost ' + type)) ? [i] : []); },
     click(i,event) { return this.slots()[i].click(event); },
-    start() { if(['ready','over'].includes(this.phase()))this.runStart=now;get('action').click(); },
+    start() { get('action').click(); },
     jump(time) { now = time; },
     advance(ms) {
       const until = now + ms;
@@ -90,9 +90,10 @@ function assertLocked(g){
   assert.equal(g.get('score').textContent,score);assert.equal(g.phase(),phase);assert.equal(g.saved.length,saves);
 }
 function enterCycle(g,cycle=0){
-  const elapsed=Math.max(0,g.now()-g.runStart),ramp=Math.min(1,elapsed/30000);
-  const count=Math.min(6,cycle+4),decoys=Math.min(5,cycle+3);
-  const memory=Math.round(500-180*ramp),hunt=Math.round(1600-900*ramp),prepare=cycle===0?250:120;
+  const {difficulty:d,transition:t}=g.editor.getConfig(),ramp=Math.min(1,cycle/(d.rampRounds-1));
+  const count=Math.min(d.targetsMax,cycle+d.targetsStart),decoys=Math.min(d.decoysMax,cycle+d.decoysStart);
+  const memory=Math.round((d.memoryStart-(d.memoryStart-d.memoryMin)*ramp)*1000);
+  const hunt=Math.round((d.huntStart-(d.huntStart-d.huntMin)*ramp)*1000),prepare=(cycle===0?t.firstPrepare:t.prepare)*1000;
   assert.equal(g.phase(),'prepare');assertHidden(g);assertLocked(g);
   for(const id of ['effects','fail-splash'])assert.equal(g.get(id).children.length,0);
   assert.ok(g.slots().every(s=>s.attrs['aria-label'].includes('숨겨진 자리')));
@@ -101,7 +102,7 @@ function enterCycle(g,cycle=0){
   assert.deepEqual([b.target.length,b.decoy.length,b.empty.length],[count,decoys,12-count-decoys]);
   assertLocked(g);g.advance(memory-.1);assert.equal(g.phase(),'memory');
   g.advance(.1);assert.equal(g.phase(),'hide');assertHidden(g);assertLocked(g);
-  g.advance(39.9);assert.equal(g.phase(),'hide');g.advance(.1);assert.equal(g.phase(),'hunt');
+  g.advance(t.blackout*1000-.1);assert.equal(g.phase(),'hide');g.advance(.1);assert.equal(g.phase(),'hunt');
   assert.equal(g.get('clock').textContent,(hunt/1000).toFixed(2)+'초');assertHidden(g);
   assert.equal(g.nodes.has('haunts'),false);
   return b;
@@ -175,26 +176,36 @@ const {g:urgent,b:ub}=startRun();urgent.advance(400);urgent.click(ub.target[0]);
 urgent.advance(199);assert.equal(urgent.root.dataset.urgent,'false');urgent.advance(1);assert.equal(urgent.root.dataset.urgent,'true');
 urgent.advance(10);urgent.click(ub.target[1]);assert.equal(urgent.get('clock').textContent,'1.11초');assert.equal(urgent.root.dataset.urgent,'false');
 
-function sampleAt(elapsed,cycle=1){
-  const {g:sample,b}=startRun();b.target.forEach(i=>sample.click(i));
-  if(cycle===2){resolveImpact(sample);enterCycle(sample,1).target.forEach(i=>sample.click(i));}
-  sample.advance(80);sample.jump(elapsed);sample.advance(0);return {g:sample,b:enterCycle(sample,cycle)};
+function sampleCycle(cycle,options){
+  const sample=game(options);sample.start();
+  for(let n=0;n<cycle;n++){
+    const board=enterCycle(sample,n);board.target.forEach(i=>sample.click(i));resolveImpact(sample,board.decoy.length);
+  }
+  return {g:sample,b:enterCycle(sample,cycle)};
 }
-for(const [elapsed,memory,hunt] of [[15000,410,1150],[30000,320,700],[60000,320,700]]){
-  const {g:s,b}=sampleAt(elapsed);assert.deepEqual([b.memory,b.hunt],[memory,hunt]);
+for(const [cycle,memory,hunt] of [[1,484,1518],[5,418,1191],[10,336,782],[11,320,700],[12,320,700]]){
+  const {g:s,b}=sampleCycle(cycle);assert.deepEqual([b.memory,b.hunt],[memory,hunt]);
   s.advance(hunt-.1);assert.equal(s.phase(),'hunt');s.advance(.1);assert.equal(s.phase(),'over');assert.equal(s.timers.size,0);
 }
-const {g:cross,b:cb}=sampleAt(29000);assert.deepEqual([cb.memory,cb.hunt],[326,730]);
-const crossStart=cross.now(),crossRules=cross.get('rules').textContent;cross.advance(30001-crossStart);
-assert.equal(cross.phase(),'hunt');assert.equal(cross.get('rules').textContent,crossRules);cross.advance(crossStart+730-cross.now());assert.equal(cross.phase(),'over');
-cross.start();assert.deepEqual([enterCycle(cross).memory,parseFloat(cross.get('clock').textContent)],[500,1.6]);
-const {g:rapid,b:rapidBoard}=sampleAt(30000,2),rapidStart=rapid.now();
+// A delayed READY callback and a long session cannot accelerate a low-numbered stage.
+const delayed=game();delayed.start();delayed.jump(120000);delayed.advance(0);
+assert.equal(delayed.phase(),'memory');assert.equal(delayed.get('clock').textContent,'0.50초');
+const delayedTargets=delayed.types('target');delayed.advance(499.9);assert.equal(delayed.phase(),'memory');
+delayed.advance(.1+40);assert.equal(delayed.phase(),'hunt');assert.equal(delayed.get('clock').textContent,'1.60초');
+delayedTargets.forEach(i=>delayed.click(i));resolveImpact(delayed);
+const delayedNext=enterCycle(delayed,1);assert.deepEqual([delayedNext.memory,delayedNext.hunt],[484,1518]);
+delayed.advance(1518);assert.equal(delayed.phase(),'over');delayed.start();
+assert.deepEqual([enterCycle(delayed).memory,parseFloat(delayed.get('clock').textContent)],[500,1.6]);
+for(const [cycle,memory,hunt] of [[0,1200,2400],[11,320,700]]){
+  const {b}=sampleCycle(cycle,{defaults:LIVE_DEFAULTS});assert.deepEqual([b.memory,b.hunt],[memory,hunt]);
+}
+const {g:rapid,b:rapidBoard}=sampleCycle(11),rapidStart=rapid.now();
 for(const [index,at] of [180,570,760,930,1110,1300].entries()){
   rapid.advance(rapidStart+at-rapid.now());assert.equal(rapid.phase(),'hunt');rapid.click(rapidBoard.target[index]);
   const bonus=[0,120,160,200,200,200][index];if(bonus)assert.ok(newest(rapid).innerHTML.includes('+'+(bonus/1000).toFixed(2)+'초'));
 }
-assert.equal(rapid.phase(),'impact');assert.equal(rapid.saved.length,0);resolveImpact(rapid,5);assert.equal(enterCycle(rapid,3).hunt,700);
-const {g:noChain,b:nc}=sampleAt(30000,2);noChain.advance(180);noChain.click(nc.target[0]);noChain.advance(460);noChain.click(nc.target[1]);
+assert.equal(rapid.phase(),'impact');assert.equal(rapid.saved.length,0);resolveImpact(rapid,5);assert.equal(enterCycle(rapid,12).hunt,700);
+const {g:noChain,b:nc}=sampleCycle(11);noChain.advance(180);noChain.click(nc.target[0]);noChain.advance(460);noChain.click(nc.target[1]);
 noChain.advance(60);assert.equal(noChain.phase(),'over');
 
 const {g:shot,b:sb}=startRun(),cell=shot.slots()[sb.target[0]].rect,point={detail:1,clientX:cell.left+13,clientY:cell.top+19};
@@ -257,6 +268,15 @@ assert.equal(upgradedReady.transition.prepare,LIVE_DEFAULTS.transition.prepare);
 assert.equal(upgradedReady.combo.window,legacy.combo.window);
 const customReady=structuredClone(legacy);customReady.transition.prepare=1.2;
 assert.equal(game({config:customReady,defaults:LIVE_DEFAULTS}).editor.getConfig().transition.prepare,1.2);
+const timedLegacy=structuredClone(legacy);delete timedLegacy.difficulty.rampRounds;timedLegacy.difficulty.rampSeconds=30;
+const migratedGame=game({config:timedLegacy,defaults:LIVE_DEFAULTS}),migrated=migratedGame.editor.getConfig();
+assert.deepEqual([migrated.difficulty.rampRounds,migrated.difficulty.memoryStart,migrated.difficulty.huntStart],[12,1.2,2.4]);
+assert.equal('rampSeconds' in migrated.difficulty,false);assert.equal(migrated.combo.window,.6);
+assert.equal(migrated.transition.firstPrepare,.8);assert.equal(migrated.transition.prepare,.65);
+assert.deepEqual([startRun(migratedGame).b.memory,parseFloat(migratedGame.get('clock').textContent)],[1200,2.4]);
+const customTimes=structuredClone(timedLegacy);customTimes.difficulty.memoryStart=.9;customTimes.difficulty.huntStart=3;
+const preserved=game({config:customTimes,defaults:LIVE_DEFAULTS}).editor.getConfig();
+assert.deepEqual([preserved.difficulty.rampRounds,preserved.difficulty.memoryStart,preserved.difficulty.huntStart],[12,.9,3]);
 assert.equal(restored.editor.getConfig().combo.window,.6);assert.equal('haunt' in restored.editor.getConfig(),false);
 const restoredBoard=startRun(restored).b,originalButtons=[...restored.slots()];
 restoredBoard.target.forEach((index,n)=>{
@@ -290,6 +310,6 @@ const muted=game({audio:true}),mb=startRun(muted).b,ma=muted.audioLog;muted.get(
 muted.click(mb.target[0]);muted.advance(1000);assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
 const shiver=game({audio:true}),shb=startRun(shiver).b;shb.target.forEach(i=>shiver.click(i));const tonesBefore=shiver.audioLog.tones.length;
 shiver.advance(80);assert.equal(shiver.audioLog.tones.length,tonesBefore+7);assert.ok(shiver.audioLog.tones.slice(-7).every(t=>t.stoppedAt<=.28));
-console.log('PASS: 30 cycles/177 score; 30s difficulty cap; sub-ms phase/deadline boundaries; 450ms combo rearming and six-hit survival; static decoys and legacy balance without moving ghosts; failures, records, curse, snicker/pulse/shiver and mute.');
+console.log('PASS: 30 cycles/177 score; stage-12 difficulty cap independent of elapsed time; slower opening and legacy balance migration; sub-ms phase/deadline boundaries; 450ms combo rearming and six-hit survival; static decoys without moving ghosts; failures, records, curse, snicker/pulse/shiver and mute.');
 
 })().catch(error=>{console.error(error);process.exitCode=1;});

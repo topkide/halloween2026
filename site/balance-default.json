@@ -2,10 +2,10 @@
   "version": 1,
   "game": "memory-room",
   "difficulty": {
-    "rampSeconds": 30,
-    "memoryStart": 0.5,
+    "rampRounds": 12,
+    "memoryStart": 1.2,
     "memoryMin": 0.32,
-    "huntStart": 1.6,
+    "huntStart": 2.4,
     "huntMin": 0.7,
     "targetsStart": 4,
     "targetsMax": 6,
