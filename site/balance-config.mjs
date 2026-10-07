@@ -7,11 +7,11 @@ export const FIELD_GROUPS=[
     field('difficulty.huntStart','처음 사격 제한 시간',.1,60),
     field('difficulty.huntMin','최소 사격 제한 시간',.1,60)
   ]},
-  {title:'유령 수',note:'배치를 통과할 때마다 한 마리씩 늘어납니다. 하얀 유령과 뿔 유령의 최대 합은 12마리입니다.',fields:[
-    field('difficulty.targetsStart','처음 하얀 유령 수',1,11,1,'마리'),
-    field('difficulty.targetsMax','최대 하얀 유령 수',1,11,1,'마리'),
-    field('difficulty.decoysStart','처음 뿔 유령 수',0,11,1,'마리'),
-    field('difficulty.decoysMax','최대 뿔 유령 수',0,11,1,'마리')
+  {title:'유령 수와 방 크기',note:'3×3 → 4×4 → 5×5 → 6×6 (1·4·8·12번째 배치). 흰색은 3배치마다, 뿔 유령은 2배치마다 늘어나며 현재 방 크기에 맞춰 제한됩니다. 최대 합은 35마리입니다.',fields:[
+    field('difficulty.targetsStart','처음 하얀 유령 수',1,34,1,'마리'),
+    field('difficulty.targetsMax','최대 하얀 유령 수',1,34,1,'마리'),
+    field('difficulty.decoysStart','처음 뿔 유령 수',0,34,1,'마리'),
+    field('difficulty.decoysMax','최대 뿔 유령 수',0,34,1,'마리')
   ]},
   {title:'연속 명중',note:'첫 명중에는 시간 보너스가 없습니다. 두 번째 명중부터 기본 보너스와 증가량을 적용하며 최대값을 넘지 않습니다.',fields:[
     field('combo.window','콤보를 이어갈 수 있는 간격',.05,5),
@@ -53,7 +53,7 @@ export function validateConfig(input){
     ['difficulty.decoysStart','difficulty.decoysMax','처음 뿔 유령 수'],
     ['combo.bonusStart','combo.bonusMax','2연속 명중 보너스']
   ])if(getValue(result,lower)>getValue(result,upper))throw new Error(`${label}이 대응하는 시작값 또는 최대값보다 클 수 없습니다.`);
-  if(result.difficulty.targetsMax+result.difficulty.decoysMax>12)throw new Error('하얀 유령과 뿔 유령의 최대 합은 12마리 이하여야 합니다.');
+  if(result.difficulty.targetsMax+result.difficulty.decoysMax>35)throw new Error('하얀 유령과 뿔 유령의 최대 합은 35마리 이하여야 합니다.');
   return result;
 }
 export function parseBalanceDB(text){

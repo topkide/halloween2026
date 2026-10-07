@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges" role="img" aria-label="책가방">
+  <path fill="#20162f" d="M19 3h10v3h4v6h5v5h3v9h3v14h-3v4H7v-4H4V26h3v-9h3v-5h5V6h4z"/>
+  <path fill="#b6a7c4" d="M19 6h10v6h-3V9h-4v3h-3z"/>
+  <path fill="#b67151" d="M11 16h26v23H11zM8 29h3v9H8zM37 29h3v9h-3z"/>
+  <path fill="#e8a566" d="M15 14h18v4h4v8H11v-8h4z"/>
+  <path fill="#ffe0a0" d="M15 16h18v3H15z"/>
+  <path fill="#20162f" d="M14 27h20v12H14z"/>
+  <path fill="#d88c58" d="M17 30h14v6H17z"/>
+  <path fill="#8ee0cf" d="M21 20h6v5h-6z"/>
+  <path fill="#f7d999" d="M17 29h14v2H17zM27 31h3v3h-3z"/>
+  <path fill="#85503f" d="M11 39h26v2H11z"/>
+</svg>

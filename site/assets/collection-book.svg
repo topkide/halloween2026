@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges" role="img" aria-label="교과서">
+  <path fill="#20162f" d="M10 4h28v3h3v33h-3v4H10v-3H7V7h3z"/>
+  <path fill="#3981d5" d="M11 7h25v29H11z"/>
+  <path fill="#1d4c93" d="M10 7h5v29h-5zM15 32h21v4H15z"/>
+  <path fill="#8fd4fa" d="M17 10h16v2H17zM17 12h2v10h-2zM31 12h2v10h-2zM17 22h16v2H17z"/>
+  <path fill="#ffda8c" d="M21 16h8v3h-8z"/>
+  <path fill="#f8e9c8" d="M12 37h26v4H12z"/>
+  <path fill="#b6aac4" d="M16 38h19v1H16z"/>
+  <path fill="#69b6ed" d="M15 7h21v2H15z"/>
+</svg>

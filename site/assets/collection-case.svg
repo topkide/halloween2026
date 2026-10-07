@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges" role="img" aria-label="필통">
+  <path fill="#20162f" d="M9 12h29v3h6v5h3v13h-3v5H9v-3H3v-5H1V19h3v-4h5z"/>
+  <path fill="#7460a2" d="M10 15h27v3h6v13h-3v4H10v-3H6V20h4z"/>
+  <path fill="#b59ad8" d="M10 15h27v3h6v5H10v-3H6v-2h4z"/>
+  <path fill="#483563" d="M6 24h4v8H6zM10 31h30v4H10zM40 24h3v7h-3z"/>
+  <path fill="#f5d39b" d="M9 22h32v2H9zM11 24h3v2h-3zM17 24h3v2h-3zM23 24h3v2h-3zM29 24h3v2h-3zM35 24h3v2h-3z"/>
+  <path fill="#fff0c7" d="M35 21h5v4h-2v4h-3z"/>
+  <path fill="#eab470" d="M35 26h3v4h-3z"/>
+  <path fill="#d7c4ec" d="M13 17h21v2H13z"/>
+</svg>

@@ -7,7 +7,7 @@
   <meta name="description" content="캣점프 할로윈 이벤트 유령 소탕 대작전! 유령의 위치를 기억하고 암전 속에서 빠르게 사격하세요.">
   <title>유령 소탕 대작전! · 캣점프 할로윈</title>
   <link rel="icon" type="image/png" href="assets/target.png">
-  <link rel="stylesheet" href="style.css?v=20261008-lobby">
+  <link rel="stylesheet" href="style.css?v=20261008-collections">
 </head>
 <body>
 <main>
@@ -23,7 +23,7 @@
         <div class="lobby-scene-art" aria-hidden="true"></div>
         <div class="lobby-scene-toolbar">
           <button id="lobby-package" class="lobby-package" type="button"><span class="lobby-gift" aria-hidden="true"></span>특별 패키지</button>
-          <div class="lobby-wallet" aria-label="유령 재화"><img class="lobby-currency-icon" src="assets/target.png" width="28" height="32" alt=""><strong id="lobby-currency">12,345</strong></div>
+          <div class="lobby-wallet" aria-label="유령 재화"><img class="lobby-currency-icon" src="assets/target.png" width="28" height="32" alt=""><strong id="lobby-currency">0</strong></div>
         </div>
         <div class="lobby-spirits" aria-hidden="true">
           <img class="lobby-ghost lobby-ghost-main" src="assets/target.png" width="128" height="144" alt="">
@@ -54,10 +54,11 @@
     </div>
     <header class="cj-play-hud" aria-label="게임 진행">
       <div class="cj-time-track" aria-hidden="true"><div id="cj-time-fill"></div></div>
+      <span id="cj-combo-display" hidden></span>
       <button id="cj-pause" class="cj-pause" type="button" aria-label="일시정지" disabled><span aria-hidden="true"></span></button>
-      <div class="cj-stage-strip"><span id="cj-phase">찰나를 기억하고, 명중!</span><strong id="cj-clock">위치를 기억해요</strong></div>
+      <div class="cj-stage-strip"><span id="cj-phase">찰나를 기억하고, 명중!</span><span id="cj-collection-count" aria-label="이번 판 수집">수집 0/2</span><strong id="cj-clock">위치를 기억해요</strong></div>
     </header>
-    <div class="cj-room" id="cj-room" data-phase="ready" role="group" aria-label="유령이 나타나는 4행 3열의 방">
+    <div class="cj-room" id="cj-room" data-phase="ready" role="group" aria-label="유령이 나타나는 3행 3열의 방">
       <div class="cj-scenery" aria-hidden="true">
       </div>
       <div class="cj-ambience" aria-hidden="true"><i class="cj-candle-aura"></i><i class="cj-candle-aura cj-side-aura"></i><i class="cj-mist"></i><i class="cj-ember"></i></div>
@@ -66,20 +67,20 @@
       <div class="cj-effects" id="cj-effects" aria-hidden="true"></div>
       <div class="cj-fail-splash" id="cj-fail-splash" aria-hidden="true"></div>
       <div class="cj-ready" id="cj-ready" hidden><span>눈 크게 뜨고</span><strong>READY</strong><small id="cj-ready-time">잠시 후 보여요</small></div>
-      <div class="cj-room-caption" id="cj-room-caption" hidden>12개의 자리 · 유령의 위치를 기억해요</div>
-      <div class="cj-menu" aria-label="시작 및 결과">
+      <div class="cj-room-caption" id="cj-room-caption" hidden>9개의 자리 · 유령의 위치를 기억해요</div>
+      <div class="cj-menu" aria-label="시작 및 결과" hidden>
         <div class="cj-eyebrow">CAT JUMP · HALLOWEEN</div>
         <h1>유령이 숨은 밤</h1>
         <div class="cj-banner" id="cj-banner" hidden><span id="cj-banner-kicker"></span><strong id="cj-banner-title"></strong></div>
         <div class="cj-hud"><span id="cj-score">명중 0</span><span id="cj-best">최고 0</span><button id="cj-sound" class="cj-sound cursor-interaction" type="button" aria-label="사운드 켜짐" aria-pressed="true">♪ ON</button></div>
-        <div class="cj-feedback" id="cj-feedback" role="status" aria-live="polite">하얀 유령의 위치를 기억하고 0.45초 연속 명중.</div>
+        <div class="cj-feedback" id="cj-feedback" role="status" aria-live="polite">하얀 유령의 위치를 기억하고 0.22초 연속 명중.</div>
         <button class="cj-main-button cursor-interaction" id="cj-action" type="button" disabled>게임 불러오는 중…</button>
         <button class="cj-home quiet-button" id="cj-home" type="button">이벤트 메인</button>
         <button id="balance-open" class="cj-settings" type="button" disabled>밸런스 설정 · DB 저장 / 불러오기</button>
-        <p id="cj-storage-note" class="cj-storage-note" role="status"></p>
       </div>
       <div class="cj-rules" id="cj-rules" hidden>콤보 +0.12~0.20초 · 한 번의 오발이면 끝!</div>
     </div>
+    <p id="cj-storage-note" class="storage-warning lobby-storage-warning" role="status"></p>
   </section>
 </main>
 <noscript>게임을 하려면 브라우저의 JavaScript를 켜주세요.</noscript>
@@ -104,6 +105,58 @@
   <button id="pause-resume" class="primary-button" type="button">계속하기</button>
   <button id="pause-quit" class="quiet-button" type="button">처음으로</button>
 </dialog>
+<dialog id="continue-dialog" class="run-dialog" aria-labelledby="continue-title" aria-describedby="continue-description">
+  <h2 id="continue-title">이어하기</h2>
+  <div class="continue-ghosts" aria-hidden="true">
+    <img src="assets/decoy.png" width="64" height="72" alt="">
+    <img src="assets/target.png" width="96" height="108" alt="">
+    <img src="assets/target.png" width="56" height="63" alt="">
+  </div>
+  <div id="continue-description" class="continue-description">
+    <p>광고 시청 후 계속 플레이할 수 있어요.</p>
+    <p>난이도는 일부 하락합니다.</p>
+    <small>이어하기는 한 판에 1회만 가능해요.</small>
+  </div>
+  <div class="run-actions">
+    <button id="continue-back" class="quiet-button" type="button">그만하기</button>
+    <button id="continue-watch" class="primary-button ad-button" type="button"><span class="ad-play" aria-hidden="true"></span><b>광고 시청</b><small>이어하기 · 체험</small></button>
+  </div>
+  <p id="continue-status" class="dialog-status" role="status" aria-live="polite"></p>
+  <p class="storage-warning">저장이 제한되어 새로고침하면 보상·수집품이 사라질 수 있어요.</p>
+</dialog>
+<dialog id="result-dialog" class="run-dialog" aria-labelledby="result-title">
+  <h2 id="result-title">게임 결과</h2>
+  <dl class="result-stats">
+    <div><dt>플레이 시간</dt><dd id="result-time">0.0초</dd></div>
+    <div><dt>잡은 유령</dt><dd id="result-caught">0마리</dd></div>
+  </dl>
+  <section class="result-album" aria-label="이번 판 획득 컬렉션">
+    <h3>획득 컬렉션</h3>
+    <div id="result-collections"></div>
+  </section>
+  <div class="result-currency"><span>획득 유령 재화</span><div><img src="assets/target.png" width="28" height="32" alt=""><strong id="result-reward">0</strong></div></div>
+  <button id="result-double" class="ad-button result-double" type="button"><span class="ad-play" aria-hidden="true"></span><b>광고 보고 보상 2배</b><small>체험</small></button>
+  <div class="run-actions result-actions">
+    <button id="result-back" class="quiet-button" type="button">이벤트 메인</button>
+    <button id="result-retry" class="primary-button" type="button">다시 도전</button>
+  </div>
+  <p id="result-status" class="dialog-status" role="status" aria-live="polite"></p>
+  <p class="storage-warning">저장이 제한되어 새로고침하면 보상·수집품이 사라질 수 있어요.</p>
+</dialog>
+<dialog id="collection-dialog" aria-labelledby="collection-title">
+  <header class="collection-header"><h2 id="collection-title">컬렉션</h2><button id="collection-close" class="quiet-button" type="button" aria-label="컬렉션 닫기">×</button></header>
+  <div class="collection-content">
+    <div id="collection-grid" aria-label="9종 컬렉션 앨범"></div>
+    <h3 id="collection-name">컬렉션을 선택하세요</h3>
+    <p class="collection-total">수집한 컬렉션 <strong id="collection-progress">0 / 9</strong></p>
+  </div>
+  <footer class="collection-footer">
+    <div class="collection-character"><img src="assets/target.png" width="56" height="63" alt="유령 고양이"><div><small>9 / 9 수집 완료 보상</small><strong>유령 고양이</strong></div></div>
+    <button id="collection-claim" class="primary-button" type="button" disabled>캐릭터 받기</button>
+    <p id="collection-status" class="dialog-status" role="status" aria-live="polite"></p>
+    <p class="storage-warning">저장이 제한되어 새로고침하면 보상·수집품이 사라질 수 있어요.</p>
+  </footer>
+</dialog>
 <dialog id="balance-dialog" aria-labelledby="balance-title">
   <header class="balance-header"><div><span class="kicker">PLAY TEST SETTINGS</span><h2 id="balance-title">밸런스 설정</h2></div><button id="balance-close" class="quiet-button" type="button" aria-label="설정 닫기">닫기</button></header>
   <form id="balance-form" novalidate>
@@ -122,6 +175,6 @@
     <footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">적용하고 닫기</button></footer>
   </form>
 </dialog>
-<script type="module" src="app.mjs?v=20261008-lobby"></script>
+<script type="module" src="app.mjs?v=20261008-collections"></script>
 </body>
 </html>

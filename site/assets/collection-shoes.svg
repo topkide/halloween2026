@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges" role="img" aria-label="실내화">
+  <path fill="#20162f" d="M23 5h15v3h4v17h-4v5H17v-3h-4V17h4v-5h6zM9 21h15v3h4v17h-4v3H5v-3H2V31h3v-6h4z"/>
+  <path fill="#fff4df" d="M25 8h11v3h3v12h-4v4H17v-9h4v-4h4zM11 24h11v3h3v12H5v-7h4v-6h2z"/>
+  <path fill="#49405c" d="M27 9h8v10h-4v4h-8v-6h4zM13 25h8v10h-4v3H9v-6h4z"/>
+  <path fill="#b8a9c6" d="M17 23h7v4h-7zM5 36h6v3H5zM35 24h4v3h-4zM21 37h4v3h-4z"/>
+  <path fill="#7ccbd8" d="M20 18h7v3h-7zM6 31h7v3H6z"/>
+  <path fill="#eeddbb" d="M17 27h21v2H17zM5 40h19v2H5z"/>
+</svg>

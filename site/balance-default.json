@@ -2,18 +2,18 @@
   "version": 1,
   "game": "memory-room",
   "difficulty": {
-    "rampRounds": 12,
-    "memoryStart": 1.2,
-    "memoryMin": 0.32,
-    "huntStart": 2.4,
-    "huntMin": 0.7,
-    "targetsStart": 4,
-    "targetsMax": 6,
-    "decoysStart": 3,
-    "decoysMax": 5
+    "rampRounds": 24,
+    "memoryStart": 1.6,
+    "memoryMin": 0.45,
+    "huntStart": 2.8,
+    "huntMin": 0.85,
+    "targetsStart": 3,
+    "targetsMax": 10,
+    "decoysStart": 1,
+    "decoysMax": 9
   },
   "combo": {
-    "window": 0.45,
+    "window": 0.22,
     "bonusStart": 0.12,
     "bonusStep": 0.04,
     "bonusMax": 0.2

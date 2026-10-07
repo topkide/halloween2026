@@ -2,13 +2,38 @@
 export function difficultyAt(config, cycle) {
   const d=config.difficulty, round=Math.max(0,cycle), pressure=Math.min(1,round/(d.rampRounds-1));
   const time=(start,min)=>Math.round((start-(start-min)*pressure)*1000)/1000;
+  const gridSize=round<3?3:round<7?4:round<11?5:6;
+  const targets=Math.min(d.targetsMax,d.targetsStart+Math.floor(round/3),gridSize**2-2);
   return {
-    targets:Math.min(d.targetsMax,d.targetsStart+round),
-    decoys:Math.min(d.decoysMax,d.decoysStart+round),
+    gridSize, targets,
+    decoys:Math.min(d.decoysMax,d.decoysStart+Math.floor(round/2),gridSize**2-targets-1),
     memory:time(d.memoryStart,d.memoryMin),
     hunt:time(d.huntStart,d.huntMin),
     pressure
   };
+}
+
+// Larger rooms spread targets further apart, while retaining a fresh random layout.
+export function createBoard(current,cycle,random=Math.random) {
+  const size=current.gridSize, order=Array.from({length:size**2},(_,i)=>i), targets=[];
+  for(let i=order.length-1;i>0;i--) { const j=Math.floor(random()*(i+1));[order[i],order[j]]=[order[j],order[i]]; }
+  const spread=Math.min(1,Math.max(0,(cycle-11)/12));
+  const distance=(a,b)=>Math.abs(a%size-b%size)+Math.abs(Math.floor(a/size)-Math.floor(b/size));
+  for(let n=0;n<current.targets;n++) {
+    let pick=0;
+    if(targets.length&&random()<spread) {
+      let furthest=-1;
+      order.forEach((cell,i)=>{
+        const nearest=Math.min(...targets.map(target=>distance(cell,target)));
+        if(nearest>furthest) { furthest=nearest;pick=i; }
+      });
+    }
+    targets.push(order.splice(pick,1)[0]);
+  }
+  const board=Array(size**2).fill('empty');
+  targets.forEach(i=>board[i]='target');
+  order.slice(0,current.decoys).forEach(i=>board[i]='decoy');
+  return board;
 }
 
 export function comboBonus(config, combo) {
@@ -31,7 +56,7 @@ export function hitSlot(rects, board, caught, x, y, padding=16) {
     });
     return best;
   }
-  const target=closest(i=>board[i]==='target'&&!caught.has(i));
+  const target=closest(i=>['target','collection'].includes(board[i])&&!caught.has(i));
   if(target!==null) return target;
   return direct!==-1?direct:closest(()=>true);
 }

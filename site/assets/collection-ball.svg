@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges" role="img" aria-label="축구공">
+  <path fill="#20162f" d="M16 4h16v3h6v4h4v7h3v12h-3v7h-4v4h-6v3H16v-3h-6v-4H6v-7H3V18h3v-7h4V7h6z"/>
+  <path fill="#fff4df" d="M16 7h16v3h6v8h4v12h-4v7h-6v4H16v-4h-6v-7H6V18h4v-8h6z"/>
+  <path fill="#c7bad0" d="M7 25h4v9h7v4h14v-4h6v-8h3v4h-3v7h-6v4H16v-4h-6v-7H7z"/>
+  <path fill="#332941" d="M20 17h9v3h4v8h-5v4h-8v-4h-4v-8h4zM16 7h6v4h-4v4h-6v-5h4zM33 10h5v8h4v4h-8v-5h-4v-4h3zM7 23h5v5h4v6h-6v-4H7zM27 35h8v2h-3v4h-8v-4h3z"/>
+  <path fill="#9586a8" d="M16 15h2v3h-2zM31 28h3v3h-3zM18 31h2v5h-2zM24 11h2v5h-2z"/>
+</svg>

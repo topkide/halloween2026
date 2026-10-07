@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges" role="img" aria-label="검은 구슬">
+  <path fill="#c6a7e8" d="M17 4h14v3h6v4h4v7h3v13h-3v6h-4v4h-7v3H17v-3h-6v-4H7v-6H4V18h3v-7h4V7h6z"/>
+  <path fill="#20162f" d="M17 7h14v3h6v8h4v13h-4v6h-7v4H17v-4h-6v-6H7V18h4v-8h6z"/>
+  <path fill="#403050" d="M17 10h13v3h6v7h-5v-4H16v5h-6v-4h3v-4h4z"/>
+  <path fill="#75608c" d="M14 13h8v3h-5v5h-4v-5h1z"/>
+  <path fill="#fff4df" d="M15 12h7v3h-4v4h-4v-4h1z"/>
+  <path fill="#5f417a" d="M32 28h5v6h-5v4H20v-3h9v-3h3z"/>
+  <path fill="#9a78b6" d="M32 33h3v3h-3z"/>
+</svg>

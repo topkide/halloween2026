@@ -1,4 +1,4 @@
-import {DEFAULT_CONFIG,FIELD_GROUPS,getValue,setValue,validateConfig,parseBalanceDB,serializeBalanceDB} from './balance-config.mjs';
+import {DEFAULT_CONFIG,FIELD_GROUPS,getValue,setValue,validateConfig,parseBalanceDB,serializeBalanceDB} from './balance-config.mjs?v=20261008-collections';
 
 export function createBalanceEditor({getConfig,onSave,onOpen}){
   const $=id=>document.getElementById(id),dialog=$('balance-dialog'),form=$('balance-form'),container=$('balance-fields');

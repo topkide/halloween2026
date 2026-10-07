@@ -4,6 +4,8 @@
 
 명중 파편·연기·안개는 시야만 잠깐 방해하며 모든 타격 이펙트는 터치를 통과시킵니다. 이펙트가 겹쳐도 기억한 자리를 계속 조준할 수 있습니다.
 
+3×3에서 6×6까지 방이 넓어지며 220ms 연속 명중으로 콤보를 이어갑니다. 첫 실패에는 판당 1회 광고 체험 이어하기를 제공하며, 결과에 잡은 유령·수집품·구슬 보상을 표시합니다. 희귀 컬렉션은 한 판에 최대 2개 획득하고 브라우저에 저장합니다.
+
 **[바로 플레이](https://topkide.github.io/halloween2026/)** · [게임 규칙](site/GAME_RULES.md) · [소스 수정 안내](site/README.md)
 
 ## 소스 구조
@@ -14,6 +16,7 @@ site/                       # GitHub Pages에 그대로 배포
 ├─ style.css                # 픽셀 화면·타격·유령 연출
 ├─ app.mjs                  # 입력·진행·사운드·브라우저 저장
 ├─ game-core.mjs            # 배치·난이도·콤보 등 게임 규칙
+├─ collections.mjs          # 수집품 9종 이름·ID
 ├─ balance-config.mjs       # 밸런스 읽기·검증·편집 항목
 ├─ balance-editor.mjs       # 웹 밸런스 편집·JSON 저장/불러오기
 ├─ balance-default.json     # 유일한 공통 기본 밸런스

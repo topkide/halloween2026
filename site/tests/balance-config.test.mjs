@@ -27,14 +27,18 @@ test('every numeric field enforces finite values, ranges and integer controls',(
     if(field.step===1){const config=structuredClone(DEFAULT_CONFIG);setValue(config,field.path,field.min+.5);assert.throws(()=>validateConfig(config));}
   }
 });
-test('cross-field limits protect timers and the 12 positions',()=>{
+test('cross-field limits protect timers and reserve one of the 36 positions',()=>{
   for(const [path,value] of [
     ['difficulty.memoryMin',DEFAULT_CONFIG.difficulty.memoryStart+.1],['difficulty.huntMin',DEFAULT_CONFIG.difficulty.huntStart+.1],
-    ['difficulty.targetsStart',7],['difficulty.decoysStart',6],
-    ['difficulty.targetsMax',8],['combo.bonusStart',.3]
+    ['difficulty.targetsStart',DEFAULT_CONFIG.difficulty.targetsMax+1],['difficulty.decoysStart',DEFAULT_CONFIG.difficulty.decoysMax+1],
+    ['difficulty.targetsMax',27],['combo.bonusStart',.3]
   ]){const config=structuredClone(DEFAULT_CONFIG);setValue(config,path,value);assert.throws(()=>validateConfig(config),path);}
-  const full=structuredClone(DEFAULT_CONFIG);full.difficulty.targetsMax=7;
-  assert.equal(validateConfig(full).difficulty.targetsMax+full.difficulty.decoysMax,12);
+  const full=structuredClone(DEFAULT_CONFIG);full.difficulty.targetsMax=26;
+  const clean=validateConfig(full);
+  assert.equal(clean.difficulty.targetsMax+clean.difficulty.decoysMax,35);
+  const former=structuredClone(DEFAULT_CONFIG);
+  Object.assign(former.difficulty,{targetsStart:4,targetsMax:6,decoysStart:3,decoysMax:5});
+  assert.deepEqual(validateConfig(former),former,'previous smaller-room configurations remain valid');
 });
 test('validation copies known fields and leaves caller/default data untouched',()=>{
   const input=structuredClone(DEFAULT_CONFIG);input.unknown=true;input.difficulty.hidden=99;input.combo.window=.4;

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges" role="img" aria-label="학습지">
+  <path fill="#20162f" d="M8 3h25v4h4v4h4v34H8z"/>
+  <path fill="#fff2d5" d="M11 6h20v8h7v28H11z"/>
+  <path fill="#ceb8ad" d="M31 7h3v4h4v3h-7zM11 39h27v3H11z"/>
+  <path fill="#69708b" d="M15 10h12v3H15zM15 18h3v3h-3zM21 18h12v2H21zM21 22h8v2h-8zM15 27h3v3h-3zM21 27h12v2H21zM21 31h10v2H21zM15 36h18v1H15z"/>
+  <path fill="#e46d70" d="M28 7h2v3h-2zM32 18h3v3h-3v2h-2v-3h1z"/>
+  <path fill="#bf7d58" d="M15 4h2v4h-2zM23 4h2v4h-2z"/>
+</svg>
