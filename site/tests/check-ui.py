@@ -107,6 +107,6 @@ def verify_png(path):
         assert all(pixels[row * stride] <= 4 for row in range(height)), f'{path.name}: invalid filter'
 
 
-for name in ('room', 'target', 'decoy'):
+for name in ('room', 'target', 'bomb-ghost'):
     verify_png(ROOT / 'assets' / f'{name}.png')
 print(f'UI verified: {len(ids)} unique IDs, {len(references)} DOM references, {len(files)} local files, 3 valid PNGs.')

@@ -135,12 +135,16 @@ function decline(g){
   assert.equal(g.phase(),'over');
 }
 function resolveImpact(g,decoys=3){
+  const {impact,tremble}=g.editor.getConfig().transition,display=g.get('combo-display'),combo=parseInt(display.textContent,10);
   assert.equal(g.phase(),'impact');assertHidden(g);assertLocked(g);
-  g.advance(79.9);assert.equal(g.phase(),'impact');g.advance(.1);assert.equal(g.phase(),'tremble');assertLocked(g);
+  assert.equal(display.hidden,combo<2);
+  g.advance(impact*1000-.1);assert.equal(g.phase(),'impact');assert.equal(display.hidden,combo<2);
+  assert.equal(display.textContent,combo+' COMBO');
+  g.advance(.1);assert.equal(g.phase(),'tremble');assertLocked(g);assert.equal(display.hidden,true);
   assert.equal(g.types('target').length,0);assert.equal(g.types('decoy').length,decoys);
   assert.equal(g.slots().filter(s=>s.innerHTML.includes('cj-fear')&&s.innerHTML.includes('cj-sweat')).length,decoys);
   assert.equal(g.get('effects').children.length,0);
-  g.advance(279.9);assert.equal(g.phase(),'tremble');g.advance(.1);assert.equal(g.phase(),'prepare');assert.equal(g.timers.size,1);
+  g.advance(tremble*1000-.1);assert.equal(g.phase(),'tremble');g.advance(.1);assert.equal(g.phase(),'prepare');assert.equal(g.timers.size,1);
 }
 const newest=g=>g.get('effects').children.filter(e=>e.className?.startsWith('cj-impact ')).at(-1);
 const impactText=g=>newest(g).innerHTML.replace(/<[^>]*>/g,'');
@@ -264,7 +268,7 @@ assert.equal(progress(fullCollection).characterClaimed,true);assert.equal(wallet
 for(const gap of [220,230]){
   const {g:quick,b}=startRun(game({defaults:LIVE_DEFAULTS}));quick.click(b.target[0]);quick.click(b.target[1]);quick.advance(gap);quick.click(b.target[2]);
   assert.match(impactText(quick),gap===220?/3 COMBO!/:/PERFECT!/);
-  assert.equal(quick.get('coin-multiplier').textContent,'코인 ×1');
+  assert.equal(quick.get('coin-multiplier').textContent,'코인 ×'+(gap===220?2:1));
   assert.match(impactText(quick),gap===220?/\+2 코인/:/\+1 코인/);
   pauseAndWait(quick);quick.get('pause-quit').click();assert.equal(wallet(quick),gap===220?4:3);
 }
@@ -436,7 +440,15 @@ const g=game();g.start();let total=0,earnedCoins=0;
 for(let cycle=0;cycle<30;cycle++){
   const b=enterCycle(g,cycle),rate=1+Math.floor(cycle/5);
   assert.equal(g.get('coin-rate').textContent,'기본 '+rate+' 코인');assert.equal(g.get('coin-multiplier').textContent,'코인 ×1');
-  b.target.forEach((i,n)=>{const multiplier=[1,1,2,2,2,3][n];g.click(i);total++;earnedCoins+=rate*multiplier;assert.equal(g.get('score').textContent,'명중 '+total);assert.match(impactText(g),n===0?/PERFECT!/:new RegExp((n+1)+' COMBO!'));assert.ok(impactText(g).includes('+'+rate*multiplier+' 코인'));assert.equal(g.get('coin-multiplier').textContent,'코인 ×'+(g.phase()==='hunt'?multiplier:1));});
+  let previousScale=0;
+  b.target.forEach((i,n)=>{
+    const multiplier=[1,1,2,2,2,3][n];g.click(i);total++;earnedCoins+=rate*multiplier;
+    assert.equal(g.get('score').textContent,'명중 '+total);assert.match(impactText(g),n===0?/PERFECT!/:new RegExp((n+1)+' COMBO!'));
+    assert.ok(impactText(g).includes('+'+rate*multiplier+' 코인'));assert.equal(g.get('coin-multiplier').textContent,'코인 ×'+multiplier);
+    const display=g.get('combo-display'),scale=Number(display.style['--combo-scale']);
+    assert.equal(display.hidden,n===0);assert.equal(display.textContent,(n+1)+' COMBO');
+    if(n>=2)assert.ok(scale>previousScale);previousScale=scale;
+  });
   assert.equal(g.saved.length,0);resolveImpact(g,b.decoy.length);
 }
 assert.equal(total,171);assert.equal(g.get('best').textContent,'최고 '+total);
@@ -469,6 +481,7 @@ recovery.click(recoveryBoard.target[2]);assert.equal(recovery.get('coin-multipli
 assert.equal(recovery.get('clock').textContent,'1.78초');recovery.click(recoveryBoard.empty[0]);
 assert.equal(recovery.get('clock').textContent,'1.38초');assert.equal(recovery.get('action').dataset.combo,'');
 assert.equal(recovery.get('coin-multiplier').textContent,'코인 ×1');
+assert.equal(recovery.get('combo-display').hidden,true);
 assert.equal(recovery.get('action').style['--chain'],'0%');
 recovery.click(recoveryBoard.target[3]);assert.match(impactText(recovery),/PERFECT!.*\+1 코인/);
 assert.doesNotMatch(impactText(recovery),/\+[\d.]+초/);assert.equal(recovery.get('clock').textContent,'1.38초');
@@ -523,7 +536,7 @@ for(const keyboard of [false,true]){
   assert.equal(actor.style['--tx'],195-x+'px');assert.equal(actor.style['--ty'],844*.44-y+'px');assertLocked(scare);
   assert.equal(scare.slots().filter(s=>s.className.includes('is-spooked')).length,1);
   scare.advance(899.9);assert.equal(scare.phase(),'scare-pop');scare.advance(.1);decline(scare);assert.equal(scare.timers.size,0);assert.equal(scare.saved.length,1);
-  assert.equal(scare.saved[0].result.reason,'금지 유령 명중');
+  assert.equal(scare.saved[0].result.reason,'폭탄 유령 명중');
   scare.start();assert.equal(scare.get('fail-splash').children.length,0);
   enterCycle(scare);scare.advance(500);assert.equal(scare.phase(),'hunt');assert.equal(scare.timers.size,2);
 }
@@ -543,7 +556,9 @@ for(const [offset,expected] of [[-.1,'impact'],[0,'over']]){
   if(expected==='impact')resolveImpact(edge);else assert.equal(edge.saved[0].result.caught,3);
 }
 const {g:gauge,b:gb}=startRun();gauge.click(gb.target[0]);gauge.click(gb.target[1]);assert.ok(parseFloat(gauge.get('time-fill').style.width)<=100);
+assert.equal(gauge.get('combo-display').hidden,false);assert.equal(gauge.get('combo-display').textContent,'2 COMBO');
 gauge.advance(475);assert.equal(gauge.get('action').dataset.combo,'');assert.equal(gauge.get('action').style['--chain'],'0%');
+assert.equal(gauge.get('combo-display').hidden,true);
 const {g:urgent,b:ub}=startRun();urgent.advance(400);urgent.click(ub.target[0]);assert.equal(urgent.get('clock').textContent,'1.20초');
 urgent.advance(199);assert.equal(urgent.root.dataset.urgent,'false');urgent.advance(1);assert.equal(urgent.root.dataset.urgent,'true');
 urgent.advance(10);urgent.click(ub.target[1]);assert.equal(urgent.get('clock').textContent,'1.11초');assert.equal(urgent.root.dataset.urgent,'false');
@@ -571,7 +586,7 @@ assert.deepEqual([enterCycle(delayed).memory,parseFloat(delayed.get('clock').tex
 for(const [cycle,memory,hunt,grid,targets] of [[0,1600,2800,3,3],[4,1400,2461,3,4],[5,1350,2376,4,4],[11,1050,1867,4,6],[12,1000,1783,5,7],[23,450,850,5,10]]){
   const {g:live,b}=sampleCycle(cycle,{defaults:LIVE_DEFAULTS});assert.deepEqual([b.memory,b.hunt,b.grid,b.target.length],[memory,hunt,grid,targets]);
   if(cycle===23){
-    b.target.forEach((i,n)=>{live.click(i);const multiplier=[1,1,2,2,2,3,3,3,4,4][n];assert.equal(live.get('coin-multiplier').textContent,'코인 ×'+(live.phase()==='hunt'?multiplier:1));assert.ok(impactText(live).includes('+'+5*multiplier+' 코인'));});
+    b.target.forEach((i,n)=>{live.click(i);const multiplier=[1,1,2,2,2,3,3,3,4,4][n];assert.equal(live.get('coin-multiplier').textContent,'코인 ×'+multiplier);assert.ok(impactText(live).includes('+'+5*multiplier+' 코인'));});
     pauseAndWait(live);live.get('pause-quit').click();assert.equal(wallet(live),1150);assert.equal(live.saved.at(-1).result.caught,156);
   }
 }
@@ -648,11 +663,22 @@ assert.equal(upgradedReady.transition.prepare,LIVE_DEFAULTS.transition.prepare);
 assert.equal(upgradedReady.combo.window,legacy.combo.window);
 const customReady=structuredClone(legacy);customReady.transition.prepare=1.2;
 assert.equal(game({config:customReady,defaults:LIVE_DEFAULTS}).editor.getConfig().transition.prepare,1.2);
+const previousPacing=structuredClone(LIVE_DEFAULTS);
+Object.assign(previousPacing.transition,{prepare:.65,impact:.08,tremble:.28});
+const paced=game({config:previousPacing,defaults:LIVE_DEFAULTS});
+assert.deepEqual(paced.editor.getConfig().transition,LIVE_DEFAULTS.transition);
+const pacedBoard=startRun(paced).b;pacedBoard.target.forEach(i=>paced.click(i));
+const lastHitAt=paced.now();resolveImpact(paced,pacedBoard.decoy.length);
+assert.equal(paced.now()-lastHitAt,1000);
+paced.advance(999.9);assert.equal(paced.phase(),'prepare');paced.advance(.1);assert.equal(paced.phase(),'memory');
+const mixedPacing=structuredClone(previousPacing);mixedPacing.transition.impact=.17;mixedPacing.transition.tremble=1.2;
+assert.deepEqual(game({config:mixedPacing,defaults:LIVE_DEFAULTS}).editor.getConfig().transition,
+  {...LIVE_DEFAULTS.transition,impact:.17,tremble:1.2});
 const timedLegacy=structuredClone(legacy);delete timedLegacy.difficulty.rampRounds;timedLegacy.difficulty.rampSeconds=30;
 const migratedGame=game({config:timedLegacy,defaults:LIVE_DEFAULTS}),migrated=migratedGame.editor.getConfig();
 assert.deepEqual([migrated.difficulty.rampRounds,migrated.difficulty.memoryStart,migrated.difficulty.huntStart],[24,1.6,2.8]);
 assert.equal('rampSeconds' in migrated.difficulty,false);assert.equal(migrated.combo.window,.6);
-assert.equal(migrated.transition.firstPrepare,.8);assert.equal(migrated.transition.prepare,.65);
+assert.equal(migrated.transition.firstPrepare,.8);assert.equal(migrated.transition.prepare,1);
 assert.deepEqual([startRun(migratedGame).b.memory,parseFloat(migratedGame.get('clock').textContent)],[1600,2.8]);
 const customTimes=structuredClone(timedLegacy);customTimes.difficulty.memoryStart=.9;customTimes.difficulty.huntStart=3;
 const preserved=game({config:customTimes,defaults:LIVE_DEFAULTS}).editor.getConfig();
@@ -691,6 +717,6 @@ const muted=game({audio:true}),mb=startRun(muted).b,ma=muted.audioLog;muted.get(
 muted.click(mb.target[0]);muted.advance(1000);assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
 const shiver=game({audio:true}),shb=startRun(shiver).b;shb.target.forEach(i=>shiver.click(i));const tonesBefore=shiver.audioLog.tones.length;
 shiver.advance(80);assert.equal(shiver.audioLog.tones.length,tonesBefore+7);assert.ok(shiver.audioLog.tones.slice(-7).every(t=>t.stoppedAt<=.28));
-console.log('PASS: combo coin x1/x2/x3/x4 thresholds, rising base rates, continue rate preservation, weighted settlement/doubling, collection coins and new-run reset; exact miss penalties, immediate recovery, combo reset/recovery and shortened deadline preservation; horn failure; 3-second continue/reward ads and cancellation; rare 5% optional collection, half-memory fade, per-run cap and persistence; 3x3 to 5x5 grids and further difficulty growth; 30 cycles/171 fixture score/1128 coins; 220ms live combo boundary; lobby tickets/modals, pause/deadline preservation, failure effects, migration and sound regressions.');
+console.log('PASS: slower configurable transitions and saved-setting migration; growing combo display through impact and reset on expiry/miss; combo coin x1/x2/x3/x4 thresholds, rising base rates, continue rate preservation, weighted settlement/doubling, collection coins and new-run reset; exact miss penalties and shortened deadline preservation; bomb failure; 3-second continue/reward ads and cancellation; rare 5% optional collection, half-memory fade, per-run cap and persistence; 3x3 to 5x5 grids; 30 cycles/171 fixture score/1128 coins; 220ms live combo boundary; lobby tickets/modals, pause, storage and sound regressions.');
 
 })().catch(error=>{console.error(error);process.exitCode=1;});

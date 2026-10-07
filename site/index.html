@@ -7,7 +7,7 @@
   <meta name="description" content="캣점프 할로윈 이벤트 유령 소탕 대작전! 유령의 위치를 기억하고 암전 속에서 빠르게 사격하세요.">
   <title>유령 소탕 대작전! · 캣점프 할로윈</title>
   <link rel="icon" type="image/png" href="assets/target.png">
-  <link rel="stylesheet" href="style.css?v=20261008-combo-coins">
+  <link rel="stylesheet" href="style.css?v=20261008-bomb-combo">
 </head>
 <body>
 <main>
@@ -27,9 +27,9 @@
         </div>
         <div class="lobby-spirits" aria-hidden="true">
           <img class="lobby-ghost lobby-ghost-main" src="assets/target.png" width="128" height="144" alt="">
-          <img class="lobby-ghost lobby-ghost-right" src="assets/decoy.png" width="80" height="90" alt="">
+          <img class="lobby-ghost lobby-ghost-right" src="assets/bomb-ghost.png" width="80" height="90" alt="">
           <img class="lobby-ghost lobby-ghost-left" src="assets/target.png" width="64" height="72" alt="">
-          <img class="lobby-ghost lobby-ghost-small" src="assets/decoy.png" width="56" height="63" alt="">
+          <img class="lobby-ghost lobby-ghost-small" src="assets/bomb-ghost.png" width="56" height="63" alt="">
         </div>
         <div class="lobby-scene-tools">
           <button id="lobby-sound" type="button" aria-label="사운드 켜짐" aria-pressed="true">♪ ON</button>
@@ -55,7 +55,6 @@
     <header class="cj-play-hud" aria-label="게임 진행">
       <div class="cj-time-track" aria-hidden="true"><div id="cj-time-fill"></div></div>
       <span id="cj-coin-rate">기본 1 코인</span>
-      <span id="cj-combo-display" hidden></span>
       <button id="cj-pause" class="cj-pause" type="button" aria-label="일시정지" disabled><span aria-hidden="true"></span></button>
       <span id="cj-coin-multiplier" data-tier="0" title="3콤보 ×2 · 6콤보 ×3 · 9콤보 ×4">코인 ×1</span>
       <div class="cj-run-wallet" role="group" aria-label="이번 판 획득 코인"><span class="cj-run-coin" aria-hidden="true"><img src="assets/target.png" width="20" height="22" alt=""></span><strong id="cj-run-coins">0</strong></div>
@@ -68,6 +67,7 @@
       <div class="cj-shade" aria-hidden="true"></div>
       <div class="cj-spots" id="cj-spots"></div>
       <div class="cj-effects" id="cj-effects" aria-hidden="true"></div>
+      <span id="cj-combo-display" hidden aria-hidden="true"></span>
       <div class="cj-fail-splash" id="cj-fail-splash" aria-hidden="true"></div>
       <div class="cj-ready" id="cj-ready" hidden><span>눈 크게 뜨고</span><strong>READY</strong><small id="cj-ready-time">잠시 후 보여요</small></div>
       <div class="cj-room-caption" id="cj-room-caption" hidden>9개의 자리 · 유령의 위치를 기억해요</div>
@@ -81,7 +81,7 @@
         <button class="cj-home quiet-button" id="cj-home" type="button">이벤트 메인</button>
         <button id="balance-open" class="cj-settings" type="button" disabled>밸런스 설정 · DB 저장 / 불러오기</button>
       </div>
-      <div class="cj-rules" id="cj-rules" hidden>빈자리는 시간 감소 · 뿔 유령은 즉시 종료!</div>
+      <div class="cj-rules" id="cj-rules" hidden>빈자리는 시간 감소 · 폭탄 유령은 즉시 종료!</div>
     </div>
     <p id="cj-storage-note" class="storage-warning lobby-storage-warning" role="status"></p>
   </section>
@@ -99,7 +99,7 @@
   <div class="rules-content">
     <h2 id="rules-title">게임 설명</h2>
     <p>흰색 유령의 위치를 기억하고,<br>사라진 유령을 잡으세요!</p>
-    <p class="rules-warning">빈자리는 시간 감소,<br>뿔 유령은 바로 종료!</p>
+    <p class="rules-warning">빈자리는 시간 감소,<br>폭탄 유령은 바로 종료!</p>
   </div>
   <footer class="rules-footer"><button id="rules-start" class="primary-button" type="button">게임 시작</button></footer>
 </dialog>
@@ -112,7 +112,7 @@
 <dialog id="continue-dialog" class="run-dialog" aria-labelledby="continue-title" aria-describedby="continue-description">
   <h2 id="continue-title">이어하기</h2>
   <div class="continue-ghosts" aria-hidden="true">
-    <img src="assets/decoy.png" width="64" height="72" alt="">
+    <img src="assets/bomb-ghost.png" width="64" height="72" alt="">
     <img src="assets/target.png" width="96" height="108" alt="">
     <img src="assets/target.png" width="56" height="63" alt="">
   </div>
@@ -179,6 +179,6 @@
     <footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">적용하고 닫기</button></footer>
   </form>
 </dialog>
-<script type="module" src="app.mjs?v=20261008-combo-coins"></script>
+<script type="module" src="app.mjs?v=20261008-bomb-combo"></script>
 </body>
 </html>

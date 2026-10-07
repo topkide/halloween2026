@@ -14,6 +14,12 @@ test('the JSON file supplies every default exactly once and round-trips',async()
   const dbPaths=Object.entries(raw).filter(([,value])=>value&&typeof value==='object').flatMap(([group,values])=>Object.keys(values).map(key=>group+'.'+key));
   assert.deepEqual([...paths].sort(),dbPaths.sort());
 });
+test('default transitions leave a readable result beat while custom imported timing remains exact',()=>{
+  assert.deepEqual(DEFAULT_CONFIG.transition,{firstPrepare:.8,prepare:1,blackout:.04,impact:.3,tremble:.7});
+  const custom=structuredClone(DEFAULT_CONFIG);
+  Object.assign(custom.transition,{firstPrepare:.25,prepare:.65,impact:.08,tremble:.28});
+  assert.deepEqual(parseBalanceDB(serializeBalanceDB(custom)).transition,custom.transition);
+});
 test('schema rejects old DBs, wrong game and malformed JSON',()=>{
   for(const bad of [null,[],{}, {...DEFAULT_CONFIG,version:6},{...DEFAULT_CONFIG,game:'shooting-range'}])assert.throws(()=>validateConfig(bad));
   assert.throws(()=>parseBalanceDB('{broken'));
