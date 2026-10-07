@@ -226,6 +226,7 @@ import {COLLECTIONS} from './collections.mjs';
     find('best').textContent='최고 '+Math.max(best,score);
     find('collection-count').textContent='수집 '+runItems.length+' / 2';
     find('coin-rate').textContent='마리당 '+coinsPerGhost(highestCycle)+' 코인';
+    find('run-coins').textContent=runCoins.toLocaleString('ko-KR');
     const revealed=['ready','memory','scare-reveal','scare-pop','continue','over'].includes(phase);
     buttons.forEach((button,i)=>{
       const show=phase==='tremble'?board[i]==='decoy':revealed;

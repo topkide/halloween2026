@@ -7,7 +7,7 @@
   <meta name="description" content="캣점프 할로윈 이벤트 유령 소탕 대작전! 유령의 위치를 기억하고 암전 속에서 빠르게 사격하세요.">
   <title>유령 소탕 대작전! · 캣점프 할로윈</title>
   <link rel="icon" type="image/png" href="assets/target.png">
-  <link rel="stylesheet" href="style.css?v=20261008-miss">
+  <link rel="stylesheet" href="style.css?v=20261008-wallet">
 </head>
 <body>
 <main>
@@ -57,6 +57,7 @@
       <span id="cj-coin-rate">마리당 1 코인</span>
       <span id="cj-combo-display" hidden></span>
       <button id="cj-pause" class="cj-pause" type="button" aria-label="일시정지" disabled><span aria-hidden="true"></span></button>
+      <div class="cj-run-wallet" role="group" aria-label="이번 판 획득 코인"><span class="cj-run-coin" aria-hidden="true"><img src="assets/target.png" width="20" height="22" alt=""></span><strong id="cj-run-coins">0</strong></div>
       <div class="cj-stage-strip"><span id="cj-phase">찰나를 기억하고, 명중!</span><span id="cj-collection-count" aria-label="이번 판 수집">수집 0/2</span><strong id="cj-clock">위치를 기억해요</strong></div>
     </header>
     <div class="cj-room" id="cj-room" data-phase="ready" role="group" aria-label="유령이 나타나는 3행 3열의 방">
@@ -177,6 +178,6 @@
     <footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">적용하고 닫기</button></footer>
   </form>
 </dialog>
-<script type="module" src="app.mjs?v=20261008-miss"></script>
+<script type="module" src="app.mjs?v=20261008-wallet"></script>
 </body>
 </html>
