@@ -26,10 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Validate game and balance DB
+      - name: Validate bounty hunt
         run: |
           node --test site/tests/*.test.mjs
-          node site/tests/gameplay.test.cjs
           python3 site/tests/check-ui.py
 
       - uses: actions/configure-pages@v6

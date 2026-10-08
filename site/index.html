@@ -1,208 +1,37 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#100d1b">
-  <meta name="description" content="캣점프 할로윈 이벤트 유령 소탕 대작전! 유령의 위치를 기억하고 암전 속에서 빠르게 사격하세요.">
-  <title>유령 소탕 대작전! · 캣점프 할로윈</title>
-  <link rel="icon" type="image/png" href="assets/target.png">
-  <link rel="stylesheet" href="style.css?v=20261008-timeout-reset">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#141b23"><meta name="description" content="수상한 유령들의 현상금 사냥. 다섯 발의 탄약, 랜덤 현상금, 오늘 밤의 최고 기록!">
+<title>밤의 현상금 사냥 · 캣점프 할로윈</title>
+<link rel="icon" href="assets/target.png"><link rel="stylesheet" href="style.css?v=20261008-bounty1">
 </head>
 <body>
-<main>
-  <section id="cj-ghost-room" lang="ko" data-phase="ready" data-paused="false" aria-label="캣점프 할로윈 기억력 게임 프로토타입">
-    <div class="cj-lobby" aria-label="할로윈 이벤트 로비">
-      <header class="lobby-masthead">
-        <span class="lobby-kicker">CAT JUMP · HALLOWEEN EVENT</span>
-        <h1 class="lobby-title"><span>유령 소탕</span><strong>대작전!</strong></h1>
-        <button id="lobby-close" class="lobby-close" type="button" aria-label="이벤트 나가기">×</button>
-        <div class="lobby-dates">이벤트 기간 · 일정 미정</div>
-      </header>
-      <div class="lobby-scene">
-        <div class="lobby-scene-art" aria-hidden="true"></div>
-        <div class="lobby-scene-toolbar">
-          <button id="lobby-package" class="lobby-package" type="button"><span class="lobby-gift" aria-hidden="true"></span>특별 패키지</button>
-          <div class="lobby-wallet" aria-label="유령 재화"><img class="lobby-currency-icon" src="assets/target.png" width="28" height="32" alt=""><strong id="lobby-currency">0</strong></div>
-        </div>
-        <div class="lobby-spirits" aria-hidden="true">
-          <img class="lobby-ghost lobby-ghost-main" src="assets/target.png" width="128" height="144" alt="">
-          <img class="lobby-ghost lobby-ghost-right" src="assets/bomb-ghost.png" width="80" height="90" alt="">
-          <img class="lobby-ghost lobby-ghost-left" src="assets/target.png" width="64" height="72" alt="">
-          <img class="lobby-ghost lobby-ghost-small" src="assets/bomb-ghost.png" width="56" height="63" alt="">
-        </div>
-        <div class="lobby-scene-tools">
-          <button id="lobby-sound" type="button" aria-label="사운드 켜짐" aria-pressed="true">♪ ON</button>
-          <button id="lobby-settings" type="button" aria-label="밸런스 설정">설정</button>
-        </div>
-      </div>
-      <footer class="lobby-footer">
-        <div class="lobby-chances">
-          <div class="lobby-distance">
-            <p>일반게임에서 300m 오를 때마다<br>플레이 기회 +1 (최대 30회)</p>
-            <div class="lobby-progress-track"><i aria-hidden="true"></i><span id="lobby-progress">20 / 300m</span></div>
-          </div>
-          <button id="lobby-bonus" class="lobby-bonus" type="button"><span class="lobby-video" aria-hidden="true"></span><b>기회 +3</b><small>체험</small></button>
-        </div>
-        <div class="lobby-actions">
-          <button id="lobby-shop" type="button">상품교환소</button>
-          <button id="lobby-collection" type="button">컬렉션</button>
-          <button id="lobby-start" class="lobby-start" type="button" disabled><b>게임 시작</b><small>기회 <span id="lobby-tickets">3 / 30</span></small></button>
-        </div>
-        <p id="lobby-status" class="lobby-sr-only" role="status" aria-live="polite"></p>
-      </footer>
-    </div>
-    <header class="cj-play-hud" aria-label="게임 진행">
-      <div class="cj-time-track" aria-hidden="true"><div id="cj-time-fill"></div></div>
-      <button id="cj-pause" class="cj-pause" type="button" aria-label="일시정지" disabled><span aria-hidden="true"></span></button>
-      <div class="cj-coin-info" role="group" aria-label="현재 코인 보상">
-        <span id="cj-coin-rate">기본 1 코인</span>
-        <span id="cj-coin-multiplier" data-tier="0" title="10콤보 ×2 · 이후 5콤보마다 +1배 · 50콤보 MAX ×10">코인 ×1</span>
-      </div>
-      <div class="cj-run-wallet" role="group" aria-label="이번 판 획득 코인"><span class="cj-run-coin" aria-hidden="true"><img src="assets/target.png" width="20" height="22" alt=""></span><strong id="cj-run-coins">0</strong></div>
-      <div class="cj-stage-strip" hidden><span id="cj-phase">찰나를 기억하고, 명중!</span><span id="cj-collection-count" aria-label="이번 판 수집">수집 0/2</span><strong id="cj-clock">위치를 기억해요</strong></div>
-    </header>
-    <div class="cj-room" id="cj-room" data-phase="ready" role="group" aria-label="유령이 나타나는 3행 3열의 방">
-      <div class="cj-scenery" aria-hidden="true">
-      </div>
-      <div class="cj-ambience" aria-hidden="true"><i class="cj-candle-aura"></i><i class="cj-candle-aura cj-side-aura"></i><i class="cj-mist"></i><i class="cj-ember"></i></div>
-      <div class="cj-shade" aria-hidden="true"></div>
-      <div class="cj-spots" id="cj-spots"></div>
-      <div class="cj-effects" id="cj-effects" aria-hidden="true"></div>
-      <span id="cj-combo-display" hidden aria-hidden="true"></span>
-      <div class="cj-fail-splash" id="cj-fail-splash" aria-hidden="true"></div>
-      <div class="cj-timeout" id="cj-timeout" role="alert" hidden>
-        <span class="cj-timeout-clock" aria-hidden="true"></span>
-        <strong>시간 초과!</strong><span>시간이 모두 소진됐어요</span>
-      </div>
-      <div class="cj-ready" id="cj-ready" hidden><span>눈 크게 뜨고</span><strong>READY</strong></div>
-      <div class="cj-room-caption" id="cj-room-caption" hidden>9개의 자리 · 유령의 위치를 기억해요</div>
-      <div class="cj-menu" aria-label="시작 및 결과" hidden>
-        <div class="cj-eyebrow">CAT JUMP · HALLOWEEN</div>
-        <h1>유령이 숨은 밤</h1>
-        <div class="cj-banner" id="cj-banner" hidden><span id="cj-banner-kicker"></span><strong id="cj-banner-title"></strong></div>
-        <div class="cj-hud"><span id="cj-score">명중 0</span><span id="cj-best">최고 0</span><button id="cj-sound" class="cj-sound cursor-interaction" type="button" aria-label="사운드 켜짐" aria-pressed="true">♪ ON</button></div>
-        <div class="cj-feedback" id="cj-feedback" role="status" aria-live="polite">하얀 유령의 위치를 기억하고 0.22초 연속 명중.</div>
-        <button class="cj-main-button cursor-interaction" id="cj-action" type="button" disabled>게임 불러오는 중…</button>
-        <button class="cj-home quiet-button" id="cj-home" type="button">이벤트 메인</button>
-        <button id="balance-open" class="cj-settings" type="button" disabled>밸런스 설정 · DB 저장 / 불러오기</button>
-      </div>
-      <div class="cj-rules" id="cj-rules" hidden>빈자리는 시간 감소 · 폭탄 유령은 즉시 종료!</div>
-    </div>
-    <p id="cj-storage-note" class="storage-warning lobby-storage-warning" role="status"></p>
+<main class="game" id="game" data-state="ready">
+  <header class="masthead"><div class="brand"><span class="brand-mark" aria-hidden="true">✦</span><div><small>CAT JUMP · HALLOWEEN</small><h1>밤의 현상금 사냥</h1></div></div><div class="header-actions"><button id="sound" class="icon-button" aria-label="사운드 켜짐" aria-pressed="true">♪</button><button id="settings-open" class="icon-button" aria-label="설정">⚙</button><button id="pause" class="icon-button" aria-label="일시정지" disabled>Ⅱ</button></div></header>
+  <div class="time-row"><span class="time-symbol" aria-hidden="true">◷</span><div class="time-track"><i id="time-fill"></i></div><strong id="time-label" aria-label="남은 시간">45<span>s</span></strong></div>
+  <section class="contract-row" aria-label="점수와 현상금">
+    <div class="score-box"><span class="tiny-label">SCORE</span><strong id="score">0</strong><span class="best-label">BEST <b id="best">0</b></span></div>
+    <div class="wanted" id="wanted"><span class="pin pin-left"></span><span class="pin pin-right"></span><div class="wanted-art" id="wanted-art"></div><div class="wanted-copy"><span class="wanted-title">WANTED</span><strong id="wanted-name">길쭉이</strong><span class="wanted-reward">추가 현상금 <b id="wanted-reward">+400</b></span><span class="wanted-bottom"><b id="multiplier">×2</b><span>교체 <strong id="bounty-time">8</strong>s</span></span></div><div class="contract-track"><i id="contract-fill"></i></div></div>
   </section>
+  <section class="arena" id="arena" aria-label="유령 사냥터">
+    <div class="sky" aria-hidden="true"><span class="moon"></span><span class="star s1">✦</span><span class="star s2">✧</span><span class="star s3">·</span></div>
+    <svg class="graveyard" viewBox="0 0 500 550" preserveAspectRatio="none" aria-hidden="true"><path d="M0 285Q110 192 267 288T500 276V550H0Z" fill="#27363e"/><path d="M0 393Q112 285 234 372T500 347V550H0Z" fill="#1f2c33"/><g fill="#18282d"><path d="M39 381V320Q60 294 80 320V381ZM340 414V341Q365 306 390 341V414Z"/><path d="M113 445V389h-15v-17h15v-24h16v24h16v17h-16v56Z"/><path d="M444 433l-9-77 21-12 17 13 10 76Z"/></g><g fill="none" stroke="#34484c" stroke-width="2"><path d="M52 335h17m-8-8v29m299-10 12 33m-15-14 20-8"/></g><g stroke="#17272d" fill="none" stroke-linecap="round"><path d="M-10 445L22 254 10 142M18 222L60 167 73 117M28 268L86 229M498 442L466 245 482 138M469 232L429 189 416 139M474 285L435 266" stroke-width="14"/><path d="M60 170l-2-44m-37 65-34-26m444 48-33-2m72-9 26-26" stroke-width="7"/></g><path d="M0 497Q169 457 272 500T500 482V550H0Z" fill="#14252a"/></svg>
+    <div class="field-vignette" aria-hidden="true"></div><div class="field-caption" aria-hidden="true"><span>THE HOLLOW</span><span>사라지기 전에, 한 발.</span></div>
+    <div id="ghost-layer" class="ghost-layer"></div><div id="effect-layer" class="effect-layer" aria-hidden="true"></div>
+    <div class="ink-splash" id="ink-splash" hidden aria-hidden="true"><span>먹물 주의!</span></div>
+    <div class="field-toast" id="field-toast" role="status" aria-live="polite"></div>
+    <div class="intro-panel" id="intro"><span class="eyebrow">BOUNTY HUNT · PROTOTYPE 01</span><h2>수상한 녀석들.<br><em>값나가는 한 발.</em></h2><div class="cast" id="cast" aria-label="일반 유령 5종"></div><p>유령을 터치해 사격하세요.<br><b>다섯 발</b>을 쓰면 장전, <b>현상금 표적</b>은 고득점!</p><button class="primary-button" id="start">사냥 시작 <span>→</span></button><div class="special-guide"><span><i class="dot gold-dot"></i>황금 +1,200</span><span><i class="dot clock-dot"></i>시간 +5초</span><span><i class="dot bomb-dot"></i>폭탄은 종료</span></div></div>
+    <div class="ending" id="ending" role="alert" hidden><span id="ending-icon">◷</span><strong id="ending-title">시간 초과!</strong><p id="ending-copy">오늘 밤의 사냥이 끝났어요.</p></div>
+  </section>
+  <footer class="loadout"><div class="ammo-row"><div class="ammo-caption"><span class="tiny-label">AMMO</span><strong><span id="ammo-count">5</span><small> / 5</small></strong></div><div class="cartridges" id="cartridges" aria-label="남은 탄약 5발"><i></i><i></i><i></i><i></i><i></i></div><button id="reload" class="reload-button" disabled><span id="reload-label">↻ 장전</span><small id="reload-hint">자동 장전 · R</small><i id="reload-fill"></i></button></div><div class="supply-row"><button id="boost-time" disabled><span class="supply-icon">◷</span><span><b>시간 +10초</b><small>▷ 광고 체험 · 1회</small></span></button><button id="boost-ammo" disabled><span class="supply-icon">↻</span><span><b>탄약 즉시 충전</b><small>▷ 광고 체험 · 1회</small></span></button></div></footer>
+  <p id="storage-note" class="storage-note" role="status"></p>
 </main>
-<noscript>게임을 하려면 브라우저의 JavaScript를 켜주세요.</noscript>
-<dialog id="event-dialog" aria-labelledby="event-title">
-  <header class="event-header"><h2 id="event-title">이벤트 안내</h2><button id="event-close" class="quiet-button" type="button" aria-label="이벤트 안내 닫기">×</button></header>
-  <div id="event-body"></div>
-  <button id="event-confirm" class="primary-button" type="button" hidden>확인</button>
-</dialog>
-<dialog id="rules-dialog" aria-labelledby="rules-title">
-  <header class="rules-header">
-    <button id="rules-close" class="quiet-button" type="button" aria-label="게임 설명 닫기">닫기</button>
-  </header>
-  <div class="rules-content">
-    <h2 id="rules-title">게임 설명</h2>
-    <p>흰색 유령의 위치를 기억하고,<br>사라진 유령을 잡으세요!</p>
-    <p class="rules-warning">빈자리는 시간 감소,<br>폭탄 유령은 바로 종료!</p>
-  </div>
-  <footer class="rules-footer"><button id="rules-start" class="primary-button" type="button">게임 시작</button></footer>
-</dialog>
-<dialog id="pause-dialog" aria-labelledby="pause-title" aria-describedby="pause-description">
-  <h2 id="pause-title">일시정지</h2>
-  <p id="pause-description">준비되면 이어서 도전해요.</p>
-  <button id="pause-resume" class="primary-button" type="button">계속하기</button>
-  <button id="pause-quit" class="quiet-button" type="button">처음으로</button>
-</dialog>
-<dialog id="continue-dialog" class="run-dialog" aria-labelledby="continue-title" aria-describedby="continue-description">
-  <h2 id="continue-title">이어하기</h2>
-  <p id="continue-reason" class="run-reason" hidden>시간 초과</p>
-  <div class="continue-ghosts" aria-hidden="true">
-    <img src="assets/bomb-ghost.png" width="64" height="72" alt="">
-    <img src="assets/target.png" width="96" height="108" alt="">
-    <img src="assets/target.png" width="56" height="63" alt="">
-  </div>
-  <div id="continue-description" class="continue-description">
-    <p>광고 시청 후 계속 플레이할 수 있어요.</p>
-    <p>(난이도 일부 하락, 기본 코인 개수 유지)</p>
-  </div>
-  <div class="run-actions">
-    <button id="continue-back" class="quiet-button" type="button">그만하기</button>
-    <button id="continue-watch" class="primary-button ad-button" type="button"><span class="ad-play" aria-hidden="true"></span><b>광고 시청</b><small>이어하기 · 체험</small></button>
-  </div>
-  <p id="continue-status" class="dialog-status" role="status" aria-live="polite"></p>
-  <p class="storage-warning">저장이 제한되어 새로고침하면 보상·수집품이 사라질 수 있어요.</p>
-</dialog>
-<dialog id="result-dialog" class="run-dialog" aria-labelledby="result-title">
-  <h2 id="result-title">게임 결과</h2>
-  <p id="result-reason" class="run-reason" hidden>시간 초과</p>
-  <dl class="result-stats">
-    <div><dt>플레이 시간</dt><dd id="result-time">0.0초</dd></div>
-    <div><dt>잡은 유령</dt><dd id="result-caught">0마리</dd></div>
-  </dl>
-  <section class="result-album" aria-label="이번 판 획득 컬렉션">
-    <h3>획득 컬렉션</h3>
-    <div id="result-collections"></div>
-  </section>
-  <div class="result-currency"><span>획득 코인</span><div><img src="assets/target.png" width="28" height="32" alt=""><strong id="result-reward">0</strong></div></div>
-  <button id="result-double" class="ad-button result-double" type="button"><span class="ad-play" aria-hidden="true"></span><b>광고 보고 보상 2배</b><small>체험</small></button>
-  <div class="run-actions result-actions">
-    <button id="result-back" class="quiet-button" type="button">이벤트 메인</button>
-    <button id="result-retry" class="primary-button" type="button">다시 도전</button>
-  </div>
-  <p id="result-status" class="dialog-status" role="status" aria-live="polite"></p>
-  <p class="storage-warning">저장이 제한되어 새로고침하면 보상·수집품이 사라질 수 있어요.</p>
-</dialog>
-<dialog id="collection-dialog" aria-labelledby="collection-title">
-  <header class="collection-header"><h2 id="collection-title">컬렉션</h2><button id="collection-close" class="quiet-button" type="button" aria-label="컬렉션 닫기">×</button></header>
-  <div class="collection-content">
-    <div id="collection-grid" aria-label="9종 컬렉션 앨범"></div>
-    <h3 id="collection-name">컬렉션을 선택하세요</h3>
-    <p class="collection-total">수집한 컬렉션 <strong id="collection-progress">0 / 9</strong></p>
-  </div>
-  <footer class="collection-footer">
-    <div class="collection-character"><img src="assets/target.png" width="56" height="63" alt="유령 고양이"><div><small>9 / 9 수집 완료 보상</small><strong>유령 고양이</strong></div></div>
-    <button id="collection-claim" class="primary-button" type="button" disabled>캐릭터 받기</button>
-    <p id="collection-status" class="dialog-status" role="status" aria-live="polite"></p>
-    <p class="storage-warning">저장이 제한되어 새로고침하면 보상·수집품이 사라질 수 있어요.</p>
-  </footer>
-</dialog>
-<dialog id="balance-dialog" aria-labelledby="balance-title">
-  <header class="balance-header"><div><span class="kicker">PLAY TEST SETTINGS</span><h2 id="balance-title">밸런스 설정</h2></div><button id="balance-close" class="quiet-button" type="button" aria-label="설정 닫기">닫기</button></header>
-  <form id="balance-form" novalidate>
-    <div class="balance-scroll">
-      <p class="balance-intro">기억·사격 시간, 유령 수와 콤보를 조절해요. 변경 사항은 이 브라우저의 다음 판부터 적용됩니다.</p>
-      <section class="progress-reset" aria-labelledby="progress-reset-title">
-        <div><h3 id="progress-reset-title">플레이 기록</h3><p>컬렉션을 처음부터 다시 모으고 싶다면 초기화하세요.</p></div>
-        <button id="progress-reset-open" class="quiet-button" type="button">기록 초기화</button>
-        <p id="progress-reset-status" role="status"></p>
-      </section>
-      <section class="balance-db" aria-labelledby="balance-db-title">
-        <h3 id="balance-db-title">밸런스 DB 보관 · 이동</h3>
-        <p>다른 웹 주소나 브라우저에서 이 프로토타입을 플레이할 때도, 저장한 DB 파일을 불러와 같은 수치로 테스트할 수 있어요.</p>
-        <div class="balance-toolbar"><button id="balance-export" type="button">DB 파일 저장</button><button id="balance-import" type="button">DB 파일 불러오기</button><input id="balance-file" type="file" accept=".json,application/json" hidden></div>
-        <p id="balance-db-file" class="balance-db-file">기억력 사냥 전용 JSON · 시간 단위는 초입니다.</p>
-        <p class="balance-db-help">불러온 DB는 확인 후 적용하세요. 공통 기본값은 저장소의 balance-default.json에서 관리해요.</p>
-      </section>
-      <div class="balance-toolbar balance-reset-row"><button id="balance-reset" type="button">최신 기획 기본값 복원</button></div>
-      <div id="balance-fields"></div>
-    </div>
-    <footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">적용하고 닫기</button></footer>
-  </form>
-</dialog>
-<dialog id="progress-reset-dialog" class="run-dialog" aria-labelledby="progress-reset-heading" aria-describedby="progress-reset-description">
-  <h2 id="progress-reset-heading">기록을 초기화할까요?</h2>
-  <div id="progress-reset-description" class="reset-description">
-    <p>컬렉션, 캐릭터 획득, 코인, 최고 기록과 최근 결과가 모두 지워져요.</p>
-    <p>플레이 기회는 3회로 돌아가며,<br>밸런스·사운드 설정은 유지돼요.</p>
-    <strong>초기화한 기록은 되돌릴 수 없어요.</strong>
-  </div>
-  <div class="run-actions result-actions">
-    <button id="progress-reset-cancel" class="quiet-button" type="button" autofocus>취소</button>
-    <button id="progress-reset-confirm" class="reset-confirm" type="button">초기화하기</button>
-  </div>
-</dialog>
-<script type="module" src="app.mjs?v=20261008-timeout-reset"></script>
-</body>
-</html>
+<dialog id="pause-dialog" aria-labelledby="pause-title"><span class="eyebrow">TAKE A BREATH</span><h2 id="pause-title">잠깐, 숨 고르기</h2><p>유령들도 기다리고 있어요.</p><button id="resume" class="primary-button">사냥 계속하기 →</button><button id="quit" class="quiet-button">사냥 끝내기</button></dialog>
+<dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-reason">TIME'S UP</span><h2 id="result-title">오늘 밤의 사냥 기록</h2><div class="result-score"><span>TOTAL SCORE</span><strong id="result-score">0</strong><b id="new-best" hidden>✦ NEW RECORD</b></div><div class="result-grid"><div><span>잡은 유령</span><strong id="result-kills">0</strong></div><div><span>현상금 명중</span><strong id="result-bounties">0</strong></div><div><span>황금 유령</span><strong id="result-gold">0</strong></div><div><span>명중률</span><strong id="result-accuracy">0%</strong></div></div><p class="result-note">다음 밤에는 어떤 현상금이 걸릴까요?</p><button id="retry" class="primary-button">한 판 더 사냥하기 →</button><button id="home" class="quiet-button">처음으로</button></dialog>
+<dialog id="settings-dialog" aria-labelledby="settings-title"><span class="eyebrow">HUNTER'S DESK</span><h2 id="settings-title">사냥 설정</h2><p>다음 판부터 적용돼요.</p><form id="settings-form"><label>한 판 시간 <span><input id="setting-duration" type="number" min="15" max="120" step="5" required>초</span></label><label>장전 시간 <span><input id="setting-reload" type="number" min="0.4" max="4" step="0.05" required>초</span></label><label>유령 등장 간격 <span><input id="setting-spawn" type="number" min="0.35" max="2" step="0.05" required>초</span></label><button class="primary-button" type="submit">적용하고 닫기</button></form><div class="settings-bottom"><button id="defaults" class="quiet-button">기본값 복원</button><button id="reset-open" class="quiet-button">기록 초기화</button><button id="settings-close" class="quiet-button">닫기</button></div><p id="settings-status" role="status"></p></dialog>
+<dialog id="reset-dialog" aria-labelledby="reset-title"><h2 id="reset-title">사냥 기록을 지울까요?</h2><p>이 프로토타입의 최고 점수와 최근 결과를 초기화해요. 설정은 유지돼요.</p><p>지운 기록은 되돌릴 수 없어요.</p><div class="dialog-actions"><button id="reset-cancel" class="quiet-button" autofocus>취소</button><button id="reset-confirm" class="danger-button">초기화하기</button></div></dialog>
+<dialog id="ad-dialog" aria-labelledby="ad-title"><span class="eyebrow">SUPPLY BREAK</span><h2 id="ad-title">보급품 준비 중</h2><strong class="ad-count" id="ad-count">3</strong><p>실제 광고가 아닌 3초 체험이에요.<br>사냥 시간은 잠시 멈춰요.</p><button id="ad-cancel" class="quiet-button">취소하고 돌아가기</button></dialog>
+<noscript>게임을 플레이하려면 JavaScript를 켜주세요.</noscript>
+<script type="module" src="app.mjs?v=20261008-bounty1"></script>
+</body></html>
