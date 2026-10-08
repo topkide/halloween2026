@@ -1,24 +1,33 @@
-import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261008-bounty1';
-import {ghostSVG} from './ghost-art.mjs?v=20261008-bounty1';
+import {Hunt,SPECIES,TYPES,DEFAULTS,settings,restoreSettings,pose} from './hunt-core.mjs?v=20261008-bounty2';
+import {ghostSVG} from './ghost-art.mjs?v=20261008-bounty2';
 
 const $=id=>document.getElementById(id);
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const KEY='catjump-bounty-hunt-v1';
+const pointerInput=typeof window.PointerEvent==='function';
 let stored={};try{stored=JSON.parse(localStorage.getItem(KEY))||{};}catch{}
-let config=settings(stored.config),best=Number.isSafeInteger(stored.best)&&stored.best>=0?stored.best:0,soundOn=stored.soundOn!==false;
+let config=restoreSettings(stored.config,stored.balanceRevision??1),best=Number.isSafeInteger(stored.best)&&stored.best>=0?stored.best:0,soundOn=stored.soundOn!==false;
 let engine=new Hunt({config}),size={width:400,height:440,scale:1,left:0,top:0};
-let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,ad=null,lastBounty='',soundContext=null,mutedGain=null;
+let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,lastBounty='',soundContext=null,mutedGain=null,shotNoise=null;
 const entities=new Map(),impacts=[];let lastResult=stored.lastResult??null;
 const number=n=>Math.round(n).toLocaleString('ko-KR');
-function save(){try{localStorage.setItem(KEY,JSON.stringify({best,soundOn,config,lastResult}));}catch{$('storage-note').textContent='이 브라우저에서는 기록을 저장할 수 없어요.';}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({best,soundOn,config,lastResult,balanceRevision:2}));}catch{$('storage-note').textContent='이 브라우저에서는 기록을 저장할 수 없어요.';}}
 function updateSound(){ui.sound.textContent=soundOn?'♪':'♪̸';ui.sound.setAttribute('aria-label',soundOn?'사운드 켜짐':'사운드 꺼짐');ui.sound.setAttribute('aria-pressed',String(soundOn));if(mutedGain)mutedGain.gain.value=soundOn?.2:0;}
 function sound(kind){
   if(!soundOn)return;
   try{
     const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
-    if(!soundContext){soundContext=new Audio();mutedGain=soundContext.createGain();mutedGain.gain.value=.2;mutedGain.connect(soundContext.destination);}
+    if(!soundContext){soundContext=new Audio();mutedGain=soundContext.createGain();mutedGain.gain.value=.2;mutedGain.connect(soundContext.destination);
+      shotNoise=soundContext.createBuffer(1,Math.ceil(soundContext.sampleRate*.085),soundContext.sampleRate);
+      const samples=shotNoise.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*(1-i/samples.length)**2;
+    }
     if(soundContext.state==='suspended')soundContext.resume().catch(()=>{});
-    const sounds={shot:[[160,45,.09,0,'triangle']],miss:[[130,50,.08,0,'triangle']],hit:[[650,400,.1,0,'sine'],[950,650,.13,.04,'triangle']],bounty:[[680,920,.12,0,'triangle'],[1050,1500,.2,.08,'sine']],gold:[[784,990,.15,0,'triangle'],[988,1320,.18,.08,'triangle'],[1318,1760,.25,.16,'sine']],clock:[[550,800,.16,0,'sine'],[850,1100,.2,.12,'sine']],reload:[[160,110,.08,0,'square']],loaded:[[400,800,.1,0,'triangle']],bomb:[[110,35,.6,0,'sawtooth']],ink:[[220,60,.28,0,'sawtooth']],timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]};
+    if(kind==='shot'){
+      const noise=soundContext.createBufferSource(),gain=soundContext.createGain(),at=soundContext.currentTime;
+      noise.buffer=shotNoise;gain.gain.setValueAtTime(1.3,at);gain.gain.exponentialRampToValueAtTime(.001,at+.085);
+      noise.connect(gain);gain.connect(mutedGain);noise.onended=()=>{noise.disconnect();gain.disconnect();};noise.start(at);noise.stop(at+.085);
+    }
+    const sounds={shot:[[145,38,.12,0,'sine'],[920,140,.035,0,'sawtooth']],miss:[[130,50,.08,0,'triangle']],hit:[[650,400,.1,0,'sine'],[950,650,.13,.04,'triangle']],bounty:[[680,920,.12,0,'triangle'],[1050,1500,.2,.08,'sine']],gold:[[784,990,.15,0,'triangle'],[988,1320,.18,.08,'triangle'],[1318,1760,.25,.16,'sine']],clock:[[550,800,.16,0,'sine'],[850,1100,.2,.12,'sine']],reload:[[160,110,.08,0,'square']],loaded:[[400,800,.1,0,'triangle']],bomb:[[110,35,.6,0,'sawtooth']],ink:[[220,60,.28,0,'sawtooth']],timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]};
     for(const [from,to,duration,delay,wave] of sounds[kind]??sounds.hit){const at=soundContext.currentTime+delay,osc=soundContext.createOscillator(),gain=soundContext.createGain();osc.type=wave;osc.frequency.setValueAtTime(from,at);osc.frequency.exponentialRampToValueAtTime(to,at+duration);gain.gain.setValueAtTime(.32,at);gain.gain.exponentialRampToValueAtTime(.001,at+duration);osc.connect(gain);gain.connect(mutedGain);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(at);osc.stop(at+duration);}
   }catch{}
 }
@@ -43,8 +52,7 @@ function updateHud(){
   const reloading=engine.reloadLeft>0;setText(ui['reload-label'],reloading?'장전 중…':'↻ 장전');setText(ui['reload-hint'],reloading?engine.reloadLeft.toFixed(1)+'초':'자동 장전 · R');
   ui['reload-fill'].style.transform='scaleX('+(reloading?1-engine.reloadLeft/config.reload:0)+')';ui.reload.disabled=!active||reloading||ammo===5;
   ui.pause.disabled=!active;ui['settings-open'].disabled=!ready;
-  for(const kind of ['time','ammo']){const button=ui['boost-'+kind];button.disabled=!active||engine.used?.[kind];const label=button.querySelector('small');setText(label,engine.used?.[kind]?'이번 판 사용 완료':'▷ 광고 체험 · 1회');}
-  ui['ink-splash'].hidden=!(engine.inkLeft>0);setText(ui['bounty-time'],Math.ceil(engine.bountyLeft??8));ui['contract-fill'].style.transform='scaleX('+Math.max(0,(engine.bountyLeft??8)/config.bountyPeriod)+')';updateContract();
+  ui['ink-splash'].hidden=!(engine.inkLeft>0&&['playing','paused'].includes(engine.state));setText(ui['bounty-time'],Math.ceil(engine.bountyLeft??8));ui['contract-fill'].style.transform='scaleX('+Math.max(0,(engine.bountyLeft??8)/config.bountyPeriod)+')';updateContract();
 }
 function renderGhosts(){
   const alive=new Set(engine.ghosts.map(g=>g.id));
@@ -56,8 +64,7 @@ function renderGhosts(){
     node.style.width=w+'px';node.style.height=h+'px';node.style.transform=`translate(${p.x*size.scale-w/2}px,${p.y*size.scale-h/2}px) rotate(${p.angle}deg) scale(${p.sx},${p.sy})`;
     node.style.opacity=p.alpha;node.style.pointerEvents=p.alpha<.3||engine.state!=='playing'?'none':'auto';node.disabled=engine.state!=='playing'||p.alpha<.3;
     const art=node.firstElementChild;art.style.transform='scaleX('+p.facing+')';
-    const isWanted=ghost.type===engine.bounty?.type;node.classList.toggle('wanted-target',isWanted);
-    const label=node.lastElementChild,text=isWanted?'WANTED':({gold:'+1,200',clock:'+5 SEC',bomb:'DANGER',ink:'먹물 주의'})[ghost.type]??'';
+    const label=node.lastElementChild,text=({gold:'+1,200',clock:'+5 SEC',bomb:'DANGER',ink:'먹물 주의'})[ghost.type]??'';
     label.hidden=!text;setText(label,text);
   }
 }
@@ -67,11 +74,16 @@ function hitEffect(hit,x,y){
   const art=hit.ghost?ghostSVG(hit.kind,{color:TYPES[hit.kind].color,staticPose:true}):'';
   const small=hit.bonus?'현상금 명중!':hit.kind==='gold'?'GOLDEN GHOST!':hit.kind==='clock'?'+5초':hit.kind==='ink'?'먹물!':'';
   const text=hit.kind==='miss'?'MISS':hit.kind==='bomb'?'BOOM!':hit.kind==='ink'?'앗!':'+'+number(hit.points);
-  effect.innerHTML=art+'<i class="shot-ring"></i><span class="shot-text"><small>'+small+'</small>'+text+'</span>';ui['effect-layer'].append(effect);impacts.push({node:effect,until:performance.now()+750});
-  while(impacts.length>8)impacts.shift().node.remove();
+  const muzzleX=size.width*size.scale*.53,muzzleY=size.height*size.scale+16;
+  const shotX=muzzleX-x,shotY=muzzleY-y,length=Math.hypot(shotX,shotY),rotation=Math.atan2(shotY,shotX)*180/Math.PI;
+  const sparks=Array.from({length:6},(_,i)=>{const angle=i*Math.PI/3+.2;return '<i class="shot-spark" style="--dx:'+Math.cos(angle)*45+'px;--dy:'+Math.sin(angle)*45+'px;--angle:'+angle+'rad"></i>';}).join('');
+  effect.innerHTML='<i class="shot-tracer" style="--length:'+length+'px;--rotation:'+rotation+'deg"></i><i class="shot-flash"></i>'+sparks+'<i class="shot-hole"></i>'+art+'<i class="shot-ring"></i><span class="shot-text"><small>'+small+'</small>'+text+'</span>';
+  ui['effect-layer'].append(effect);impacts.push({node:effect,until:performance.now()+650});
+  const casing=document.createElement('i');casing.className='shell-casing';casing.style.left=muzzleX+'px';casing.style.top=(muzzleY-25)+'px';ui['effect-layer'].append(casing);impacts.push({node:casing,until:performance.now()+430});
+  while(impacts.length>12)impacts.shift().node.remove();
 }
 function flushEvents(){for(const event of engine.drain()){
-  if(event.kind==='bounty'){updateContract();if(engine.elapsed>0)toast('새 현상금 · '+TYPES[event.type].name+' ×'+event.multiplier);}
+  if(event.kind==='bounty'){updateContract();if(engine.elapsed>0)toast('현상금이 바뀌었어요 · 위 수배서를 확인하세요',1000);}
   if(event.kind==='reload')sound('reload');
   if(event.kind==='loaded')sound('loaded');
   if(event.kind==='end')finish(event.reason);
@@ -79,22 +91,22 @@ function flushEvents(){for(const event of engine.drain()){
 function fire(event){
   if(engine.state!=='playing'||event.target.closest('#intro'))return;
   if(event.type==='pointerdown'&&event.button!==0)return;
-  if(event.type==='click'&&(event.detail>0||event.pointerType))return;
+  if(event.type==='click'&&pointerInput&&(event.detail>0||event.pointerType))return;
   event.preventDefault();
   const target=event.target.closest('[data-ghost]'),id=target?Number(target.dataset.ghost):null;
   const g=id===null?null:engine.ghosts.find(g=>g.id===id),p=g?pose(g,size.width,size.height):null;
   const x=event.type==='click'&&p?p.x*size.scale:event.clientX-size.left,y=event.type==='click'&&p?p.y*size.scale:event.clientY-size.top;
   const result=engine.shoot(id);if(!result)return;
   if(result.kind==='loading'){toast('장전 중! 잠깐만 기다려요.',500);return;}
-  hitEffect(result,x,y);sound(result.kind==='miss'?'miss':result.bonus?'bounty':['gold','clock','bomb','ink'].includes(result.kind)?result.kind:'hit');
+  hitEffect(result,x,y);sound('shot');sound(result.kind==='miss'?'miss':result.bonus?'bounty':['gold','clock','bomb','ink'].includes(result.kind)?result.kind:'hit');
   if(result.kind==='clock')toast('시간 유령! 사냥 시간 +5초');
   if(result.kind==='gold')toast('황금 유령! +1,200',1200);
   renderGhosts();flushEvents();updateHud();
 }
-if(typeof window.PointerEvent==='function'){ui.arena.addEventListener('pointerdown',fire);ui.arena.addEventListener('click',fire);}
-else ui.arena.addEventListener('click',event=>{if(engine.state!=='playing'||event.target.closest('#intro'))return;const target=event.target.closest('[data-ghost]');const result=engine.shoot(target?Number(target.dataset.ghost):null);if(!result||result.kind==='loading')return;hitEffect(result,event.clientX-size.left,event.clientY-size.top);sound(result.kind);renderGhosts();flushEvents();updateHud();});
-function clearVisuals(){for(const x of impacts)x.node.remove();impacts.length=0;for(const node of entities.values())node.remove();entities.clear();toastUntil=0;ui['field-toast'].classList.remove('visible');ui.ending.hidden=true;}
-function start(){clearTimeout(endingTimer);for(const id of ['result-dialog','pause-dialog','ad-dialog'])ui[id].close();ad=null;clearVisuals();engine=new Hunt({config});engine.start();ui.intro.hidden=true;lastBounty='';lastFrame=performance.now();measure();sound('loaded');flushEvents();renderGhosts();updateHud();toast('현상금 표적을 노려요 · 폭탄은 조심!',2000);}
+if(pointerInput)ui.arena.addEventListener('pointerdown',fire);
+ui.arena.addEventListener('click',fire);
+function clearVisuals(){for(const x of impacts)x.node.remove();impacts.length=0;for(const node of entities.values())node.remove();entities.clear();toastUntil=0;ui['field-toast'].classList.remove('visible');setText(ui['field-toast'],'');ui.ending.hidden=true;}
+function start(){clearTimeout(endingTimer);for(const id of ['result-dialog','pause-dialog'])ui[id].close();clearVisuals();engine=new Hunt({config});engine.start();ui.intro.hidden=true;lastBounty='';lastFrame=performance.now();measure();sound('loaded');flushEvents();renderGhosts();updateHud();toast('위 수배서의 얼굴을 찾으세요!',1100);}
 function ready(){clearTimeout(endingTimer);ui['result-dialog'].close();clearVisuals();engine=new Hunt({config});engine.start();engine.state='ready';engine.drain();ui.intro.hidden=false;lastBounty='';renderGhosts();updateHud();}
 function finish(reason){
   if(endingTimer)return;ui['pause-dialog'].close();ui.ending.hidden=false;ui['ink-splash'].hidden=true;
@@ -119,13 +131,9 @@ ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(
 ui.defaults.addEventListener('click',()=>{config={...DEFAULTS};fillSettings();save();ready();setText(ui['settings-status'],'기본값을 복원했어요.');});
 ui['reset-open'].addEventListener('click',()=>{if(ui['settings-dialog'].open)ui['reset-dialog'].showModal();});ui['reset-cancel'].addEventListener('click',()=>ui['reset-dialog'].close());
 ui['reset-confirm'].addEventListener('click',()=>{if(!ui['reset-dialog'].open||engine.state!=='ready')return;best=0;lastResult=null;save();ui['reset-dialog'].close();updateHud();setText(ui['settings-status'],'사냥 기록을 초기화했어요.');});
-function requestBoost(kind){if(engine.state!=='playing'||engine.used[kind])return;engine.pause();ad={kind,until:performance.now()+3000};setText(ui['ad-count'],3);ui['ad-dialog'].showModal();updateHud();}
-function cancelAd(){ad=null;ui['ad-dialog'].close();engine.resume();lastFrame=performance.now();updateHud();}
-ui['boost-time'].addEventListener('click',()=>requestBoost('time'));ui['boost-ammo'].addEventListener('click',()=>requestBoost('ammo'));ui['ad-cancel'].addEventListener('click',cancelAd);ui['ad-dialog'].addEventListener('cancel',event=>{event.preventDefault();cancelAd();});
 function frame(now){
   const dt=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
   if(engine.state==='playing'){engine.tick(dt);flushEvents();renderGhosts();}
-  if(ad){setText(ui['ad-count'],Math.max(1,Math.ceil((ad.until-now)/1000)));if(now>=ad.until){const kind=ad.kind;ad=null;ui['ad-dialog'].close();engine.resume();engine.boost(kind);toast(kind==='time'?'보급 완료 · 사냥 시간 +10초':'보급 완료 · 탄약 5발 충전');sound('loaded');lastFrame=now;if(document.hidden)pause();}}
   while(impacts.length&&impacts[0].until<=now)impacts.shift().node.remove();
   if(toastUntil&&now>toastUntil){ui['field-toast'].classList.remove('visible');toastUntil=0;}
   if(now-hudAt>80){updateHud();hudAt=now;}
