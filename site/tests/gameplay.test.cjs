@@ -139,7 +139,11 @@ function enterCycle(g,cycle=0,continued=false){
   return b;
 }
 function startRun(g=game()){g.start();return {g,b:enterCycle(g)};}
+function finishTimeout(g){
+  assert.equal(g.phase(),'timeout');g.advance(1200);assert.equal(g.get('timeout').hidden,true);
+}
 function decline(g){
+  if(g.phase()==='timeout')finishTimeout(g);
   if(g.phase()==='continue')g.get('continue-back').click();
   assert.equal(g.phase(),'over');
 }
@@ -162,6 +166,7 @@ const wallet=g=>Number(g.get('lobby-currency').textContent.replaceAll(',',''));
 const progress=g=>JSON.parse(g.storage.get(PROGRESS_KEY));
 function cancelDialog(g,id){const event={preventDefault(){this.defaultPrevented=true;}};g.get(id).emit('cancel',event);assert.equal(event.defaultPrevented,true);}
 function continueAd(g,cycle){
+  if(g.phase()==='timeout')finishTimeout(g);
   const beforeTickets=tickets(g),beforeScore=g.get('score').textContent;
   assert.equal(g.phase(),'continue');assert.equal(g.get('continue-dialog').open,true);
   assert.equal(g.timers.size,0);g.advance(120000);
@@ -171,6 +176,26 @@ function continueAd(g,cycle){
   assert.equal(tickets(g),beforeTickets);assert.equal(g.get('score').textContent,beforeScore);
   return enterCycle(g,Math.max(0,cycle-3),true);
 }
+
+// Timeout explains the end before offering an ad, with input locked and play time stopped.
+const {g:timeoutNotice,b:tnb}=startRun(game({audio:true}));
+timeoutNotice.click(tnb.target[0]);timeoutNotice.advance(tnb.hunt);
+assert.equal(timeoutNotice.phase(),'timeout');assert.equal(timeoutNotice.get('timeout').hidden,false);
+assert.equal(timeoutNotice.get('continue-dialog').open,false);assert.equal(timeoutNotice.get('result-dialog').open,false);
+assert.equal(timeoutNotice.get('pause').disabled,true);assertLocked(timeoutNotice);
+timeoutNotice.get('pause').click();assert.equal(timeoutNotice.get('pause-dialog').open,false);
+assert.equal(timeoutNotice.saved.length,0);assert.equal(wallet(timeoutNotice),0);
+assert.deepEqual(timeoutNotice.audioLog.tones.slice(-2).map(t=>t.frequency.start.value),[660,440]);
+timeoutNotice.advance(1199.9);assert.equal(timeoutNotice.phase(),'timeout');timeoutNotice.advance(.1);
+assert.equal(timeoutNotice.phase(),'continue');assert.equal(timeoutNotice.get('timeout').hidden,true);
+assert.equal(timeoutNotice.get('continue-reason').hidden,false);decline(timeoutNotice);
+assert.equal(timeoutNotice.get('result-reason').hidden,false);
+assert.equal(timeoutNotice.saved.at(-1).result.playTime,2);assert.equal(wallet(timeoutNotice),1);
+assert.equal(timeoutNotice.progressSaved.length,1);timeoutNotice.advance(5000);assert.equal(wallet(timeoutNotice),1);
+const bombAfterTimeout=startRun(timeoutNotice).b;
+timeoutNotice.click(bombAfterTimeout.decoy[0]);assert.equal(timeoutNotice.get('timeout').hidden,true);
+timeoutNotice.advance(980);assert.equal(timeoutNotice.get('continue-reason').hidden,true);decline(timeoutNotice);
+assert.equal(timeoutNotice.get('result-reason').hidden,true);
 
 // The ad is explicit and completes once; only active play contributes to the result time.
 const {g:continuing,b:ctb}=startRun();continuing.advance(400);continuing.click(ctb.target[0]);
@@ -197,7 +222,8 @@ const smaller=continueAd(larger,12);assert.equal(smaller.grid,4);
 assert.equal(larger.get('coin-rate').textContent,'기본 3 코인');
 assert.equal(larger.get('coin-multiplier').textContent,'코인 ×1');
 larger.click(smaller.target[0]);assert.match(impactText(larger),/\+3 코인/);
-larger.advance(smaller.hunt);assert.equal(larger.phase(),'over');assert.equal(larger.get('result-dialog').open,true);
+larger.advance(smaller.hunt);finishTimeout(larger);assert.equal(larger.phase(),'over');
+assert.equal(larger.get('result-reason').hidden,false);assert.equal(larger.get('result-dialog').open,true);
 assert.equal(larger.saved.at(-1).result.caught,67);assert.equal(larger.saved.at(-1).result.reward,905);
 assert.equal(larger.get('result-caught').textContent,'67마리');assert.equal(larger.get('result-reward').textContent,'+905');
 assert.equal(wallet(larger),905);assert.equal(larger.progressSaved.length,1);
@@ -273,6 +299,35 @@ assert.equal(profileUI.get('rules-dialog').open,false);assert.equal(profileUI.ge
 const fullCollection=game({progress:{wallet:7,collection:COLLECTIONS.map(item=>item.id),characterClaimed:false}});
 fullCollection.get('lobby-collection').click();fullCollection.get('collection-claim').click();fullCollection.get('collection-claim').click();
 assert.equal(progress(fullCollection).characterClaimed,true);assert.equal(wallet(fullCollection),7);assert.equal(fullCollection.progressSaved.length,1);
+
+// Reset is explicit and scoped to this game's progress; cancelling preserves a full album.
+const resetConfig=structuredClone(DEFAULT_CONFIG);resetConfig.combo.window=.6;
+const resetRecords=game({random:()=>0,config:resetConfig,lobby:{tickets:0},saved:{best:321,soundOn:false,result:{caught:321}},
+  progress:{wallet:987,collection:COLLECTIONS.map(item=>item.id),characterClaimed:true}});
+resetRecords.storage.set('unrelated-app','keep');
+const resetBefore=[...resetRecords.storage];
+resetRecords.get('progress-reset-confirm').click();assert.deepEqual([...resetRecords.storage],resetBefore);
+resetRecords.get('lobby-settings').click();resetRecords.get('progress-reset-open').click();
+assert.equal(resetRecords.get('progress-reset-dialog').open,true);
+resetRecords.get('progress-reset-cancel').click();assert.equal(resetRecords.get('progress-reset-dialog').open,false);
+assert.deepEqual([...resetRecords.storage],resetBefore);
+resetRecords.get('progress-reset-confirm').click();assert.deepEqual([...resetRecords.storage],resetBefore);
+resetRecords.get('progress-reset-open').click();resetRecords.get('progress-reset-confirm').click();
+assert.equal(resetRecords.get('progress-reset-dialog').open,false);assert.equal(resetRecords.get('balance-dialog').open,true);
+assert.equal(resetRecords.get('best').textContent,'최고 0');assert.equal(wallet(resetRecords),0);assert.equal(tickets(resetRecords),3);
+assert.deepEqual(progress(resetRecords),{wallet:0,collection:[],characterClaimed:false});
+assert.deepEqual(resetRecords.saved.at(-1),{best:0,soundOn:false,result:null});
+assert.equal(resetRecords.get('sound').textContent,'♪ OFF');
+assert.equal(resetRecords.storage.get('catjump-memory-room-balance-v1'),JSON.stringify(resetConfig));
+assert.equal(resetRecords.storage.get('unrelated-app'),'keep');
+resetRecords.get('progress-reset-confirm').click();assert.equal(resetRecords.progressSaved.length,1);
+const resetReloaded=game({random:()=>0,config:JSON.parse(resetRecords.storage.get('catjump-memory-room-balance-v1')),
+  lobby:JSON.parse(resetRecords.storage.get(EVENT_KEY)),saved:resetRecords.saved.at(-1),progress:progress(resetRecords)});
+resetReloaded.get('lobby-collection').click();assert.equal(resetReloaded.get('collection-progress').textContent,'0 / 9');
+assert.equal(resetReloaded.get('collection-claim').disabled,true);resetReloaded.get('collection-close').click();
+const resetBoard=startRun(resetReloaded).b;assert.equal(resetBoard.collection.length,1);
+resetReloaded.get('progress-reset-open').click();assert.equal(resetReloaded.get('progress-reset-dialog').open,false);
+resetReloaded.click(resetBoard.collection[0]);assert.deepEqual(progress(resetReloaded).collection,[COLLECTIONS[0].id]);
 
 for(const gap of [220,230]){
   const {g:quick,b}=startRun(game({defaults:LIVE_DEFAULTS}));quick.click(b.target[0]);quick.click(b.target[1]);quick.advance(gap);quick.click(b.target[2]);
@@ -494,8 +549,9 @@ assert.ok(miss.slots()[missBoard.empty[0]].innerHTML.includes('×'));
 assert.ok(miss.slots().every(slot=>!slot.disabled));assert.equal(miss.timers.size,2);
 assert.equal(miss.saved.length,0);assert.equal(miss.get('continue-dialog').open,false);
 miss.advance(1099.9);assert.equal(miss.phase(),'hunt');miss.advance(.1);
-assert.equal(miss.phase(),'continue');assert.equal(miss.timers.size,0);assert.equal(miss.saved.length,0);
-miss.advance(1000);assert.equal(miss.phase(),'continue');assert.equal(miss.saved.length,0);
+assert.equal(miss.phase(),'timeout');assert.equal(miss.timers.size,1);assert.equal(miss.saved.length,0);
+miss.advance(1000);assert.equal(miss.phase(),'timeout');assert.equal(miss.saved.length,0);
+miss.advance(200);assert.equal(miss.phase(),'continue');assert.equal(miss.timers.size,0);
 decline(miss);assert.equal(miss.saved.length,1);assert.equal(miss.saved[0].result.reason,'시간 초과');
 
 // The miss clears the chain; a new pair restores time and replaces the shortened timeout.
@@ -530,7 +586,7 @@ const missEffect=newest(repeat);repeat.click(rb.empty[0]);
 assert.equal(newest(repeat),missEffect);assert.equal(repeat.get('clock').textContent,'1.48초');assertHidden(repeat);
 repeat.get('room').click({detail:1,clientX:-100,clientY:-100});
 assert.equal(repeat.phase(),'hunt');assert.equal(repeat.get('clock').textContent,'1.08초');repeat.advance(1080);
-assert.equal(repeat.phase(),'continue');assert.equal(repeat.timers.size,0);assert.equal(repeat.saved.length,0);
+finishTimeout(repeat);assert.equal(repeat.phase(),'continue');assert.equal(repeat.timers.size,0);assert.equal(repeat.saved.length,0);
 decline(repeat);assert.equal(repeat.saved[0].result.caught,3);assert.equal(repeat.saved[0].result.reason,'시간 초과');
 assert.equal(repeat.saved[0].result.reward,3);assert.equal(wallet(repeat),3);
 
@@ -538,12 +594,12 @@ const {g:missPause,b:mpb}=startRun();missPause.click(mpb.empty[0]);missPause.adv
 pauseAndWait(missPause);resume(missPause);
 assert.equal(missPause.get('clock').textContent,'1.10초');
 missPause.advance(1099.9);assert.equal(missPause.phase(),'hunt');missPause.advance(.1);
-assert.equal(missPause.phase(),'continue');assert.equal(missPause.timers.size,0);
+finishTimeout(missPause);assert.equal(missPause.phase(),'continue');assert.equal(missPause.timers.size,0);
 
 for(const remaining of [400.1,400,399]){
   const {g:low,b}=startRun();low.advance(1600-remaining);low.click(b.empty[0]);
   if(remaining>400){assert.equal(low.phase(),'hunt');assert.equal(low.get('continue-dialog').open,false);low.advance(.11);}
-  assert.equal(low.phase(),'continue');assert.equal(low.timers.size,0);assert.equal(low.saved.length,0);
+  finishTimeout(low);assert.equal(low.phase(),'continue');assert.equal(low.timers.size,0);assert.equal(low.saved.length,0);
   assert.equal(low.get('continue-dialog').open,true);low.advance(5000);assert.equal(low.phase(),'continue');
   decline(low);assert.equal(low.saved[0].result.reason,'시간 초과');
 }
@@ -746,7 +802,7 @@ assert.equal(held.get('score').textContent,'명중 1');held.pointer(heldTargets[
 for(const offset of [-.1,0]){
   const {g:atDeadline,b}=startRun(game({pointer:true}));atDeadline.jump(atDeadline.now()+1600+offset);
   atDeadline.pointer(b.target[0]);assert.equal(atDeadline.get('score').textContent,offset<0?'명중 1':'명중 0');
-  assert.equal(atDeadline.phase(),offset<0?'hunt':'continue');
+  assert.equal(atDeadline.phase(),offset<0?'hunt':'timeout');
   atDeadline.click(b.target[0],{detail:1,pointerType:'touch'});
   assert.equal(atDeadline.get('score').textContent,offset<0?'명중 1':'명중 0');
 }
@@ -841,8 +897,9 @@ const pulses=pulse.audioLog.tones.filter(t=>t.frequency.start.value===90);assert
 assert.ok(pulses.slice(1).every((t,i)=>t.createdNow-pulses[i].createdNow>=220));
 const muted=game({audio:true}),mb=startRun(muted).b,ma=muted.audioLog;muted.get('sound').click();const before=ma.tones.length;
 muted.click(mb.target[0]);muted.advance(1000);assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
+muted.advance(600);assert.equal(muted.phase(),'timeout');assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
 const shiver=game({audio:true}),shb=startRun(shiver).b;shb.target.forEach(i=>shiver.click(i));const tonesBefore=shiver.audioLog.tones.length;
 shiver.advance(80);assert.equal(shiver.audioLog.tones.length,tonesBefore+7);assert.ok(shiver.audioLog.tones.slice(-7).every(t=>t.stoppedAt<=.28));
-console.log('PASS: immediate/multi-touch shots, suppressed release clicks, mouse/pen/keyboard fallback, input phase/deadline guards; slower configurable transitions and saved-setting migration; combo display through impact; bounded effects and cached hitboxes with resize/scroll invalidation; cross-wave combo capped at 50 and coin x1 to x10, weighted settlement/doubling, collection coins and run reset; exact miss penalties and shortened deadlines; bomb failure; continue/reward ads and cancellation; optional collections and persistence; 3x3 to 5x5 grids; 30 cycles/171 fixture score/5852 coins; combo boundary, lobby, pause, storage and sound regressions.');
+console.log('PASS: timeout feedback and persistent reason; confirmed progress reset with recollection and preserved settings; immediate/multi-touch shots, suppressed release clicks, mouse/pen/keyboard fallback, input phase/deadline guards; slower configurable transitions and saved-setting migration; combo display through impact; bounded effects and cached hitboxes with resize/scroll invalidation; cross-wave combo capped at 50 and coin x1 to x10, weighted settlement/doubling, collection coins and run reset; exact miss penalties and shortened deadlines; bomb failure; continue/reward ads and cancellation; optional collections and persistence; 3x3 to 5x5 grids; 30 cycles/171 fixture score/5852 coins; combo boundary, lobby, pause, storage and sound regressions.');
 
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -16,6 +16,7 @@ import {COLLECTIONS} from './collections.mjs';
   const balanceButton=document.getElementById('balance-open'), balanceDialog=document.getElementById('balance-dialog');
   const rulesDialog=document.getElementById('rules-dialog');
   const pauseDialog=document.getElementById('pause-dialog');
+  const resetDialog=document.getElementById('progress-reset-dialog');
   const eventDialog=document.getElementById('event-dialog');
   const continueDialog=document.getElementById('continue-dialog'), resultDialog=document.getElementById('result-dialog'), collectionDialog=document.getElementById('collection-dialog');
   const PROGRESS_KEY='catjump-event-progress-v1';
@@ -147,6 +148,7 @@ import {COLLECTIONS} from './collections.mjs';
     };
     if(type==='reveal') { tone(150,760,0,.11,.16,'triangle');tone(360,1120,.025,.09,.08,'sine');return; }
     if(type==='pulse') { tone(90,48,0,.06,.20,'sine');return; }
+    if(type==='timeout') { tone(660,440,0,.18,.22,'triangle');tone(440,220,.2,.32,.2,'triangle');return; }
     if(type==='snicker') {
       [430,490,405].forEach((f,n)=>{
         tone(f*1.2,f,n*.16,.035,.32,'sawtooth',2200);
@@ -294,6 +296,7 @@ import {COLLECTIONS} from './collections.mjs';
     });
     find('banner').hidden=phase!=='over';
     find('ready').hidden=phase!=='prepare';
+    find('timeout').hidden=phase!=='timeout';
   }
   function clockValue(remaining) {
     find('clock').textContent=remaining.toFixed(2)+'초';
@@ -489,7 +492,7 @@ import {COLLECTIONS} from './collections.mjs';
     stopTimer();
     stopRunClock();failureReason=reason;
     clearVisualEffects();room.dataset.failure=reason;
-    phase=reason==='decoy'?'scare-reveal':'over';
+    phase=reason==='decoy'?'scare-reveal':reason==='timeout'?'timeout':'over';
     spooked=reason==='decoy'?i:null;
     paint();
     find('clock').textContent='';find('time-fill').style.transform='scaleX(0)';
@@ -511,12 +514,17 @@ import {COLLECTIONS} from './collections.mjs';
         const caption=document.createElement('div');caption.className='cj-pop-caption';caption.innerHTML='<b>킥킥킥!</b><span>나를 쏘면 안 되지~</span>';find('fail-splash').append(caption);
         shotSound('boo');after(900,showResult);
       });
+    } else if(reason==='timeout') {
+      find('phase').textContent='시간 초과!';
+      setMessage('시간 초과! 시간이 모두 소진됐어요.');action.textContent='시간 초과!';
+      shotSound('timeout');after(1200,showResult);
     } else showResult();
     function showResult() {
       find('fail-splash').replaceChildren();silence();
       if(continueUsed) showFinalResult();
       else {
         phase='continue';paint();
+        document.getElementById('continue-reason').hidden=failureReason!=='timeout';
         document.getElementById('continue-watch').disabled=false;
         document.getElementById('continue-watch').textContent='▷ 광고 보고 이어하기';
         document.getElementById('continue-status').textContent='프로토타입에서는 3초 광고 체험 후 이어집니다.';
@@ -537,6 +545,7 @@ import {COLLECTIONS} from './collections.mjs';
     saveProgress();saveResult(failureReason);
   }
   function renderResult() {
+    document.getElementById('result-reason').hidden=failureReason!=='timeout';
     const seconds=Math.floor(runElapsed/1000);
     document.getElementById('result-time').textContent=Math.floor(seconds/60)+'분 '+seconds%60+'초';
     document.getElementById('result-caught').textContent=score+'마리';
@@ -677,6 +686,23 @@ import {COLLECTIONS} from './collections.mjs';
     }
     find('rules').textContent='빈자리 −'+pendingConfig.difficulty.missPenalty.toFixed(2)+'초 · 폭탄 유령은 즉시 종료!';
   }
+  document.getElementById('progress-reset-open').addEventListener('click',()=>{
+    if(!balanceDialog.open||!['ready','over'].includes(phase)||resetDialog.open) return;
+    resetDialog.showModal();
+  });
+  document.getElementById('progress-reset-cancel').addEventListener('click',()=>resetDialog.close());
+  document.getElementById('progress-reset-confirm').addEventListener('click',()=>{
+    if(!resetDialog.open||!balanceDialog.open||!['ready','over'].includes(phase)) return;
+    if(phase==='over') returnToLobby();
+    best=0;score=0;lastSummary=null;resetCombo();
+    profile.wallet=0;profile.collection=[];profile.characterClaimed=false;
+    tickets=3;selectedItem=COLLECTIONS[0].id;
+    runItems=[];roundItem=null;runCoins=0;highestCycle=0;runElapsed=0;legStarted=null;
+    continueUsed=false;settled=false;doubled=false;failureReason=null;
+    saveState();saveProgress();saveTickets();renderCollection();paint();
+    resetDialog.close();
+    document.getElementById('progress-reset-status').textContent='기록을 초기화했어요. 컬렉션을 처음부터 다시 모을 수 있어요!';
+  });
   const editor=createBalanceEditor({
     getConfig:()=>pendingConfig,
     onOpen:()=>['ready','over'].includes(phase)&&!rulesDialog.open&&!eventDialog.open&&!collectionDialog.open&&!resultDialog.open,

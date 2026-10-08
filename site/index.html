@@ -7,7 +7,7 @@
   <meta name="description" content="캣점프 할로윈 이벤트 유령 소탕 대작전! 유령의 위치를 기억하고 암전 속에서 빠르게 사격하세요.">
   <title>유령 소탕 대작전! · 캣점프 할로윈</title>
   <link rel="icon" type="image/png" href="assets/target.png">
-  <link rel="stylesheet" href="style.css?v=20261008-combo-performance">
+  <link rel="stylesheet" href="style.css?v=20261008-timeout-reset">
 </head>
 <body>
 <main>
@@ -71,6 +71,10 @@
       <div class="cj-effects" id="cj-effects" aria-hidden="true"></div>
       <span id="cj-combo-display" hidden aria-hidden="true"></span>
       <div class="cj-fail-splash" id="cj-fail-splash" aria-hidden="true"></div>
+      <div class="cj-timeout" id="cj-timeout" role="alert" hidden>
+        <span class="cj-timeout-clock" aria-hidden="true"></span>
+        <strong>시간 초과!</strong><span>시간이 모두 소진됐어요</span>
+      </div>
       <div class="cj-ready" id="cj-ready" hidden><span>눈 크게 뜨고</span><strong>READY</strong></div>
       <div class="cj-room-caption" id="cj-room-caption" hidden>9개의 자리 · 유령의 위치를 기억해요</div>
       <div class="cj-menu" aria-label="시작 및 결과" hidden>
@@ -113,6 +117,7 @@
 </dialog>
 <dialog id="continue-dialog" class="run-dialog" aria-labelledby="continue-title" aria-describedby="continue-description">
   <h2 id="continue-title">이어하기</h2>
+  <p id="continue-reason" class="run-reason" hidden>시간 초과</p>
   <div class="continue-ghosts" aria-hidden="true">
     <img src="assets/bomb-ghost.png" width="64" height="72" alt="">
     <img src="assets/target.png" width="96" height="108" alt="">
@@ -131,6 +136,7 @@
 </dialog>
 <dialog id="result-dialog" class="run-dialog" aria-labelledby="result-title">
   <h2 id="result-title">게임 결과</h2>
+  <p id="result-reason" class="run-reason" hidden>시간 초과</p>
   <dl class="result-stats">
     <div><dt>플레이 시간</dt><dd id="result-time">0.0초</dd></div>
     <div><dt>잡은 유령</dt><dd id="result-caught">0마리</dd></div>
@@ -167,6 +173,11 @@
   <form id="balance-form" novalidate>
     <div class="balance-scroll">
       <p class="balance-intro">기억·사격 시간, 유령 수와 콤보를 조절해요. 변경 사항은 이 브라우저의 다음 판부터 적용됩니다.</p>
+      <section class="progress-reset" aria-labelledby="progress-reset-title">
+        <div><h3 id="progress-reset-title">플레이 기록</h3><p>컬렉션을 처음부터 다시 모으고 싶다면 초기화하세요.</p></div>
+        <button id="progress-reset-open" class="quiet-button" type="button">기록 초기화</button>
+        <p id="progress-reset-status" role="status"></p>
+      </section>
       <section class="balance-db" aria-labelledby="balance-db-title">
         <h3 id="balance-db-title">밸런스 DB 보관 · 이동</h3>
         <p>다른 웹 주소나 브라우저에서 이 프로토타입을 플레이할 때도, 저장한 DB 파일을 불러와 같은 수치로 테스트할 수 있어요.</p>
@@ -180,6 +191,18 @@
     <footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">적용하고 닫기</button></footer>
   </form>
 </dialog>
-<script type="module" src="app.mjs?v=20261008-combo-performance"></script>
+<dialog id="progress-reset-dialog" class="run-dialog" aria-labelledby="progress-reset-heading" aria-describedby="progress-reset-description">
+  <h2 id="progress-reset-heading">기록을 초기화할까요?</h2>
+  <div id="progress-reset-description" class="reset-description">
+    <p>컬렉션, 캐릭터 획득, 코인, 최고 기록과 최근 결과가 모두 지워져요.</p>
+    <p>플레이 기회는 3회로 돌아가며,<br>밸런스·사운드 설정은 유지돼요.</p>
+    <strong>초기화한 기록은 되돌릴 수 없어요.</strong>
+  </div>
+  <div class="run-actions result-actions">
+    <button id="progress-reset-cancel" class="quiet-button" type="button" autofocus>취소</button>
+    <button id="progress-reset-confirm" class="reset-confirm" type="button">초기화하기</button>
+  </div>
+</dialog>
+<script type="module" src="app.mjs?v=20261008-timeout-reset"></script>
 </body>
 </html>
