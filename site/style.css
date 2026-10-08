@@ -70,26 +70,21 @@ button:active:not(:disabled){filter:brightness(1.12)}
 .ghost-target.type-clock .target-tag{color:#9febd8;border-color:#9febd877}
 .ghost-art{overflow:visible}
 .ghost-art g{transform-box:fill-box;transform-origin:center}
-.ghost-art .pupil{animation:eye-drift 2.8s ease-in-out infinite}
-.ghost-wisp .torso{animation:wisp-body 1.7s ease-in-out infinite;transform-origin:50% 65%}
-.ghost-wisp .tail{animation:tail-sway 1s ease-in-out infinite alternate}
-.ghost-pudge .torso{animation:pudge-body .85s ease-in-out infinite}
-.ghost-pudge .foot{animation:foot-tap .85s ease-in-out infinite alternate}
-.ghost-pudge .foot.right{animation-delay:-.425s}
-.ghost-skitter .torso{animation:skitter-body 1.3s ease-in-out infinite}
-.ghost-skitter .tail{animation:tail-sway .35s ease-in-out infinite alternate}
-.ghost-stilt .leg{animation:long-step .55s ease-in-out infinite alternate;transform-origin:50% 0}
-.ghost-stilt .leg.right{animation-delay:-.55s}
-.ghost-stilt .torso{animation:head-tilt 1.1s ease-in-out infinite alternate}
-.ghost-grasp .arm{animation:arm-flail .8s ease-in-out infinite alternate;transform-origin:50% 10%}
-.ghost-grasp .arm.right{animation-delay:-.8s}
-.ghost-grasp .torso{animation:wisp-body 2s ease-in-out infinite}
-.ghost-gold .wing{animation:arm-flail .4s ease-in-out infinite alternate;transform-origin:80% 30%}
-.ghost-gold .wing.right{animation-delay:-.4s}
-.ghost-clock .tail{animation:tail-sway .8s ease-in-out infinite alternate}
-.ghost-clock .clock-hand{transform-box:view-box;transform-origin:61px 82px;animation:clock-spin 3s linear infinite}
-.ghost-bomb .spark{animation:spark-flicker .16s steps(2) infinite}
-.ghost-ink .tentacles{animation:pudge-body .65s ease-in-out infinite}
+/* Small, slow joint gestures keep silhouettes readable during straight movement. */
+.ghost-wisp .torso{animation:wisp-body 3s ease-in-out infinite;transform-origin:50% 65%}
+.ghost-wisp .tail{animation:tail-sway 1.8s ease-in-out infinite alternate}
+.ghost-pudge .torso{animation:pudge-body 2.6s ease-in-out infinite}
+.ghost-skitter .tail{animation:tail-sway 1.5s ease-in-out infinite alternate}
+.ghost-stilt .leg{animation:long-step 1.4s ease-in-out infinite alternate;transform-origin:50% 0}
+.ghost-stilt .leg.right{animation-delay:-1.4s}
+.ghost-grasp .arm{animation:arm-flail 1.8s ease-in-out infinite alternate;transform-origin:50% 10%}
+.ghost-grasp .arm.right{animation-delay:-1.8s}
+.ghost-gold .wing{animation:arm-flail 1.4s ease-in-out infinite alternate;transform-origin:80% 30%}
+.ghost-gold .wing.right{animation-delay:-1.4s}
+.ghost-clock .tail{animation:tail-sway 2s ease-in-out infinite alternate}
+.ghost-clock .clock-hand{transform-box:view-box;transform-origin:61px 82px;animation:clock-spin 6s linear infinite}
+.ghost-bomb .spark{animation:spark-flicker .8s ease-in-out infinite alternate}
+.ghost-ink .tentacles{animation:pudge-body 2.6s ease-in-out infinite}
 .static-pose *{animation:none!important}
 .game[data-state=paused] .ghost-target *{animation-play-state:paused!important}
 .game[data-state=ended] .ghost-target{pointer-events:none}
@@ -174,42 +169,31 @@ input[type=number]{width:80px;background:#18272b;border:1px solid #587268;border
 .game[data-state=ready] .ghost-layer{opacity:.15}
 .game[data-state=paused] .arena:after{content:'';position:absolute;inset:0;background:#16242ee8;z-index:11;pointer-events:none}
 
-@keyframes wisp-body{0%,100%{transform:scale(.96,1.04) rotate(-3deg)}
-50%{transform:scale(1.04,.96) rotate(4deg)}
+@keyframes wisp-body{0%,100%{transform:scale(1,1.015)}
+50%{transform:scale(1.015,1)}
 }
-@keyframes tail-sway{from{transform:rotate(-14deg) skewX(5deg)}
-to{transform:rotate(14deg) skewX(-5deg)}
+@keyframes tail-sway{from{transform:rotate(-5deg)}
+to{transform:rotate(5deg)}
 }
-@keyframes pudge-body{0%,100%{transform:translateY(3px) scale(1.07,.94)}
-50%{transform:translateY(-3px) scale(.97,1.04)}
+@keyframes pudge-body{0%,100%{transform:scale(1.015,.99)}
+50%{transform:scale(.99,1.015)}
 }
-@keyframes foot-tap{to{transform:translateY(-5px) rotate(12deg)}
+@keyframes long-step{from{transform:rotate(-7deg)}
+to{transform:rotate(7deg)}
 }
-@keyframes skitter-body{0%,70%,100%{transform:scale(1.06,.9)}
-35%{transform:scale(.9,1.15) rotate(-4deg)}
-}
-@keyframes long-step{from{transform:rotate(-19deg)}
-to{transform:rotate(19deg)}
-}
-@keyframes head-tilt{from{transform:translateY(-3px) rotate(-6deg)}
-to{transform:translateY(3px) rotate(6deg)}
-}
-@keyframes arm-flail{from{transform:rotate(-25deg)}
-to{transform:rotate(22deg)}
-}
-@keyframes eye-drift{0%,30%,100%{transform:translateX(-2px)}
-60%,80%{transform:translateX(2px)}
+@keyframes arm-flail{from{transform:rotate(-7deg)}
+to{transform:rotate(7deg)}
 }
 @keyframes clock-spin{to{transform:rotate(360deg)}
 }
-@keyframes spark-flicker{to{opacity:.3;transform:scale(.7)}
+@keyframes spark-flicker{to{opacity:.7}
 }
 @keyframes ghost-caught{0%{transform:scale(1.08,.88)}
-35%{opacity:1;transform:translate(7px,-12px) rotate(14deg) scale(.9)}
-100%{opacity:0;transform:translate(18px,-34px) rotate(38deg) scale(.65)}
+35%{opacity:1;transform:translate(4px,-7px) rotate(6deg) scale(.9)}
+100%{opacity:0;transform:translate(10px,-18px) rotate(12deg) scale(.65)}
 }
 @keyframes hit-ring{from{opacity:.9;transform:scale(.3)}
-to{opacity:0;transform:scale(1.6)}
+to{opacity:0;transform:scale(1.2)}
 }
 @keyframes score-rise{0%{opacity:0;translate:0 10px}
 20%{opacity:1}
@@ -218,9 +202,6 @@ to{opacity:0;transform:scale(1.6)}
 }
 @keyframes poster-change{0%{transform:rotate(-5deg) translateY(-6px)}
 100%{transform:rotate(-1.2deg)}
-}
-@keyframes ink-arrive{from{opacity:0;scale:.96}
-to{opacity:1;scale:1}
 }
 
 @media(max-width:380px){.masthead{padding-inline:13px}
@@ -277,7 +258,7 @@ to{opacity:1;scale:1}
 
 .shot-tracer{position:absolute;z-index:3;left:50%;top:50%;height:2px;width:var(--length);transform-origin:0 50%;transform:rotate(var(--rotation));background:linear-gradient(90deg,#fff8d3,transparent 75%);animation:bullet-streak .085s linear both}
 
-.shot-flash{position:absolute;z-index:4;left:50%;top:50%;width:58px;height:58px;background:#fff1be;clip-path:polygon(50% 0,58% 35%,85% 14%,65% 43%,100% 50%,64% 58%,85% 85%,56% 65%,50% 100%,42% 66%,13% 87%,34% 57%,0 50%,35% 43%,13% 14%,43% 35%);animation:bullet-flash .13s ease-out both}
+.shot-flash{position:absolute;z-index:4;left:50%;top:50%;width:38px;height:38px;background:#fff1be;clip-path:polygon(50% 0,58% 35%,85% 14%,65% 43%,100% 50%,64% 58%,85% 85%,56% 65%,50% 100%,42% 66%,13% 87%,34% 57%,0 50%,35% 43%,13% 14%,43% 35%);animation:bullet-flash .13s ease-out both}
 
 .shot-spark{position:absolute;z-index:5;left:50%;top:50%;width:12px;height:3px;background:#ffd18b;animation:bullet-spark .24s ease-out both}
 

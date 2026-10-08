@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {Hunt,DEFAULTS,SPECIES,TYPES,MOTIONS,pose,settings,restoreSettings,rollMultiplier,rewardFor} from '../hunt-core.mjs';
 import {ghostSVG} from '../ghost-art.mjs';
 function run(config={}){const h=new Hunt({random:()=>.5,config});h.start();h.drain();return h;}
-function target(h,type){const g=h.spawn(type);Object.assign(g,{motion:'drift',life:2,age:.7});return g;}
+function target(h,type){const g=h.spawn(type);Object.assign(g,{motion:'horizontal',life:2,age:.7});return g;}
 function rng(seed=19){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
 
 test('new run has five rounds, configured time, a bounty, and an immediately visible cast',()=>{
- const h=run();assert.equal(h.ammo,5);assert.equal(h.remaining,45);assert.equal(h.ghosts.length,4);assert.equal(h.state,'playing');assert.equal(h.bounty.multiplier,3);
+ const h=run();assert.equal(h.ammo,5);assert.equal(h.remaining,45);assert.equal(h.ghosts.length,2);assert.equal(h.state,'playing');assert.equal(h.bounty.multiplier,3);
  for(const g of h.ghosts)assert.ok(pose(g,400,500).alpha>.3);
 });
 test('five shots start exactly one reload; shots during reload spend nothing',()=>{
@@ -50,35 +50,52 @@ test('weighted multipliers have explicit reachable boundaries',()=>{
  assert.deepEqual(rewardFor('pudge',{type:'wisp',multiplier:10}),{base:100,bonus:0});
 });
 test('all nine spawn types are reachable, and long play keeps a bounded live population',()=>{
- const h=new Hunt({random:rng(),config:{duration:120,spawn:.35}});h.start();const seen=new Set();for(let i=0;i<1100;i++){h.tick(.1);assert.ok(h.ghosts.length<=7);h.ghosts.forEach(g=>seen.add(g.type));}assert.equal(seen.size,9);
+ const h=new Hunt({random:rng(),config:{duration:120,spawn:.35}});h.start();const seen=new Set();for(let i=0;i<1100;i++){h.tick(.1);assert.ok(h.ghosts.length<=3);h.ghosts.forEach(g=>seen.add(g.type));}assert.equal(seen.size,9);
 });
-test('all motion paths remain finite at mobile and desktop sizes, and have short lifetimes',()=>{
- for(const height of [210,400,800])for(const motion of Object.keys(MOTIONS))for(let age=0;age<2.4;age+=.035){const p=pose({type:'wisp',motion,age,life:2,direction:1,lane:.5,seed:.9,anchor:.3},400,height);for(const n of Object.values(p))assert.ok(Number.isFinite(n));assert.ok(p.alpha>=0&&p.alpha<=1);assert.ok(p.sx>0&&p.sy>0);}
- const h=new Hunt({random:rng()});h.start();for(let i=0;i<100;i++){const g=h.spawn('wisp');assert.ok(g.life>=1&&g.life<=2.2);}
+test('the six patterns stay finite, upright and within the intended lifetime range',()=>{
+ assert.deepEqual(Object.keys(MOTIONS),['rise','horizontal','vertical','inflate','returnX','returnY']);
+ for(const height of [210,400,800])for(const direction of [-1,1])for(const motion of Object.keys(MOTIONS))for(let age=0;age<3.4;age+=.035){
+  const p=pose({type:'wisp',motion,age,life:3,direction,lane:.5,seed:.9,anchor:.3},400,height);
+  for(const n of Object.values(p))assert.ok(Number.isFinite(n));assert.ok(p.alpha>=0&&p.alpha<=1);assert.equal(p.angle,0);assert.ok(p.sx>=1&&p.sx<=1.4);assert.equal(p.sx,p.sy);
+ }
+ const h=new Hunt({random:rng()});h.start();for(const type of Object.keys(TYPES))for(let i=0;i<20;i++){const g=h.spawn(type);assert.ok(g.motion in MOTIONS);assert.ok(g.life>=2.4&&g.life<=3.4);}
 });
-test('blink vanishes completely and reappears at a different location; invisible shots are rejected',()=>{
- const h=run(),g=target(h,'wisp');Object.assign(g,{motion:'blink',life:2,anchor:.25,age:.4});
- const a=pose(g,400,440);assert.equal(a.alpha,1);g.age=.6;assert.equal(pose(g,400,440).alpha,0);assert.equal(h.shoot(g.id),null);assert.equal(h.ammo,5);
- g.age=.88;const b=pose(g,400,440);assert.equal(b.alpha,1);assert.ok(Math.abs(b.x-a.x)>=180);assert.ok(h.shoot(g.id).points>0);
+const sample=(motion,u,direction=1,height=440)=>pose({type:'wisp',motion,age:u*3,life:3,direction,lane:.5,anchor:.4,seed:.9},400,height);
+test('rise moves up, then holds still before fading in place',()=>{
+ const entrance=sample('rise',.1),held=sample('rise',.35),later=sample('rise',.75),fade=sample('rise',.98);
+ assert.ok(entrance.y>held.y);assert.equal(entrance.x,held.x);assert.equal(held.y,later.y);assert.equal(held.y,fade.y);assert.equal(later.alpha,1);assert.ok(fade.alpha<.3);
+ const h=run(),g=target(h,'wisp');Object.assign(g,{motion:'rise',life:3,age:2.98});assert.equal(h.shoot(g.id),null);assert.equal(h.ammo,5);
 });
-test('inflation produces a large sudden swell and collapse in place',()=>{
- const g={type:'pudge',motion:'inflate',life:1.6,direction:1,lane:.5,seed:.9,anchor:.5};
- const small=pose({...g,age:1.6*.17},400,440),big=pose({...g,age:1.6*.31},400,440),gone=pose({...g,age:1.6*.8},400,440);
- assert.ok(big.sx/small.sx>2.4);assert.equal(big.x,small.x);assert.equal(gone.alpha,0);
+test('horizontal and vertical paths travel in both directions without cross-axis drift',()=>{
+ for(const direction of [-1,1])for(const motion of ['horizontal','vertical']){
+  const a=sample(motion,.15,direction),b=sample(motion,.5,direction),c=sample(motion,.85,direction);
+  const axis=motion==='horizontal'?'x':'y',fixed=motion==='horizontal'?'y':'x';
+  assert.equal(a[fixed],b[fixed]);assert.equal(b[fixed],c[fixed]);assert.ok((b[axis]-a[axis])*direction>0);assert.ok((c[axis]-b[axis])*direction>0);
+  assert.ok(Math.abs((b[axis]-a[axis])-(c[axis]-b[axis]))<1e-8);
+ }
 });
-test('ambush has a brief stationary exposure, while dive crosses the screen vertically',()=>{
- const g={type:'skitter',motion:'ambush',life:1.2,direction:1,lane:.5,seed:.9,anchor:.5};
- assert.equal(pose({...g,age:.02},400,440).alpha,0);assert.equal(pose({...g,age:.3},400,440).alpha,1);assert.equal(pose({...g,age:.9},400,440).alpha,0);
- const top=pose({...g,motion:'dive',age:0},400,440),bottom=pose({...g,motion:'dive',age:1.1},400,440);assert.ok(bottom.y-top.y>500);
+test('inflate swells once to 1.4x, shrinks to normal, and never changes position',()=>{
+ const phases=[.15,.37,.53,.72,.85].map(u=>sample('inflate',u));
+ assert.deepEqual(phases.map(p=>p.sx),[1,1.4,1.4,1,1]);
+ phases.forEach(p=>{assert.equal(p.x,phases[0].x);assert.equal(p.y,phases[0].y);});
 });
-test('new pace has bursts and ghosts escape during a normal reload',()=>{
- const h=new Hunt({random:rng(34)});h.start();const initialIds=h.ghosts.map(g=>g.id);let largestBirths=0,previous=h.serial;
- for(let i=0;i<5;i++)h.shoot();for(let i=0;i<24;i++){h.tick(.05);largestBirths=Math.max(largestBirths,h.serial-previous);previous=h.serial;}
- assert.ok(h.reloadLeft>0);assert.ok(initialIds.some(id=>!h.ghosts.some(g=>g.id===id)));assert.equal(largestBirths,2);
- assert.ok(h.serial>=8);assert.ok(h.ghosts.length<=7);
+test('return paths stop in the middle for about one second and leave by the same edge',()=>{
+ for(const motion of ['returnX','returnY'])for(const direction of [-1,1]){
+  const axis=motion==='returnX'?'x':'y',fixed=motion==='returnX'?'y':'x';
+  const start=sample(motion,0,direction),incoming=sample(motion,.15,direction),stop=sample(motion,.31,direction),held=sample(motion,.61,direction),outgoing=sample(motion,.81,direction),end=sample(motion,1,direction);
+  assert.equal(stop[axis],held[axis]);assert.equal(start[axis],end[axis]);assert.ok(Math.abs(incoming[axis]-outgoing[axis])<1e-8);
+  assert.ok((stop[axis]-start[axis])*direction>0);assert.ok((end[axis]-held[axis])*direction<0);
+  for(const p of [incoming,stop,held,outgoing,end])assert.equal(p[fixed],start[fixed]);
+ }
 });
-test('only former default spawn settings are migrated; custom settings survive',()=>{
- assert.equal(restoreSettings({spawn:.8}).spawn,.3);assert.equal(restoreSettings({spawn:.5}).spawn,.5);assert.equal(restoreSettings({spawn:.8},2).spawn,.8);assert.equal(restoreSettings(null).spawn,.3);
+test('spawns are staggered one at a time with no more than three live ghosts',()=>{
+ const h=new Hunt({random:rng(34)});h.start();let previous=h.serial,lastBirth=0,births=0;assert.equal(previous,2);
+ for(let i=0;i<1200;i++){h.tick(1/60);const added=h.serial-previous;assert.ok(added<=1);assert.ok(h.ghosts.length<=3);if(added){assert.ok(h.elapsed-lastBirth>=.76);births++;lastBirth=h.elapsed;}previous=h.serial;}
+ assert.ok(births>10);assert.ok(births<26);
+});
+test('only old default spawn rates migrate; custom settings and other adjustments survive',()=>{
+ assert.equal(restoreSettings({spawn:.8}).spawn,.85);assert.equal(restoreSettings({spawn:.3},2).spawn,.85);assert.equal(restoreSettings({spawn:.5}).spawn,.5);assert.equal(restoreSettings({spawn:.8},2).spawn,.8);assert.equal(restoreSettings({spawn:.3},3).spawn,.3);assert.equal(restoreSettings(null).spawn,.85);
+ const custom=restoreSettings({duration:60,reload:2,spawn:.3},2);assert.equal(custom.duration,60);assert.equal(custom.reload,2);
 });
 test('settings tolerate corrupt or out-of-range numbers and art contains nine distinct puppets',()=>{
  assert.deepEqual(settings(null),{...DEFAULTS});assert.deepEqual(settings({duration:NaN,reload:Infinity}),{...DEFAULTS});assert.equal(settings({duration:1000}).duration,120);assert.equal(settings({spawn:-3}).spawn,.15);

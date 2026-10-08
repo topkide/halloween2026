@@ -1,5 +1,5 @@
-import {Hunt,SPECIES,TYPES,DEFAULTS,settings,restoreSettings,pose} from './hunt-core.mjs?v=20261008-bounty2';
-import {ghostSVG} from './ghost-art.mjs?v=20261008-bounty2';
+import {Hunt,SPECIES,TYPES,DEFAULTS,settings,restoreSettings,pose} from './hunt-core.mjs?v=20261008-bounty3';
+import {ghostSVG} from './ghost-art.mjs?v=20261008-bounty3';
 
 const $=id=>document.getElementById(id);
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
@@ -11,7 +11,7 @@ let engine=new Hunt({config}),size={width:400,height:440,scale:1,left:0,top:0};
 let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,lastBounty='',soundContext=null,mutedGain=null,shotNoise=null;
 const entities=new Map(),impacts=[];let lastResult=stored.lastResult??null;
 const number=n=>Math.round(n).toLocaleString('ko-KR');
-function save(){try{localStorage.setItem(KEY,JSON.stringify({best,soundOn,config,lastResult,balanceRevision:2}));}catch{$('storage-note').textContent='이 브라우저에서는 기록을 저장할 수 없어요.';}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({best,soundOn,config,lastResult,balanceRevision:3}));}catch{$('storage-note').textContent='이 브라우저에서는 기록을 저장할 수 없어요.';}}
 function updateSound(){ui.sound.textContent=soundOn?'♪':'♪̸';ui.sound.setAttribute('aria-label',soundOn?'사운드 켜짐':'사운드 꺼짐');ui.sound.setAttribute('aria-pressed',String(soundOn));if(mutedGain)mutedGain.gain.value=soundOn?.2:0;}
 function sound(kind){
   if(!soundOn)return;
@@ -38,7 +38,7 @@ function toast(text,ms=1700){setText(ui['field-toast'],text);ui['field-toast'].c
 function updateContract(){
   if(!engine.bounty)return;
   const {type,multiplier}=engine.bounty,key=type+':'+multiplier;if(key===lastBounty)return;lastBounty=key;
-  ui['wanted-art'].innerHTML=ghostSVG(type,{color:TYPES[type].color});setText(ui['wanted-name'],TYPES[type].name);setText(ui['wanted-reward'],'+'+number(200*multiplier));setText(ui.multiplier,'×'+multiplier);
+  ui['wanted-art'].innerHTML=ghostSVG(type,{color:TYPES[type].color,staticPose:true});setText(ui['wanted-name'],TYPES[type].name);setText(ui['wanted-reward'],'+'+number(200*multiplier));setText(ui.multiplier,'×'+multiplier);
   ui.wanted.classList.remove('changed');requestAnimationFrame(()=>ui.wanted.classList.add('changed'));ui.wanted.classList.toggle('jackpot',multiplier>=8);
 }
 function updateHud(){
@@ -76,7 +76,7 @@ function hitEffect(hit,x,y){
   const text=hit.kind==='miss'?'MISS':hit.kind==='bomb'?'BOOM!':hit.kind==='ink'?'앗!':'+'+number(hit.points);
   const muzzleX=size.width*size.scale*.53,muzzleY=size.height*size.scale+16;
   const shotX=muzzleX-x,shotY=muzzleY-y,length=Math.hypot(shotX,shotY),rotation=Math.atan2(shotY,shotX)*180/Math.PI;
-  const sparks=Array.from({length:6},(_,i)=>{const angle=i*Math.PI/3+.2;return '<i class="shot-spark" style="--dx:'+Math.cos(angle)*45+'px;--dy:'+Math.sin(angle)*45+'px;--angle:'+angle+'rad"></i>';}).join('');
+  const sparks=Array.from({length:3},(_,i)=>{const angle=i*Math.PI*2/3+.2;return '<i class="shot-spark" style="--dx:'+Math.cos(angle)*28+'px;--dy:'+Math.sin(angle)*28+'px;--angle:'+angle+'rad"></i>';}).join('');
   effect.innerHTML='<i class="shot-tracer" style="--length:'+length+'px;--rotation:'+rotation+'deg"></i><i class="shot-flash"></i>'+sparks+'<i class="shot-hole"></i>'+art+'<i class="shot-ring"></i><span class="shot-text"><small>'+small+'</small>'+text+'</span>';
   ui['effect-layer'].append(effect);impacts.push({node:effect,until:performance.now()+650});
   const casing=document.createElement('i');casing.className='shell-casing';casing.style.left=muzzleX+'px';casing.style.top=(muzzleY-25)+'px';ui['effect-layer'].append(casing);impacts.push({node:casing,until:performance.now()+430});
