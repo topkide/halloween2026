@@ -369,7 +369,6 @@ import {COLLECTIONS} from './collections.mjs';
     find('clock').textContent=current.memory.toFixed(2)+'초 노출';
     find('time-fill').style.width='100%';
     find('room-caption').textContent='찰나를 놓치지 마세요';
-    find('ready-time').textContent=current.gridSize+'×'+current.gridSize+' · '+current.memory.toFixed(2)+'초만 보여요';
     setMessage('눈 깜짝할 사이! 하얀 유령만 기억하세요.');
     action.disabled=true; action.textContent='집중! 곧 나타나요';
     after((cycle===0?config.transition.firstPrepare:config.transition.prepare)*1000,()=>{
@@ -508,7 +507,7 @@ import {COLLECTIONS} from './collections.mjs';
   function showFinalResult() {
     abortAd();continueDialog.close();phase='over';paint();settleRun();renderResult();
     action.disabled=false;action.textContent='다시 도전 →';
-    document.getElementById('result-status').textContent='콤보 보너스까지 모두 받았어요! 이번 판 최고 기본 단가: '+coinsPerGhost(highestCycle)+' 코인';
+    document.getElementById('result-status').textContent='';
     if(!resultDialog.open) resultDialog.showModal();
   }
   function abortAd() { clearTimeout(adTimer);adTimer=null;adRunning=false; }

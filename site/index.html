@@ -7,7 +7,7 @@
   <meta name="description" content="캣점프 할로윈 이벤트 유령 소탕 대작전! 유령의 위치를 기억하고 암전 속에서 빠르게 사격하세요.">
   <title>유령 소탕 대작전! · 캣점프 할로윈</title>
   <link rel="icon" type="image/png" href="assets/target.png">
-  <link rel="stylesheet" href="style.css?v=20261008-fast-touch">
+  <link rel="stylesheet" href="style.css?v=20261008-clean-hud">
 </head>
 <body>
 <main>
@@ -54,11 +54,13 @@
     </div>
     <header class="cj-play-hud" aria-label="게임 진행">
       <div class="cj-time-track" aria-hidden="true"><div id="cj-time-fill"></div></div>
-      <span id="cj-coin-rate">기본 1 코인</span>
       <button id="cj-pause" class="cj-pause" type="button" aria-label="일시정지" disabled><span aria-hidden="true"></span></button>
-      <span id="cj-coin-multiplier" data-tier="0" title="3콤보 ×2 · 6콤보 ×3 · 9콤보 ×4">코인 ×1</span>
+      <div class="cj-coin-info" role="group" aria-label="현재 코인 보상">
+        <span id="cj-coin-rate">기본 1 코인</span>
+        <span id="cj-coin-multiplier" data-tier="0" title="3콤보 ×2 · 6콤보 ×3 · 9콤보 ×4">코인 ×1</span>
+      </div>
       <div class="cj-run-wallet" role="group" aria-label="이번 판 획득 코인"><span class="cj-run-coin" aria-hidden="true"><img src="assets/target.png" width="20" height="22" alt=""></span><strong id="cj-run-coins">0</strong></div>
-      <div class="cj-stage-strip"><span id="cj-phase">찰나를 기억하고, 명중!</span><span id="cj-collection-count" aria-label="이번 판 수집">수집 0/2</span><strong id="cj-clock">위치를 기억해요</strong></div>
+      <div class="cj-stage-strip" hidden><span id="cj-phase">찰나를 기억하고, 명중!</span><span id="cj-collection-count" aria-label="이번 판 수집">수집 0/2</span><strong id="cj-clock">위치를 기억해요</strong></div>
     </header>
     <div class="cj-room" id="cj-room" data-phase="ready" role="group" aria-label="유령이 나타나는 3행 3열의 방">
       <div class="cj-scenery" aria-hidden="true">
@@ -69,7 +71,7 @@
       <div class="cj-effects" id="cj-effects" aria-hidden="true"></div>
       <span id="cj-combo-display" hidden aria-hidden="true"></span>
       <div class="cj-fail-splash" id="cj-fail-splash" aria-hidden="true"></div>
-      <div class="cj-ready" id="cj-ready" hidden><span>눈 크게 뜨고</span><strong>READY</strong><small id="cj-ready-time">잠시 후 보여요</small></div>
+      <div class="cj-ready" id="cj-ready" hidden><span>눈 크게 뜨고</span><strong>READY</strong></div>
       <div class="cj-room-caption" id="cj-room-caption" hidden>9개의 자리 · 유령의 위치를 기억해요</div>
       <div class="cj-menu" aria-label="시작 및 결과" hidden>
         <div class="cj-eyebrow">CAT JUMP · HALLOWEEN</div>
@@ -118,8 +120,7 @@
   </div>
   <div id="continue-description" class="continue-description">
     <p>광고 시청 후 계속 플레이할 수 있어요.</p>
-    <p>난이도는 일부 하락합니다.</p>
-    <small>모은 코인과 기본 보상은 유지돼요.<br>콤보 배수는 ×1부터 다시 시작해요.<br>이어하기는 한 판에 1회만 가능해요.</small>
+    <p>(난이도 일부 하락, 기본 코인 개수 유지)</p>
   </div>
   <div class="run-actions">
     <button id="continue-back" class="quiet-button" type="button">그만하기</button>
@@ -179,6 +180,6 @@
     <footer class="balance-footer"><p id="balance-message" role="status"></p><button class="primary-button" type="submit">적용하고 닫기</button></footer>
   </form>
 </dialog>
-<script type="module" src="app.mjs?v=20261008-fast-touch"></script>
+<script type="module" src="app.mjs?v=20261008-clean-hud"></script>
 </body>
 </html>
