@@ -138,8 +138,11 @@ test('coin reward per ghost rises by one every five waves without a late-game ca
   }
 });
 
-test('coin multipliers start on the third, sixth and ninth hits and cap at four',()=>{
-  assert.deepEqual([0,1,2,3,5,6,8,9,10,100].map(comboCoinMultiplier),[1,1,1,2,2,3,3,4,4,4]);
+test('coin multipliers reach ten on the 50th hit, with five-hit steps from ten',()=>{
+  for(const [hits,multiplier] of [[-1,1],[0,1],[5,1],[9,1],[10,2],[14,2],[15,3],[19,3],
+    [20,4],[24,4],[25,5],[29,5],[30,6],[34,6],[35,7],[39,7],[40,8],[44,8],[45,9],[49,9],[50,10],[51,10],[1000,10]]) {
+    assert.equal(comboCoinMultiplier(hits),multiplier,`combo ${hits}`);
+  }
 });
 
 test('aim margin accepts near edges but preserves forbidden and already caught slots', () => {
@@ -153,6 +156,7 @@ test('aim margin accepts near edges but preserves forbidden and already caught s
     assert.equal(hitSlot(rects,board,caught,x,y),0,'16px near miss should count as a hit');
   }
   assert.equal(hitSlot(rects,board,caught,83,136),null,'distant empty room must remain a miss');
+  assert.equal(hitSlot(rects,board,new Set([1]),192,136),1,'checked empty cells cannot redirect to a nearby target');
   assert.equal(hitSlot(rects,board,caught,197,136),1,'deep inside an empty slot must remain empty');
   assert.equal(hitSlot(rects,['target','decoy','empty'],caught,192,136),1,'do not redirect a forbidden tap');
   assert.equal(hitSlot(rects,['target','target','empty'],new Set([1]),192,136),1,'do not redirect a repeated tap');

@@ -1,6 +1,6 @@
 import {DEFAULT_CONFIG,validateConfig,parseBalanceDB} from './balance-config.mjs?v=20261008-bomb-combo';
 import {createBalanceEditor} from './balance-editor.mjs?v=20261008-bomb-combo';
-import {difficultyAt,comboBonus,hitSlot,createBoard,coinsPerGhost,comboCoinMultiplier} from './game-core.mjs?v=20261008-combo-coins';
+import {difficultyAt,comboBonus,hitSlot,createBoard,coinsPerGhost,comboCoinMultiplier,MAX_COMBO} from './game-core.mjs?v=20261008-combo50';
 import {COLLECTIONS} from './collections.mjs';
 
 (() => {
@@ -67,7 +67,11 @@ import {COLLECTIONS} from './collections.mjs';
   let phase='ready', cycle=0, score=0, current=difficultyAt(config,0), spooked=null, board=previewBoard.slice();
   let caught=new Set(), tried=new Set(), timer=null, phaseTimer=null, phaseCallback=null, paused=null, deadline=0, duration=0, best=0;
   let soundOn=true, audio=null, audioMaster=null, lastSummary=null, shotNoise=null;
-  let combo=0, lastHit=-Infinity, lastPulse=-Infinity;
+  let combo=0, roundCombo=0, lastHit=-Infinity, lastPulse=-Infinity;
+  // Preserve the reward chain across waves, but keep time recovery local to a wave.
+  const comboWindow=()=>Math.max(config.combo.window,roundCombo===0 ? .8 : 0)*1000;
+  const comboTier=()=>combo>=MAX_COMBO?3:combo>=25?2:combo>=10?1:0;
+  function resetCombo() { combo=0;roundCombo=0;lastHit=-Infinity; }
   resizeGrid(3);
   const voices=new Set();
   function applySaved(snapshot) {
@@ -171,7 +175,7 @@ import {COLLECTIONS} from './collections.mjs';
     const x=pointer?event.clientX-bounds.left:cell.left-bounds.left+cell.width/2;
     const y=pointer?event.clientY-bounds.top:cell.top-bounds.top+cell.height/2;
     const effect=document.createElement('div'); effect.className='cj-impact '+type;
-    effect.dataset.comboTier=String(Math.min(3,Math.floor(combo/3)));
+    effect.dataset.comboTier=String(comboTier());
     effect.style.setProperty('--combo-scale',String(1+Math.min(8,Math.max(0,combo-2))*.1));
     effect.style.setProperty('--label-x',(Math.max(104,Math.min(bounds.width-104,x))-x)+'px');
     effect.style.left=(x/bounds.width*100)+'%'; effect.style.top=(y/bounds.height*100)+'%';
@@ -270,10 +274,10 @@ import {COLLECTIONS} from './collections.mjs';
     }
     if(phase==='hunt'&&combo>0) {
       const gap=performance.now()-lastHit;
-      action.style.setProperty('--chain',Math.max(0,1-gap/(config.combo.window*1000))*100+'%');
-      find('combo-display').style.setProperty('--chain',Math.max(0,1-gap/(config.combo.window*1000))*100+'%');
-      if(gap>config.combo.window*1000) {
-        combo=0;lastHit=-Infinity;action.dataset.combo='';
+      action.style.setProperty('--chain',Math.max(0,1-gap/comboWindow())*100+'%');
+      find('combo-display').style.setProperty('--chain',Math.max(0,1-gap/comboWindow())*100+'%');
+      if(gap>comboWindow()) {
+        resetCombo();action.dataset.combo='';
         updateComboDisplay();
         action.textContent='다시 2연속 → 시간 회복';
         setMessage('콤보 끊김! 빠르게 이어 맞혀요.');
@@ -283,13 +287,13 @@ import {COLLECTIONS} from './collections.mjs';
   }
   function updateComboDisplay() {
     const display=find('combo-display');
-    display.hidden=combo<2||!['hunt','impact'].includes(phase);display.textContent=combo+' COMBO';
-    display.dataset.tier=String(Math.min(3,Math.floor(combo/3)));
-    display.dataset.beat=String(combo%2);
+    display.hidden=combo<2||!['hunt','impact'].includes(phase);display.textContent=combo+(combo===MAX_COMBO?' MAX':' COMBO');
+    display.dataset.tier=String(comboTier());
+    display.dataset.beat=String(score%2);
     display.style.setProperty('--combo-scale',String(1+Math.min(8,Math.max(0,combo-2))*.09));
-    const multiplier=['hunt','impact'].includes(phase)?comboCoinMultiplier(combo):1;
+    const multiplier=['prepare','memory','hide','hunt','impact','tremble'].includes(phase)?comboCoinMultiplier(combo):1;
     find('coin-multiplier').textContent='코인 ×'+multiplier;
-    find('coin-multiplier').dataset.tier=String(multiplier-1);
+    find('coin-multiplier').dataset.tier=String(multiplier>1?comboTier():0);
   }
   function armExpiry(onEnd) {
     clearTimeout(phaseTimer);
@@ -335,7 +339,7 @@ import {COLLECTIONS} from './collections.mjs';
     stopTimer();clearEffects();paused=null;
     root.dataset.paused=room.dataset.paused='false';pauseDialog.close();
     best=Math.max(best,score);saveState();
-    phase='ready';cycle=0;score=0;combo=0;lastHit=-Infinity;lastPulse=-Infinity;
+    phase='ready';cycle=0;score=0;resetCombo();lastPulse=-Infinity;
     current=difficultyAt(pendingConfig,0);resizeGrid(3);roundItem=null;runItems=[];
     board=previewBoard.slice();caught.clear();tried.clear();spooked=null;
     find('fail-splash').replaceChildren();room.dataset.failure='';
@@ -347,7 +351,7 @@ import {COLLECTIONS} from './collections.mjs';
   document.getElementById('pause-quit').addEventListener('click',returnToLobby);
   find('home').addEventListener('click',returnToLobby);
   function beginCycle() {
-    stopTimer(); clearEffects(); caught=new Set(); tried=new Set(); combo=0;lastHit=-Infinity;lastPulse=-Infinity;
+    stopTimer(); clearEffects(); caught=new Set(); tried=new Set(); roundCombo=0;lastHit=-Infinity;lastPulse=-Infinity;
     spooked=null;find('fail-splash').replaceChildren();room.dataset.failure='';
     current=difficultyAt(config,cycle);
     highestCycle=Math.max(highestCycle,cycle);
@@ -382,6 +386,7 @@ import {COLLECTIONS} from './collections.mjs';
     });
   }
   function beginHunt() {
+    if(combo>0) lastHit=performance.now();
     phase='hunt'; paint();
     find('phase').textContent='찾는 시간 · 0 / '+current.targets;
     find('room-caption').textContent='기억한 자리 그대로, 빠르게 연속 명중!';
@@ -391,21 +396,24 @@ import {COLLECTIONS} from './collections.mjs';
   }
   function choose(i,event) {
     if(phase!=='hunt'||paused) return;
-    if(event&&(event.type==='pointerdown'||event.detail>0)) i=hitSlot(buttons.map(button=>button.getBoundingClientRect()),board,caught,event.clientX,event.clientY);
+    if(event&&(event.type==='pointerdown'||event.detail>0)) i=hitSlot(buttons.map(button=>button.getBoundingClientRect()),board,tried,event.clientX,event.clientY);
     const now=performance.now();
     if(now>=deadline) { endRun('timeout'); return; }
-    const type=i===null||tried.has(i)?'empty':board[i];
+    if(i!==null&&tried.has(i)) return;
+    const type=i===null?'empty':board[i];
     let bonus=0,coinReward=0;
     if(type==='target'||type==='collection') {
-      combo=now-lastHit<=config.combo.window*1000?combo+1:1;lastHit=now;
+      const linked=combo>0&&now-lastHit<=comboWindow();
+      combo=linked?Math.min(MAX_COMBO,combo+1):1;
+      roundCombo=linked?roundCombo+1:1;lastHit=now;
       coinReward=coinsPerGhost(highestCycle)*comboCoinMultiplier(combo);
-      if(combo>=2) {
-        bonus=comboBonus(config,combo);
+      if(roundCombo>=2) {
+        bonus=comboBonus(config,roundCombo);
         deadline+=bonus;armExpiry(()=>endRun('timeout'));
       }
       action.dataset.combo='active';action.style.setProperty('--chain','100%');
       clockValue((deadline-now)/1000);
-    } else { combo=0;lastHit=-Infinity;action.dataset.combo='';action.style.setProperty('--chain','0%'); }
+    } else { resetCombo();action.dataset.combo='';action.style.setProperty('--chain','0%'); }
     fire(i,event,type,bonus,coinReward);
     if(i!==null) tried.add(i);
     if(type==='target'||type==='collection') {
@@ -530,7 +538,7 @@ import {COLLECTIONS} from './collections.mjs';
   document.getElementById('continue-watch').addEventListener('click',()=>{
     if(phase!=='continue'||!continueDialog.open||continueUsed) return;
     previewAd(document.getElementById('continue-watch'),document.getElementById('continue-status'),()=>{
-      continueUsed=true;continueDialog.close();cycle=Math.max(0,cycle-3);legStarted=performance.now();enableAudio();beginCycle();
+      continueUsed=true;continueDialog.close();cycle=Math.max(0,cycle-3);legStarted=performance.now();resetCombo();enableAudio();beginCycle();
     });
   });
   document.getElementById('result-double').addEventListener('click',()=>{
@@ -624,7 +632,7 @@ import {COLLECTIONS} from './collections.mjs';
     rulesDialog.close();
     tickets--;saveTickets();
     config=structuredClone(pendingConfig);
-    stopTimer();clearEffects();enableAudio();cycle=0;score=0;
+    stopTimer();clearEffects();enableAudio();cycle=0;score=0;resetCombo();
     runItems=[];continueUsed=false;settled=false;doubled=false;runElapsed=0;legStarted=performance.now();failureReason=null;runCoins=0;highestCycle=0;
     beginCycle();
   });

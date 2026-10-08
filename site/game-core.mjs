@@ -45,16 +45,18 @@ export function coinsPerGhost(cycle) {
   return 1+Math.floor(Math.max(0,cycle)/5);
 }
 
+export const MAX_COMBO=50;
+
 export function comboCoinMultiplier(combo) {
-  return Math.min(4,1+Math.floor(Math.max(0,combo)/3));
+  return Math.max(1,Math.floor(Math.min(MAX_COMBO,combo)/5));
 }
 
-// A small aim margin helps rapid taps without overriding a forbidden/caught slot.
-export function hitSlot(rects, board, caught, x, y, padding=16) {
+// A small aim margin helps rapid taps without overriding a forbidden or already checked slot.
+export function hitSlot(rects, board, tried, x, y, padding=16) {
   if(!Number.isFinite(x)||!Number.isFinite(y)) return null;
   const contains=(rect,extra=0)=>x>=rect.left-extra&&x<=rect.left+rect.width+extra&&y>=rect.top-extra&&y<=rect.top+rect.height+extra;
   const direct=rects.findIndex(rect=>contains(rect));
-  if(direct!==-1&&(board[direct]!=='empty'||caught.has(direct))) return direct;
+  if(direct!==-1&&(board[direct]!=='empty'||tried.has(direct))) return direct;
   function closest(eligible) {
     let best=null,distance=Infinity;
     rects.forEach((rect,i)=>{
@@ -64,7 +66,7 @@ export function hitSlot(rects, board, caught, x, y, padding=16) {
     });
     return best;
   }
-  const target=closest(i=>['target','collection'].includes(board[i])&&!caught.has(i));
+  const target=closest(i=>['target','collection'].includes(board[i])&&!tried.has(i));
   if(target!==null) return target;
   return direct!==-1?direct:closest(()=>true);
 }
