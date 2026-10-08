@@ -13,6 +13,7 @@ const EVENT_KEY='catjump-event-lobby-v1';
 const PROGRESS_KEY='catjump-event-progress-v1';
 function game(options={}) {
   let now = 0, serial = 0;
+  const metrics={rectReads:0,attributeWrites:0},windowEvents=new Map();
   const timers = new Map(), nodes = new Map(), created = [], saved = [],progressSaved=[],storage=new Map();let editor;
   const audioLog={contexts:0,resumes:0,tones:[],gains:[],buffers:[],noise:[],filters:[]};
   const audioParam=()=>({value:0,setValueAtTime(value,time){this.start={value,time};},exponentialRampToValueAtTime(value,time){this.end={value,time};}});
@@ -42,11 +43,12 @@ function game(options={}) {
       },
       set rect(value){overrideRect=value;},
       get firstElementChild() { return this.children[0]; },
-      getBoundingClientRect() { return this.rect; },
+      getBoundingClientRect() { metrics.rectReads++;return this.rect; },
       append(child) { child.parent=this; this.children.push(child); },
       replaceChildren() { this.children.forEach(child=>child.parent=null); this.children=[]; },
       remove() { if(this.parent) this.parent.children.splice(this.parent.children.indexOf(this),1); this.parent=null; },
-      setAttribute(key, value) { this.attrs[key] = value; },
+      setAttribute(key, value) { metrics.attributeWrites++;this.attrs[key] = value; },
+      getAttribute(key) { return this.attrs[key]??null; },
       showModal() { this.open=true; },
       close() { if(this.open){this.open=false;this.emit('close',{target:this});} },
       addEventListener(name, fn) { this.handlers[name] = fn; },
@@ -68,7 +70,7 @@ function game(options={}) {
       setItem(key,value){if(options.blockStorage)throw Error('Storage denied');storage.set(key,value);if(key==='catjump-memory-room-state-v1')saved.push(JSON.parse(value));if(key===PROGRESS_KEY)progressSaved.push(JSON.parse(value));},
       removeItem(key){if(options.blockStorage)throw Error('Storage denied');storage.delete(key);}},
     document:{ getElementById:id => id==='cj-ghost-room'?root:get(id), createElement(tag){const node=element();node.tag=tag;created.push(node);return node;} },
-    window:{ AudioContext:options.audio?FakeAudioContext:undefined,PointerEvent:options.pointer?function PointerEvent(){}:undefined,innerWidth:390,innerHeight:844 },
+    window:{ addEventListener(name,handler){windowEvents.set(name,handler);},AudioContext:options.audio?FakeAudioContext:undefined,PointerEvent:options.pointer?function PointerEvent(){}:undefined,innerWidth:390,innerHeight:844 },
     performance:{ now:() => now },
     setInterval(fn, ms) { const id = ++serial; timers.set(id, {fn, ms, next:now + ms}); return id; },
     clearInterval(id) { timers.delete(id); },
@@ -77,7 +79,7 @@ function game(options={}) {
   });
   get('spots').parent=get('room');
   return {
-    get, root, nodes, created, saved, progressSaved, timers, audioLog, storage, editor,now:()=>now,
+    get, root, nodes, created, saved, progressSaved, timers, audioLog, storage, editor,metrics,emitWindow:name=>windowEvents.get(name)?.(),now:()=>now,
     phase:() => get('room').dataset.phase,
     slots:() => get('spots').children,
     types(type) { return this.slots().flatMap((s,i)=>{
@@ -443,6 +445,15 @@ assert.equal(dueHunt.get('pause-dialog').open,false);decline(dueHunt);assert.equ
 dueHunt.get('pause-resume').click();dueHunt.advance(120000);
 decline(dueHunt);assert.equal(dueHunt.saved.length,1);assert.equal(dueHunt.saved[0].result.reason,'시간 초과');
 
+function assertEffectBudget(g) {
+  const impacts=g.get('effects').children.filter(e=>e.className?.startsWith('cj-impact '));
+  assert.ok(impacts.length<=4,'rapid hits must retain at most four impact layers');
+  assert.ok(g.get('effects').children.filter(e=>e.className==='cj-curse').length<=1,'fog must not stack');
+  for(const effect of impacts) {
+    assert.ok((effect.innerHTML.match(/class="cj-fragment"/g)||[]).length<=12);
+    assert.ok((effect.innerHTML.match(/class="cj-smoke"/g)||[]).length<=2);
+  }
+}
 const expectedMultiplier=hits=>1+[10,15,20,25,30,35,40,45,50].filter(threshold=>hits>=threshold).length;
 const g=game();g.start();let total=0,earnedCoins=0;
 for(let cycle=0;cycle<30;cycle++){
@@ -451,7 +462,7 @@ for(let cycle=0;cycle<30;cycle++){
   assert.equal(g.get('coin-multiplier').textContent,'코인 ×'+expectedMultiplier(total));
   b.target.forEach(i=>{
     total++;const multiplier=expectedMultiplier(total),chain=Math.min(50,total);
-    g.click(i);earnedCoins+=rate*multiplier;
+    g.click(i);earnedCoins+=rate*multiplier;assertEffectBudget(g);
     assert.equal(g.get('score').textContent,'명중 '+total);
     assert.match(impactText(g),total===1?/PERFECT!/:new RegExp(chain+' COMBO!'));
     assert.ok(impactText(g).includes('+'+rate*multiplier+' 코인'));
@@ -496,7 +507,7 @@ assert.equal(recovery.get('clock').textContent,'1.78초');recovery.click(recover
 assert.equal(recovery.get('clock').textContent,'1.38초');assert.equal(recovery.get('action').dataset.combo,'');
 assert.equal(recovery.get('coin-multiplier').textContent,'코인 ×1');
 assert.equal(recovery.get('combo-display').hidden,true);
-assert.equal(recovery.get('action').style['--chain'],'0%');
+assert.equal(recovery.get('action').style['--chain'],'0');
 recovery.click(recoveryBoard.target[3]);assert.match(impactText(recovery),/PERFECT!.*\+1 코인/);
 assert.doesNotMatch(impactText(recovery),/\+[\d.]+초/);assert.equal(recovery.get('clock').textContent,'1.38초');
 recovery.advance(100);recovery.click(recoveryBoard.target[4]);
@@ -572,9 +583,9 @@ for(const [offset,expected] of [[-.1,'impact'],[0,'over']]){
   edge.jump(edge.now()+1600+120+160+offset);edge.click(b.target[3]);if(expected==='over')decline(edge);assert.equal(edge.phase(),expected);
   if(expected==='impact')resolveImpact(edge);else assert.equal(edge.saved[0].result.caught,3);
 }
-const {g:gauge,b:gb}=startRun();gauge.click(gb.target[0]);gauge.click(gb.target[1]);assert.ok(parseFloat(gauge.get('time-fill').style.width)<=100);
+const {g:gauge,b:gb}=startRun();gauge.click(gb.target[0]);gauge.click(gb.target[1]);assert.match(gauge.get('time-fill').style.transform,/^scaleX\((0(\.\d+)?|1)\)$/);
 assert.equal(gauge.get('combo-display').hidden,false);assert.equal(gauge.get('combo-display').textContent,'2 COMBO');
-gauge.advance(475);assert.equal(gauge.get('action').dataset.combo,'');assert.equal(gauge.get('action').style['--chain'],'0%');
+gauge.advance(475);assert.equal(gauge.get('action').dataset.combo,'');assert.equal(gauge.get('action').style['--chain'],'0');
 assert.equal(gauge.get('combo-display').hidden,true);
 const {g:urgent,b:ub}=startRun();urgent.advance(400);urgent.click(ub.target[0]);assert.equal(urgent.get('clock').textContent,'1.20초');
 urgent.advance(199);assert.equal(urgent.root.dataset.urgent,'false');urgent.advance(1);assert.equal(urgent.root.dataset.urgent,'true');
@@ -587,6 +598,20 @@ function sampleCycle(cycle,options){
   }
   return {g:sample,b:enterCycle(sample,cycle)};
 }
+// Stable hitboxes are read once per wave; resize/scroll must invalidate the cache.
+const {g:renderBudget,b:renderBoard}=sampleCycle(12,{pointer:true});
+const initialReads=renderBudget.metrics.rectReads,initialWrites=renderBudget.metrics.attributeWrites;
+renderBudget.pointer(renderBoard.target[0]);
+assert.equal(renderBudget.metrics.rectReads-initialReads,26);
+assert.equal(renderBudget.metrics.attributeWrites-initialWrites,1,'only the hit cell needs a new label');
+renderBudget.pointer(renderBoard.target[1]);renderBudget.pointer(renderBoard.target[0]);
+assert.equal(renderBudget.metrics.rectReads-initialReads,26,'further taps must reuse geometry');
+renderBudget.emitWindow('resize');renderBudget.pointer(renderBoard.target[2]);
+assert.equal(renderBudget.metrics.rectReads-initialReads,52);
+renderBudget.emitWindow('scroll');renderBudget.pointer(renderBoard.target[3]);
+assert.equal(renderBudget.metrics.rectReads-initialReads,78);
+assertEffectBudget(renderBudget);
+
 // Stage transitions freeze the chain; the next hunt grants 800ms for its first hit.
 for(const [gap,chain] of [[800,5],[800.1,1]]) {
   const {g:carry,b}=sampleCycle(1);carry.advance(gap);carry.click(b.target[0]);
@@ -818,6 +843,6 @@ const muted=game({audio:true}),mb=startRun(muted).b,ma=muted.audioLog;muted.get(
 muted.click(mb.target[0]);muted.advance(1000);assert.equal(ma.tones.length,before);assert.equal(ma.noise.length,0);
 const shiver=game({audio:true}),shb=startRun(shiver).b;shb.target.forEach(i=>shiver.click(i));const tonesBefore=shiver.audioLog.tones.length;
 shiver.advance(80);assert.equal(shiver.audioLog.tones.length,tonesBefore+7);assert.ok(shiver.audioLog.tones.slice(-7).every(t=>t.stoppedAt<=.28));
-console.log('PASS: immediate/multi-touch shots, suppressed release clicks, mouse/pen/keyboard fallback, input phase/deadline guards; slower configurable transitions and saved-setting migration; combo display through impact; cross-wave combo capped at 50 and coin x1 to x10, weighted settlement/doubling, collection coins and run reset; exact miss penalties and shortened deadlines; bomb failure; continue/reward ads and cancellation; optional collections and persistence; 3x3 to 5x5 grids; 30 cycles/171 fixture score/5852 coins; combo boundary, lobby, pause, storage and sound regressions.');
+console.log('PASS: immediate/multi-touch shots, suppressed release clicks, mouse/pen/keyboard fallback, input phase/deadline guards; slower configurable transitions and saved-setting migration; combo display through impact; bounded effects and cached hitboxes with resize/scroll invalidation; cross-wave combo capped at 50 and coin x1 to x10, weighted settlement/doubling, collection coins and run reset; exact miss penalties and shortened deadlines; bomb failure; continue/reward ads and cancellation; optional collections and persistence; 3x3 to 5x5 grids; 30 cycles/171 fixture score/5852 coins; combo boundary, lobby, pause, storage and sound regressions.');
 
 })().catch(error=>{console.error(error);process.exitCode=1;});
