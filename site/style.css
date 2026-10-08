@@ -67,6 +67,7 @@ button:active:not(:disabled){filter:brightness(1.12)}
 .ghost-target svg{display:block;width:100%;height:100%;overflow:visible;pointer-events:none;filter:drop-shadow(0 5px 2px #07151d55)}
 .target-tag{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);font:700 9px 'Space Grotesk',sans-serif;letter-spacing:1px;white-space:nowrap;padding:3px 5px;border:1px solid #f4d49477;background:#2c2b24dd;color:#ffe3a5;border-radius:3px;pointer-events:none}
 .ghost-target.type-bomb .target-tag{background:#502b31;color:#ffd0b3;border-color:#ee8c7799}
+.ghost-target.type-ammo .target-tag{color:#b6d8ff;border-color:#8db9e877}
 .ghost-target.type-clock .target-tag{color:#9febd8;border-color:#9febd877}
 .ghost-art{overflow:visible}
 .ghost-art g{transform-box:fill-box;transform-origin:center}
@@ -81,6 +82,7 @@ button:active:not(:disabled){filter:brightness(1.12)}
 .ghost-grasp .arm.right{animation-delay:-1.8s}
 .ghost-gold .wing{animation:arm-flail 1.4s ease-in-out infinite alternate;transform-origin:80% 30%}
 .ghost-gold .wing.right{animation-delay:-1.4s}
+.ghost-ammo .tail{animation:tail-sway 2s ease-in-out infinite alternate}
 .ghost-clock .tail{animation:tail-sway 2s ease-in-out infinite alternate}
 .ghost-clock .clock-hand{transform-box:view-box;transform-origin:61px 82px;animation:clock-spin 6s linear infinite}
 .ghost-bomb .spark{animation:spark-flicker .8s ease-in-out infinite alternate}
@@ -116,12 +118,13 @@ button:active:not(:disabled){filter:brightness(1.12)}
 .primary-button{display:flex;align-items:center;justify-content:center;gap:28px;width:100%;padding:14px 18px;min-height:49px;border:1px solid #e4e9bb;background:#dce7ad;color:#23322c;border-radius:7px;font-size:14px;font-weight:800;box-shadow:0 4px #7e916959}
 .intro-panel .primary-button{width:min(100%,300px);flex-shrink:0}
 .primary-button span{font:400 23px 'Space Grotesk',sans-serif}
-.special-guide{display:flex;gap:12px;justify-content:center;margin-top:17px;color:#9eaea0;font-size:9px;white-space:nowrap}
+.special-guide{display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:center;margin-top:17px;color:#9eaea0;font-size:9px;white-space:nowrap}
 .dot{display:inline-block;width:5px;height:5px;border-radius:50%;vertical-align:2px;margin-right:4px}
 .gold-dot{background:#f4c55e}
 .clock-dot{background:#89dbc9}
+.ammo-dot{background:#8db9e8}
 .bomb-dot{background:#e78779}
-.ending{position:absolute;z-index:15;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#16232bec;text-align:center;animation:ink-arrive .2s ease-out}
+.ending{position:absolute;z-index:15;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#16232bec;text-align:center;animation:ending-appear .2s ease-out}
 .ending>span{font-size:55px;color:#e2c995}
 .ending strong{font-size:35px;letter-spacing:-1px;color:#f0d9ad}
 .ending p{font-size:12px;color:#adb9a4}
@@ -134,11 +137,18 @@ button:active:not(:disabled){filter:brightness(1.12)}
 .cartridges i{position:relative;display:block;width:16px;height:30px;border-radius:7px 7px 2px 2px;background:linear-gradient(90deg,#b2945c,#e8cd8a 35%,#c7a668 70%,#a6854b);border-bottom:4px solid #f1d79a;transition:opacity .1s,transform .1s}
 .cartridges i:before{content:'';position:absolute;left:0;right:0;top:11px;height:2px;background:#725c38}
 .cartridges i.spent{opacity:.16;transform:translateY(3px)}
-.reload-button{position:relative;overflow:hidden;min-width:115px;min-height:47px;padding:8px 12px;border-radius:7px;border:1px solid #85957455;background:#2a3738;text-align:left}
-.reload-button span{display:block;position:relative;font-size:12px;font-weight:700;color:#e4ddbd;z-index:1}
-.reload-button small{display:block;font:400 8px 'Noto Sans KR',sans-serif;margin-top:3px;color:#8fa08b;position:relative;z-index:1}
-.reload-button>i{position:absolute;inset:0;background:#687b5440;transform:scaleX(0);transform-origin:left}
-.reload-button:disabled{opacity:.6}
+.ammo-stock{min-width:88px;text-align:right;margin-left:auto}
+.ammo-stock>span{display:block;font-size:9px;color:#b4c2a8}
+.ammo-stock>strong{display:block;margin-top:1px;font:600 24px 'Space Grotesk',sans-serif;color:#e9d4a3}
+.ammo-stock strong b{font-weight:600}
+.ammo-stock small{font-size:10px;color:#8fa08b}
+.ammo-stock>small{display:block;margin-top:1px}
+.ammo-stock>small b{font-weight:500}
+.loadout[data-low=true] .ammo-stock>strong{color:#f19479}
+.reload-status{position:relative;display:flex;justify-content:space-between;align-items:center;overflow:hidden;margin-top:8px;padding:5px 0 7px;min-height:24px;border-bottom:2px solid #61725240;font-size:10px;color:#8fa08b}
+.reload-status small{font-variant-numeric:tabular-nums;font-size:10px}
+.reload-status>i{position:absolute;bottom:0;left:0;width:100%;height:2px;background:#d9e8a0;transform:scaleX(0);transform-origin:left}
+.reload-status[data-loading=true]{color:#e4ddbd}
 dialog{width:min(380px,calc(100vw - 28px));max-height:calc(100svh - 24px);overflow:auto;margin:auto;padding:28px;border:1px solid #60766a;border-radius:12px;background:linear-gradient(150deg,#263838,#19272e);color:#e8edd3;box-shadow:0 18px 80px #0009;text-align:center}
 dialog::backdrop{background:#09151ce8}
 dialog h2{font-size:23px;letter-spacing:-1px;margin:9px 0 15px}
@@ -217,7 +227,6 @@ to{opacity:0;transform:scale(1.2)}
 .ammo-row{gap:10px}
 .cartridges{gap:6px}
 .cartridges i{width:14px}
-.reload-button{min-width:101px}
 .intro-panel{padding-inline:20px}
 .intro-panel h2{font-size:28px}
 .special-guide{gap:8px;font-size:8px}
@@ -235,7 +244,6 @@ to{opacity:0;transform:scale(1.2)}
 .loadout{padding-top:9px;padding-bottom:calc(9px + env(safe-area-inset-bottom))}
 .ammo-row{margin-bottom:0}
 .cartridges i{height:26px}
-.reload-button{min-height:41px}
 .intro-panel{padding-block:13px}
 .intro-panel h2{font-size:25px;margin:7px 0 0}
 .cast{height:66px;margin:0}
@@ -293,3 +301,5 @@ to{opacity:0;transform:translate(75px,15px) rotate(250deg)}
 @media(prefers-reduced-motion:reduce){.shot-tracer,.shot-flash,.shot-spark,.shell-casing{display:none}
 .shot-effect .shot-ring{animation:none;opacity:.6}
 }
+
+@keyframes ending-appear{from{opacity:0}to{opacity:1}}
