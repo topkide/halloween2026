@@ -287,3 +287,20 @@ to{opacity:0;transform:translate(75px,15px) rotate(250deg)}
 @media(max-height:740px){.wave-footer{padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom))}.wave-intro{justify-content:flex-start;padding:10px}.wave-intro h2{font-size:19px;margin:5px 0 7px}.brief-poster{width:220px;padding:8px 14px}.brief-poster .wanted-title{font-size:21px;padding-bottom:4px}.brief-art{height:59px;width:65px;margin:2px 0}.brief-formula{margin:5px 0}.brief-formula>b{font-size:23px}.brief-reward{padding-top:4px}.brief-reward strong{font-size:19px}.wave-intro>p{margin:8px 0 5px;font-size:10px}.wave-intro>small{font-size:9px}}
 
 @media(max-height:740px){.brief-poster{display:grid;grid-template-columns:64px 1fr;gap:2px 8px;width:260px}.brief-poster .wanted-title,.brief-reward{grid-column:1/-1}.brief-art{grid-column:1;grid-row:2/4;height:66px;width:64px;margin:0}.brief-poster>strong{align-self:end;font-size:12px}.brief-formula{align-self:start;margin:2px 0 4px}.brief-reward{padding-top:5px}}
+
+.brief-formula{--reel-row:54px}
+.bounty-reel,#brief-multiplier{display:inline-block;flex-shrink:0;min-width:88px;height:var(--reel-row);border:1px solid #957046;border-radius:7px;background:#4a332e;color:#ffdf98;overflow:hidden;box-shadow:inset 0 2px 6px #20181855;font:700 40px/var(--reel-row) 'Space Grotesk',sans-serif;font-variant-numeric:tabular-nums}
+.bounty-reel{position:relative}
+.bounty-strip{display:flex;flex-direction:column;will-change:transform}
+.bounty-strip>span{display:block;flex:none;height:var(--reel-row);line-height:var(--reel-row)}
+.bounty-reel:after{content:'';position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 9px 8px -9px #241915,inset 0 -9px 8px -9px #241915}
+.brief-status{grid-column:1/-1;display:block;font-size:10px;font-weight:700;color:#7a5d43;min-height:15px;margin:2px 0 7px}
+.wave-intro[data-reveal=rolling] .brief-reward{color:#816e54}
+.wave-intro[data-reveal=revealed] #brief-multiplier{animation:bounty-lock .32s ease-out both}
+.wave-intro[data-reveal=revealed] .brief-status{color:#72432f}
+.wave-intro.big-bounty .brief-poster{border-color:#ffe6a3;box-shadow:0 0 30px #f0c15a38}
+.wave-intro.big-bounty #brief-multiplier{color:#fff1be;border-color:#c99b4b;box-shadow:0 0 16px #edb63a55}
+.game[data-state=paused] #brief-multiplier{animation-play-state:paused}
+@keyframes bounty-lock{0%{transform:scale(.86)}60%{transform:scale(1.09)}100%{transform:scale(1)}}
+@media(max-height:740px){.brief-formula{--reel-row:42px}.bounty-reel,#brief-multiplier{min-width:75px;font-size:30px}.brief-status{font-size:9px;margin:2px 0 3px}}
+@media(prefers-reduced-motion:reduce){.wave-intro[data-reveal=revealed] #brief-multiplier{animation:none}}

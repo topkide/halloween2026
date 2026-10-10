@@ -1,4 +1,4 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261010-score1';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261010-reel1';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
 

@@ -9,7 +9,8 @@ export const SPECIALS={
   gold:{id:'gold',name:'황금 유령',color:'#f5cc68',points:500,width:83,height:91},
 };
 export const TYPES=Object.fromEntries([...SPECIES,...Object.values(SPECIALS)].map(s=>[s.id,s]));
-export const DEFAULTS=Object.freeze({duration:60,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:2.4,goldBase:SPECIALS.gold.points,goldChance:.15});
+export const BOUNTY_TIMING=Object.freeze({spin:1.8,hold:1.1});
+export const DEFAULTS=Object.freeze({duration:60,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldChance:.15});
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const bound=(key,min,max)=>Number.isFinite(value[key])?Math.max(min,Math.min(max,value[key])):DEFAULTS[key];
@@ -68,11 +69,11 @@ export class Hunt {
     this.wave++;this.waveKills=0;this.waveGoal=Math.min(this.config.maxGoal,this.config.baseGoal+(this.wave-1)*this.config.goalStep);
     this.bounty={type:'gold',multiplier:rollMultiplier(this.random,this.bounty?.multiplier)};
     this.bounty.points=this.config.goldBase*this.bounty.multiplier;
-    this.state='briefing';this.briefingLeft=this.config.briefingDuration;this.ghosts=[];
+    this.state='briefing';this.briefingLeft=this.config.briefingDuration;this.bountyRevealed=false;this.ghosts=[];
     this.events.push({kind:'wave',wave:this.wave,target:this.waveGoal,multiplier:this.bounty.multiplier,points:this.bounty.points});
   }
   beginWave(){
-    if(this.state!=='briefing')return;
+    if(this.state!=='briefing'||!this.bountyRevealed)return;
     this.state='playing';this.briefingLeft=0;this.spawnLeft=this.config.spawn;
     // Every wave offers a golden bounty immediately, then random extras can appear.
     for(let i=0;i<3;i++){
@@ -94,7 +95,13 @@ export class Hunt {
   tick(dt){
     if(!Number.isFinite(dt)||dt<=0)return;
     if(this.state==='briefing'){
-      this.briefingLeft=Math.max(0,this.briefingLeft-dt);if(this.briefingLeft===0)this.beginWave();return;
+      this.briefingLeft=Math.max(0,this.briefingLeft-dt);
+      if(!this.bountyRevealed&&this.briefingLeft<=BOUNTY_TIMING.hold+.000001){
+        // A delayed frame must still show the result for a full moment before hunting.
+        this.bountyRevealed=true;this.briefingLeft=BOUNTY_TIMING.hold;
+        this.events.push({kind:'bounty-reveal',multiplier:this.bounty.multiplier,points:this.bounty.points});return;
+      }
+      if(this.briefingLeft<=.000001)this.beginWave();return;
     }
     if(this.state!=='playing')return;
     dt=Math.min(dt,this.remaining);this.remaining-=dt;this.elapsed+=dt;

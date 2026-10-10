@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Hunt,DEFAULTS,SPECIES,TYPES,MOTIONS,GOLD_LIFETIME,pose,settings,rollMultiplier} from '../hunt-core.mjs';
+import {Hunt,DEFAULTS,BOUNTY_TIMING,SPECIES,TYPES,MOTIONS,GOLD_LIFETIME,pose,settings,rollMultiplier} from '../hunt-core.mjs';
 import {ghostSVG} from '../ghost-art.mjs';
 import {STORAGE_KEY,readProgress} from '../progress.mjs';
 function rng(seed=19){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
 function briefing(config={}){const h=new Hunt({random:rng(),config});h.start();h.drain();return h;}
-function playing(config={}){const h=briefing(config);h.tick(h.config.briefingDuration);h.drain();return h;}
+function advanceBriefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);}
+function playing(config={}){const h=briefing(config);advanceBriefing(h);h.drain();return h;}
 function target(h,type='wisp'){
  if(h.ghosts.length===h.config.maxGhosts)h.ghosts.pop();
  const g=h.spawn(type);Object.assign(g,{motion:'rise',life:2,age:.6});return g;
@@ -16,7 +17,7 @@ function finishWave(h,lastType='wisp'){
 
 test('a run starts with a golden-bounty briefing, eight targets and a frozen sixty-second clock',()=>{
  const h=briefing();assert.equal(h.state,'briefing');assert.equal(h.wave,1);assert.equal(h.waveGoal,8);assert.equal(h.remaining,60);assert.equal(h.score,0);assert.equal(h.ghosts.length,0);assert.equal(h.bounty.type,'gold');assert.equal(h.bounty.points,500*h.bounty.multiplier);
- assert.equal(h.shoot(),null);h.tick(1);assert.equal(h.remaining,60);assert.equal(h.state,'briefing');h.tick(2);assert.equal(h.state,'playing');assert.equal(h.remaining,60);
+ assert.equal(h.shoot(),null);h.tick(1);assert.equal(h.remaining,60);assert.equal(h.state,'briefing');h.tick(2);assert.equal(h.state,'briefing');assert.equal(h.bountyRevealed,true);h.tick(BOUNTY_TIMING.hold);assert.equal(h.state,'playing');assert.equal(h.remaining,60);
  assert.equal(h.ghosts.length,3);assert.equal(h.ghosts.filter(g=>g.type==='gold').length,1);
 });
 test('each miss costs two seconds and no progress or score; elapsed time also counts down',()=>{
@@ -65,10 +66,10 @@ test('bounty remains fixed throughout a wave instead of changing on an eight-sec
 test('clearing a wave opens the next briefing, increases the goal, and preserves score and time',()=>{
  const h=playing();h.tick(3);h.shoot();const remaining=h.remaining,previous=h.bounty.multiplier,payout=h.bounty.points;
  finishWave(h,'gold');assert.equal(h.state,'briefing');assert.equal(h.clearedWaves,1);assert.equal(h.wave,2);assert.equal(h.waveGoal,10);assert.equal(h.waveKills,0);assert.equal(h.kills,8);assert.equal(h.score,7*200+payout);assert.equal(h.normalScore,7*200);assert.equal(h.goldScore,payout);assert.equal(h.remaining,remaining);assert.notEqual(h.bounty.multiplier,previous);assert.equal(h.ghosts.length,0);
- assert.equal(h.drain().filter(e=>e.kind==='wave-clear').length,1);assert.equal(h.shoot(),null);h.tick(2.4);assert.equal(h.state,'playing');assert.equal(h.remaining,remaining);
+ assert.equal(h.drain().filter(e=>e.kind==='wave-clear').length,1);assert.equal(h.shoot(),null);advanceBriefing(h);assert.equal(h.state,'playing');assert.equal(h.remaining,remaining);
 });
 test('unlimited consecutive hits never require ammunition or reload',()=>{
- const h=playing();for(let i=0;i<65;i++){if(h.state==='briefing')h.tick(2.4);assert.notEqual(h.shoot(target(h).id),null);}
+ const h=playing();for(let i=0;i<65;i++){if(h.state==='briefing')advanceBriefing(h);assert.notEqual(h.shoot(target(h).id),null);}
  assert.equal(h.shots,65);assert.equal(h.hits,65);assert.equal(h.remaining,60);assert.ok(h.clearedWaves>=4);
  for(const key of ['ammo','reserveAmmo','reloadLeft','reload','boost'])assert.equal(key in h,false);
 });
@@ -99,7 +100,7 @@ test('pause freezes both gameplay and pre-wave briefings, then resumes the same 
  for(const h of [briefing(),playing()]){const phase=h.state,remaining=h.remaining;h.tick(.4);const before=h.state==='briefing'?h.briefingLeft:h.remaining;assert.equal(h.pause(),true);const snapshot=JSON.stringify(h);h.tick(30);assert.equal(h.shoot(),null);assert.equal(JSON.stringify(h),snapshot);h.resume();assert.equal(h.state,phase);h.tick(.2);assert.ok((phase==='briefing'?h.briefingLeft:h.remaining)<before);assert.ok(h.remaining<=remaining);}
 });
 test('retry resets waves, score, misses and clock without reviving old targets',()=>{
- const h=playing();h.shoot(target(h,'gold').id);h.shoot();const id=target(h).id;h.start();assert.equal(h.state,'briefing');assert.equal(h.score,0);assert.equal(h.normalScore,0);assert.equal(h.goldScore,0);assert.equal(h.wave,1);assert.equal(h.clearedWaves,0);assert.equal(h.shots,0);assert.equal(h.misses,0);assert.equal(h.remaining,60);h.tick(2.4);assert.equal(h.shoot(id),null);
+ const h=playing();h.shoot(target(h,'gold').id);h.shoot();const id=target(h).id;h.start();assert.equal(h.state,'briefing');assert.equal(h.score,0);assert.equal(h.normalScore,0);assert.equal(h.goldScore,0);assert.equal(h.wave,1);assert.equal(h.clearedWaves,0);assert.equal(h.shots,0);assert.equal(h.misses,0);assert.equal(h.remaining,60);advanceBriefing(h);assert.equal(h.shoot(id),null);
 });
 test('only ordinary and golden ghosts spawn with a strict eight-ghost cap',()=>{
  const h=playing({duration:120,spawn:.15}),seen=new Set();let peak=0;
@@ -108,7 +109,7 @@ test('only ordinary and golden ghosts spawn with a strict eight-ghost cap',()=>{
  const standard=playing();const before=standard.serial;standard.tick(.22);assert.equal(standard.serial,before);standard.tick(.01);assert.equal(standard.serial,before+1);
 });
 test('wave difficulty is bounded and no goal can exceed twenty-four',()=>{
- const h=playing();for(let i=0;i<20;i++){finishWave(h);assert.ok(h.waveGoal<=24);h.tick(2.4);for(const g of h.ghosts)assert.ok(g.type==='gold'?g.life>=.5&&g.life<=.9:g.life>=1&&g.life<=2.4);}
+ const h=playing();for(let i=0;i<20;i++){finishWave(h);assert.ok(h.waveGoal<=24);advanceBriefing(h);for(const g of h.ghosts)assert.ok(g.type==='gold'?g.life>=.5&&g.life<=.9:g.life>=1&&g.life<=2.4);}
  assert.equal(h.waveGoal,24);
 });
 test('multiplier weighting retains all outcomes and excludes the previous wave value',()=>{

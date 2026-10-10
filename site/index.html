@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#141b23"><meta name="description" content="유령을 잡아 웨이브를 넘기세요. 황금 유령의 현상금은 매 웨이브 새롭게! 헛발은 시간을 줄입니다.">
 <title>밤의 현상금 사냥 · 캣점프 할로윈</title>
-<link rel="icon" href="assets/target.png"><link rel="stylesheet" href="style.css?v=20261010-score1">
+<link rel="icon" href="assets/target.png"><link rel="stylesheet" href="style.css?v=20261010-reel1">
 </head>
 <body>
 <main class="game" id="game" data-state="ready">
@@ -22,7 +22,7 @@
 
     <div class="field-toast" id="field-toast" role="status" aria-live="polite"></div>
     <div class="intro-panel" id="intro"><span class="eyebrow">GOLDEN BOUNTY · WAVE HUNT</span><h2>유령을 잡고,<br><em>다음 웨이브로.</em></h2><div class="cast" id="cast" aria-label="일반 유령 5종과 획득 점수"></div><p>목표 수만큼 유령을 잡으면 다음 웨이브!<br>유령마다 다른 점수, <b>황금 유령</b>은 배수 보너스!<br>제한 시간 <b id="intro-time">60</b>초 · 헛발은 <b id="intro-penalty">2</b>초 차감</p><button class="primary-button" id="start">사냥 시작 <span>→</span></button><div class="special-guide"><span><i class="dot gold-dot"></i>황금 유령 = 보너스 점수</span><span>황금은 순식간에 사라져요</span></div></div>
-    <div class="wave-intro" id="wave-intro" hidden aria-labelledby="brief-wave"><span class="eyebrow" id="brief-cleared">오늘 밤의 첫 현상금</span><h2 id="brief-wave">WAVE 1</h2><div class="brief-poster"><span class="wanted-title">WANTED</span><div class="brief-art" id="brief-art"></div><strong>황금 유령</strong><div class="brief-formula"><span><b id="brief-base">500</b>점</span><b id="brief-multiplier">×2</b></div><div class="brief-reward">한 마리당 <strong>+<span id="brief-reward">1,000</span></strong>점</div></div><p>이번 웨이브 목표 <strong id="brief-goal">8</strong>마리</p><small><b id="brief-countdown">3</b>초 후 시작 · 준비 중에는 시간이 멈춰요</small></div>
+    <div class="wave-intro" id="wave-intro" hidden aria-labelledby="brief-wave"><span class="eyebrow" id="brief-cleared">오늘 밤의 첫 현상금</span><h2 id="brief-wave">WAVE 1</h2><div class="brief-poster"><span class="wanted-title">WANTED</span><div class="brief-art" id="brief-art"></div><strong>황금 유령</strong><div class="brief-formula"><span><b id="brief-base">500</b>점</span><span class="bounty-reel" id="brief-reel" aria-hidden="true"><span class="bounty-strip" id="brief-strip"></span></span><b id="brief-multiplier" hidden>×?</b></div><span class="brief-status" id="brief-status" role="status" aria-live="polite">이번 현상금은 몇 배일까요?</span><div class="brief-reward">한 마리당 <strong>+<span id="brief-reward">?</span></strong>점</div></div><p>이번 웨이브 목표 <strong id="brief-goal">8</strong>마리</p><small><b id="brief-countdown">배수를 추첨하고 있어요</b> · 준비 중에는 시간이 멈춰요</small></div>
     <div class="ending" id="ending" role="alert" hidden><span id="ending-icon">◷</span><strong id="ending-title">시간 초과!</strong><p id="ending-copy">오늘 밤의 사냥이 끝났어요.</p></div>
   </section>
   <footer class="wave-footer"><div class="wave-summary"><div><span class="tiny-label">WAVE</span><strong id="wave-number">1</strong></div><div class="wave-progress"><span>이번 웨이브 목표</span><strong><b id="wave-count">0</b> / <b id="wave-goal">8</b><small> 마리</small></strong><div class="wave-track"><i id="wave-fill"></i></div></div><span class="miss-rule">헛발 <strong>-<b id="miss-cost">2</b>초</strong></span></div></footer>
@@ -34,5 +34,5 @@
 <dialog id="reset-dialog" aria-labelledby="reset-title"><h2 id="reset-title">사냥 기록을 지울까요?</h2><p>현재 웨이브 사냥의 최고 점수과 최근 결과를 초기화해요. 설정은 유지돼요.</p><p>지운 기록은 되돌릴 수 없어요.</p><div class="dialog-actions"><button id="reset-cancel" class="quiet-button" autofocus>취소</button><button id="reset-confirm" class="danger-button">초기화하기</button></div></dialog>
 
 <noscript>게임을 플레이하려면 JavaScript를 켜주세요.</noscript>
-<script type="module" src="app.mjs?v=20261010-score1"></script>
+<script type="module" src="app.mjs?v=20261010-reel1"></script>
 </body></html>
