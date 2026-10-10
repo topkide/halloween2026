@@ -1,14 +1,14 @@
-import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-upgrade1';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-upgrade1';
-import {ghostSVG} from './ghost-art.mjs?v=20261011-upgrade1';
-import {createBountyReel,reelOffset,visibleBounty} from './bounty-reel.mjs?v=20261011-upgrade1';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-upgrade1';
+import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-freefire1';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-freefire1';
+import {ghostSVG} from './ghost-art.mjs?v=20261011-freefire1';
+import {createBountyReel,reelOffset,visibleBounty} from './bounty-reel.mjs?v=20261011-freefire1';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-freefire1';
 
 const $=id=>document.getElementById(id);
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
-let {config,best,soundOn,lastResult,economy}=readProgress(key=>localStorage.getItem(key));
+let {config,best,soundOn,lastResult,economy,refundedReloadCoins}=readProgress(key=>localStorage.getItem(key));
 let engine=new Hunt({config,upgrades:economy.levels}),size={width:400,height:440,scale:1,left:0,top:0},currentRunId=null;
 let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,lastBounty='',soundContext=null,mutedGain=null,shotNoise=null;
 const entities=new Map(),impacts=[];
@@ -43,13 +43,13 @@ function updateWallet(){
 }
 function effectLabel(key,levels){
   const effects=upgradeEffects(levels);
-  if(key==='reload')return effects.reloadSeconds.toFixed(3).replace(/0+$/,'').replace(/\.$/,'')+'초';
   if(key==='gold')return Math.round(effects.goldChance*100)+'%';
-  return '+'+effects.eventBonusPercent+'%';
+  return effects.coinsPerKill+'개 / 마리';
 }
 function renderUpgrades(){
   updateWallet();
-  const descriptions={reload:'한 발마다 자동 재장전 · 기다림을 더 짧게',gold:config.goldInterval+'초마다 등장 추첨 · 웨이브당 '+config.goldLimit+'마리 처치',reward:'점수로 받는 이벤트 코인 증가 · 상점용'};
+  setText(ui['upgrade-guide'],'유령 1마리 = 강화 코인 '+upgradeEffects(economy.levels).coinsPerKill+'개 · 각 강화 최대 '+BALANCE.maxLevel+'레벨');
+  const descriptions={gold:config.goldInterval+'초마다 등장 추첨 · 웨이브당 '+config.goldLimit+'마리 처치',reward:'유령 한 마리마다 받는 강화 코인 증가'};
   ui['upgrade-cards'].innerHTML=Object.entries(UPGRADES).map(([key,definition])=>{
     const level=economy.levels[key],cost=upgradeCost(level),max=cost===null,next={...economy.levels,[key]:level+1};
     return '<article class="upgrade-card"><div class="upgrade-card-head"><h3>'+definition.name+'</h3><b>'+(max?'MAX':'Lv. '+level+' / '+BALANCE.maxLevel)+'</b></div><p>'+descriptions[key]+'</p><div class="upgrade-effect"><strong>'+effectLabel(key,economy.levels)+'</strong>'+(max?'<span>최대 강화</span>':'<span>→</span><b>'+effectLabel(key,next)+'</b>')+'</div><div class="upgrade-track"><i style="transform:scaleX('+level/BALANCE.maxLevel+')"></i></div><button type="button" class="upgrade-buy" data-upgrade="'+key+'" aria-label="'+definition.name+' '+(max?'최대 강화':'강화 · '+cost+'코인')+'" '+(max||economy.upgradeCoins<cost?'disabled':'')+'>'+(max?'최대 레벨':number(cost)+' 강화 코인 · 강화하기')+'</button></article>';
@@ -86,11 +86,6 @@ function updateHud(){
   setText(ui['intro-gold-limit'],config.goldLimit);
   const waveGold=engine.waveGold??0;
   setText(ui['wanted-limit'],'황금 '+waveGold+'/'+config.goldLimit+(waveGold>=config.goldLimit?' · 완료':' 처치'));
-  const loading=engine.reloadLeft>.000001;
-  ui['weapon-status'].hidden=ready;ui.game.dataset.reloading=String(loading);
-  setText(ui['reload-label'],loading?'재장전 중':'발사 준비');
-  setText(ui['reload-time'],loading?engine.reloadLeft.toFixed(1)+'초':effectLabel('reload',engine.upgrades)+' / 발');
-  ui['reload-fill'].style.transform='scaleX('+(1-Math.min(1,engine.reloadLeft/engine.effects.reloadSeconds))+')';
   ui.pause.disabled=!['playing','briefing'].includes(engine.state);ui['settings-open'].disabled=!ready;
   ui['wave-intro'].hidden=!briefing;
   if(briefing){
@@ -167,7 +162,7 @@ function finish(reason,cause){
   const isBest=engine.score>best;best=Math.max(best,engine.score);lastResult={runId:currentRunId,score:engine.score,normalScore:engine.normalScore,goldScore:engine.goldScore,wave:engine.wave,clearedWaves:engine.clearedWaves,kills:engine.kills,gold:engine.gold,shots:engine.shots,hits:engine.hits,misses:engine.misses,reason};
   const settlement=settleRun(economy,lastResult,engine.upgrades);economy=settlement.economy;lastResult.rewards=settlement.rewards;save();updateWallet();
   setText(ui['result-upgrade-coins'],'+'+number(settlement.rewards.upgradeCoins));setText(ui['result-event-coins'],'+'+number(settlement.rewards.eventCoins));
-  setText(ui['result-reward-detail'],'처치 '+engine.kills+'마리 → 강화 코인 '+settlement.rewards.upgradeCoins+'개 · 이벤트 코인 기본 '+settlement.rewards.eventBase+' + 강화 보너스 '+settlement.rewards.eventBonus);
+  setText(ui['result-reward-detail'],'처치 '+engine.kills+'마리 × '+settlement.rewards.coinsPerKill+'개 = 강화 코인 '+settlement.rewards.upgradeCoins+'개 · '+number(engine.score)+'점 → 이벤트 코인 '+settlement.rewards.eventCoins+'개');
   endingTimer=setTimeout(()=>{
     endingTimer=null;ui.ending.hidden=true;setText(ui['result-reason'],reason==='timeout'?"TIME’S UP":'HUNT COMPLETE');setText(ui['result-score'],number(engine.score));setText(ui['result-normal-score'],number(engine.normalScore)+'점');setText(ui['result-gold-score'],number(engine.goldScore)+'점');setText(ui['result-kills'],engine.kills);setText(ui['result-waves'],engine.clearedWaves);setText(ui['result-gold'],engine.gold);setText(ui['result-accuracy'],engine.shots?Math.round(engine.hits/engine.shots*100)+'%':'0%');ui['new-best'].hidden=!isBest;ui['result-dialog'].showModal();
   },1200);
@@ -207,4 +202,5 @@ function frame(now){
 }
 ui.cast.innerHTML=[...SPECIES].sort((a,b)=>a.points-b.points).map(s=>'<div title="'+s.habit+' · '+s.points+'점">'+ghostSVG(s.id,{color:s.color})+'<small>'+s.name+'</small><strong>'+s.points+'점</strong></div>').join('');
 ui['wanted-art'].innerHTML=ghostSVG('gold',{color:TYPES.gold.color,staticPose:true});ui['brief-art'].innerHTML=ghostSVG('gold',{color:TYPES.gold.color,staticPose:true});
+if(refundedReloadCoins>0){ui['upgrade-refund'].hidden=false;setText(ui['upgrade-refund'],'재장전 강화가 종료되어 사용한 '+refundedReloadCoins+'코인을 돌려드렸어요.');save();}
 measure();updateSound();ready();requestAnimationFrame(frame);

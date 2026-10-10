@@ -1,13 +1,13 @@
 // Prototype balance values live here so costs, caps and rewards can be tuned together.
-export const BALANCE=Object.freeze({maxLevel:10,firstCost:20,costStep:10,reloadStartMs:600,reloadStepMs:52,goldStartPercent:50,goldStepPercent:5,eventStepPercent:10,coinsPerKill:1,pointsPerEventCoin:100});
-export const UPGRADES=Object.freeze({reload:{name:'재장전 속도'},gold:{name:'황금 유령 등장 확률'},reward:{name:'이벤트 재화 증가'}});
+export const BALANCE=Object.freeze({maxLevel:10,firstCost:20,costStep:10,goldStartPercent:50,goldStepPercent:5,coinStepPerKill:1,coinsPerKill:1,pointsPerEventCoin:100});
+export const UPGRADES=Object.freeze({gold:{name:'황금 유령 등장 확률'},reward:{name:'강화 코인 획득량'}});
 const whole=(n,max=1_000_000_000)=>Number.isSafeInteger(n)&&n>=0?Math.min(n,max):0;
 export function upgradeLevels(value={}){
   return Object.fromEntries(Object.keys(UPGRADES).map(key=>[key,whole(value?.[key],BALANCE.maxLevel)]));
 }
 export function upgradeEffects(value={}){
   const levels=upgradeLevels(value);
-  return Object.freeze({reloadSeconds:(BALANCE.reloadStartMs-levels.reload*BALANCE.reloadStepMs)/1000,goldChance:(BALANCE.goldStartPercent+levels.gold*BALANCE.goldStepPercent)/100,eventBonusPercent:levels.reward*BALANCE.eventStepPercent});
+  return Object.freeze({goldChance:(BALANCE.goldStartPercent+levels.gold*BALANCE.goldStepPercent)/100,coinsPerKill:BALANCE.coinsPerKill+levels.reward*BALANCE.coinStepPerKill});
 }
 export function cleanEconomy(value={}){
   return {upgradeCoins:whole(value?.upgradeCoins),eventCoins:whole(value?.eventCoins),levels:upgradeLevels(value?.levels),claimedRuns:Array.isArray(value?.claimedRuns)?value.claimedRuns.filter(id=>typeof id==='string'&&id.length>0&&id.length<120).slice(-32):[]};
@@ -22,9 +22,8 @@ export function buyUpgrade(value,key){
   return {ok:true,cost,economy:{...economy,upgradeCoins:economy.upgradeCoins-cost,levels:{...economy.levels,[key]:economy.levels[key]+1}}};
 }
 export function runRewards(result,levels){
-  const eventBase=Math.floor(whole(result?.score)/BALANCE.pointsPerEventCoin),eventBonusPercent=upgradeEffects(levels).eventBonusPercent;
-  const eventBonus=Math.floor(eventBase*eventBonusPercent/100);
-  return {upgradeCoins:whole(result?.kills)*BALANCE.coinsPerKill,eventBase,eventBonus,eventBonusPercent,eventCoins:eventBase+eventBonus};
+  const coinsPerKill=upgradeEffects(levels).coinsPerKill;
+  return {coinsPerKill,upgradeCoins:whole(result?.kills)*coinsPerKill,eventCoins:Math.floor(whole(result?.score)/BALANCE.pointsPerEventCoin)};
 }
 export function settleRun(value,result,levels){
   const economy=cleanEconomy(value),rewards=runRewards(result,levels),id=result?.runId;

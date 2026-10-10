@@ -8,8 +8,6 @@ function briefing(config={}){const h=new Hunt({random:rng(),config});h.start();h
 function advanceBriefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);}
 function playing(config={}){const h=briefing(config);advanceBriefing(h);h.drain();return h;}
 function target(h,type='wisp'){
- // These fixtures isolate score/wave rules; reload timing is tested in upgrades.test.mjs.
- h.reloadLeft=0;
  if(h.ghosts.length===h.config.maxGhosts)h.ghosts.pop();
  const g=h.spawn(type);Object.assign(g,{motion:'rise',life:2,age:.6});return g;
 }
@@ -37,7 +35,7 @@ test('ordinary species award distinct difficulty points and gold alone uses the 
  assert.ok(TYPES.pudge.width>TYPES.skitter.width&&TYPES.pudge.height>TYPES.skitter.height);
  h.bounty={type:'gold',multiplier:10,points:5000};assert.equal(h.shoot(target(h,'gold').id).points,5000);
  assert.equal(h.shoot(target(h,'pudge').id).points,100);assert.equal(h.score,6100);assert.equal(h.normalScore,1100);assert.equal(h.goldScore,5000);assert.equal('coins' in h,false);
- const before=h.score;h.reloadLeft=0;assert.equal(h.shoot().points,0);assert.equal(h.score,before);
+ const before=h.score;assert.equal(h.shoot().points,0);assert.equal(h.score,before);
 });
 test('equal kill counts can earn different total scores through species and golden bounties',()=>{
  const easy=playing(),hard=playing(),golden=playing();

@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects} from './upgrades.mjs?v=20261011-upgrade1';
+import {upgradeLevels,upgradeEffects} from './upgrades.mjs?v=20261011-freefire1';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -70,11 +70,11 @@ export function pose(ghost,width,height) {
 }
 export class Hunt {
   constructor({random=Math.random,config={},upgrades={}}={}){
-    this.random=random;this.config=settings(config);this.upgrades=Object.freeze(upgradeLevels(upgrades));this.effects=upgradeEffects(this.upgrades);this.state='ready';this.ghosts=[];this.events=[];this.serial=0;this.reloadLeft=0;
+    this.random=random;this.config=settings(config);this.upgrades=Object.freeze(upgradeLevels(upgrades));this.effects=upgradeEffects(this.upgrades);this.state='ready';this.ghosts=[];this.events=[];this.serial=0;
   }
   start(){
     Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,goldSpawnLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
-    this.reloadLeft=0;this.firstGoldSpawned=false;this.prepareWave();
+    this.firstGoldSpawned=false;this.prepareWave();
   }
   prepareWave(){
     this.wave++;this.waveKills=0;this.waveGold=0;this.waveGoal=Math.min(this.config.maxGoal,this.config.baseGoal+(this.wave-1)*this.config.goalStep);
@@ -85,7 +85,7 @@ export class Hunt {
   }
   beginWave(){
     if(this.state!=='briefing'||!this.bountyRevealed)return;
-    this.state='playing';this.briefingLeft=0;this.spawnLeft=this.config.spawn;this.reloadLeft=0;
+    this.state='playing';this.briefingLeft=0;this.spawnLeft=this.config.spawn;
     // Only the first wave is guaranteed an immediate gold. Later waves keep the run's cooldown.
     for(let i=0;i<3;i++){
       const g=(i===1?this.spawnGoldIfReady():null)??this.spawn();
@@ -134,7 +134,6 @@ export class Hunt {
     }
     if(this.state!=='playing')return;
     dt=Math.min(dt,this.remaining);this.remaining-=dt;this.elapsed+=dt;
-    this.reloadLeft=Math.max(0,this.reloadLeft-dt);
     if(this.remaining<=.000001){this.remaining=0;this.end('timeout','clock');return;}
     this.ghosts.forEach(g=>g.age+=dt);this.ghosts=this.ghosts.filter(g=>g.age<g.life);
     this.goldSpawnLeft=Math.max(0,this.goldSpawnLeft-dt);
@@ -145,12 +144,12 @@ export class Hunt {
     if(this.spawnLeft<=.000001){this.spawn();this.spawnLeft=this.config.spawn+Math.max(this.spawnLeft,-dt);if(this.spawnLeft<=0)this.spawnLeft=this.config.spawn;}
   }
   shoot(id=null){
-    if(this.state!=='playing'||this.reloadLeft>.000001)return null;
+    if(this.state!=='playing')return null;
     const ghost=id===null?null:this.ghosts.find(g=>g.id===id);
     // A repeated activation of an already consumed ghost is ignored.
     if(id!==null&&!ghost)return null;
     if(ghost&&pose(ghost,400,440).alpha<.3)return null;
-    this.shots++;this.reloadLeft=this.effects.reloadSeconds;
+    this.shots++;
     if(!ghost){
       this.misses++;const penalty=Math.min(this.remaining,this.config.missPenalty);this.remaining-=penalty;
       if(this.remaining<=.000001){this.remaining=0;this.end('timeout','miss');}

@@ -5,7 +5,7 @@ import {STORAGE_KEY,readProgress} from '../progress.mjs';
 
 function briefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);h.drain();}
 function playing(config={}){const h=new Hunt({random:()=>.4,config:{goldInterval:4,...config}});h.start();briefing(h);return h;}
-function finishWave(h){while(h.state==='playing'){h.reloadLeft=0;const g=h.spawn('wisp');g.age=g.life*.3;h.shoot(g.id);}}
+function finishWave(h){while(h.state==='playing'){const g=h.spawn('wisp');g.age=g.life*.3;h.shoot(g.id);}}
 
 test('gold appears on a four-second clock rather than ordinary random rolls',()=>{
   const h=playing({spawn:2});const first=h.ghosts.find(g=>g.type==='gold');
