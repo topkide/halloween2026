@@ -4,8 +4,8 @@ import {Hunt,BOUNTY_TIMING,GOLD_DIRECTIONS,GOLD_APPEAR_DURATION,GOLD_MOVE_DURATI
 import {STORAGE_KEY,readProgress} from '../progress.mjs';
 
 function briefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);h.drain();}
-function playing(config={}){const h=new Hunt({random:()=>.4,config});h.start();briefing(h);return h;}
-function finishWave(h){while(h.state==='playing'){const g=h.spawn('wisp');g.age=g.life*.3;h.shoot(g.id);}}
+function playing(config={}){const h=new Hunt({random:()=>.4,config:{goldInterval:4,...config}});h.start();briefing(h);return h;}
+function finishWave(h){while(h.state==='playing'){h.reloadLeft=0;const g=h.spawn('wisp');g.age=g.life*.3;h.shoot(g.id);}}
 
 test('gold appears on a four-second clock rather than ordinary random rolls',()=>{
   const h=playing({spawn:2});const first=h.ghosts.find(g=>g.type==='gold');
@@ -88,10 +88,10 @@ test('gold is fully visible and stationary from its first frame before any direc
 });
 
 test('appearance interval defaults, bounds and saved preferences remain valid',()=>{
-  assert.equal(settings().goldInterval,4);assert.equal(settings({goldInterval:0}).goldInterval,1);assert.equal(settings({goldInterval:40}).goldInterval,30);assert.equal(settings({goldInterval:NaN}).goldInterval,4);
+  assert.equal(settings().goldInterval,2.5);assert.equal(settings({goldInterval:0}).goldInterval,1);assert.equal(settings({goldInterval:40}).goldInterval,30);assert.equal(settings({goldInterval:NaN}).goldInterval,2.5);
   const config={goldLimit:3,goldInterval:6.5,spawn:.4};
   const loaded=readProgress(key=>key===STORAGE_KEY?JSON.stringify({best:4200,config}):null);
   assert.equal(loaded.config.goldInterval,6.5);assert.equal(loaded.config.goldLimit,3);assert.equal(loaded.best,4200);
-  assert.equal(readProgress(key=>key===STORAGE_KEY?JSON.stringify({config:{goldLimit:1}}):null).config.goldInterval,4);
+  assert.equal(readProgress(key=>key===STORAGE_KEY?JSON.stringify({config:{goldLimit:1}}):null).config.goldInterval,2.5);
   assert.equal('goldChance' in settings(),false);
 });

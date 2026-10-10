@@ -8,7 +8,8 @@ function playing(config={}){
   // Fixed RNG makes the scheduled gold and ordinary targets deterministic.
   const h=new Hunt({random:()=>.01,config});h.start();advanceBriefing(h);return h;
 }
-function hit(h,g){g.age=g.life*.3;return h.shoot(g.id);}
+// Quota fixtures isolate captures from the separately tested reload timer.
+function hit(h,g){h.reloadLeft=0;g.age=g.life*.3;return h.shoot(g.id);}
 
 test('only two successful golden captures are possible, including simultaneous targets',()=>{
   const h=playing(),first=h.ghosts.find(g=>g.type==='gold'),second=h.spawn('gold');

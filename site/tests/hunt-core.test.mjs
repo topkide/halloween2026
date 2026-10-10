@@ -8,6 +8,8 @@ function briefing(config={}){const h=new Hunt({random:rng(),config});h.start();h
 function advanceBriefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);}
 function playing(config={}){const h=briefing(config);advanceBriefing(h);h.drain();return h;}
 function target(h,type='wisp'){
+ // These fixtures isolate score/wave rules; reload timing is tested in upgrades.test.mjs.
+ h.reloadLeft=0;
  if(h.ghosts.length===h.config.maxGhosts)h.ghosts.pop();
  const g=h.spawn(type);Object.assign(g,{motion:'rise',life:2,age:.6});return g;
 }
@@ -35,7 +37,7 @@ test('ordinary species award distinct difficulty points and gold alone uses the 
  assert.ok(TYPES.pudge.width>TYPES.skitter.width&&TYPES.pudge.height>TYPES.skitter.height);
  h.bounty={type:'gold',multiplier:10,points:5000};assert.equal(h.shoot(target(h,'gold').id).points,5000);
  assert.equal(h.shoot(target(h,'pudge').id).points,100);assert.equal(h.score,6100);assert.equal(h.normalScore,1100);assert.equal(h.goldScore,5000);assert.equal('coins' in h,false);
- const before=h.score;assert.equal(h.shoot().points,0);assert.equal(h.score,before);
+ const before=h.score;h.reloadLeft=0;assert.equal(h.shoot().points,0);assert.equal(h.score,before);
 });
 test('equal kill counts can earn different total scores through species and golden bounties',()=>{
  const easy=playing(),hard=playing(),golden=playing();
@@ -68,10 +70,10 @@ test('clearing a wave opens the next briefing, increases the goal, and preserves
  finishWave(h,'gold');assert.equal(h.state,'briefing');assert.equal(h.clearedWaves,1);assert.equal(h.wave,2);assert.equal(h.waveGoal,10);assert.equal(h.waveKills,0);assert.equal(h.kills,8);assert.equal(h.score,7*200+payout);assert.equal(h.normalScore,7*200);assert.equal(h.goldScore,payout);assert.equal(h.remaining,remaining);assert.notEqual(h.bounty.multiplier,previous);assert.equal(h.ghosts.length,0);
  assert.equal(h.drain().filter(e=>e.kind==='wave-clear').length,1);assert.equal(h.shoot(),null);advanceBriefing(h);assert.equal(h.state,'playing');assert.equal(h.remaining,remaining);
 });
-test('unlimited consecutive hits never require ammunition or reload',()=>{
+test('ammunition remains unlimited across waves',()=>{
  const h=playing();for(let i=0;i<65;i++){if(h.state==='briefing')advanceBriefing(h);assert.notEqual(h.shoot(target(h).id),null);}
  assert.equal(h.shots,65);assert.equal(h.hits,65);assert.equal(h.remaining,60);assert.ok(h.clearedWaves>=4);
- for(const key of ['ammo','reserveAmmo','reloadLeft','reload','boost'])assert.equal(key in h,false);
+ for(const key of ['ammo','reserveAmmo','reload','boost'])assert.equal(key in h,false);
 });
 test('a repeated hit cannot add progress, score, a miss penalty, or another wave transition',()=>{
  const h=playing(),g=target(h,'gold');h.shoot(g.id);const snapshot=JSON.stringify(h);assert.equal(h.shoot(g.id),null);assert.equal(JSON.stringify(h),snapshot);

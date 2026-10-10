@@ -304,3 +304,39 @@ to{opacity:0;transform:translate(75px,15px) rotate(250deg)}
 @keyframes bounty-lock{0%{transform:scale(.86)}60%{transform:scale(1.09)}100%{transform:scale(1)}}
 @media(max-height:740px){.brief-formula{--reel-row:42px}.bounty-reel,#brief-multiplier{min-width:75px;font-size:30px}.brief-status{font-size:9px;margin:2px 0 3px}}
 @media(prefers-reduced-motion:reduce){.wave-intro[data-reveal=revealed] #brief-multiplier{animation:none}}
+
+.wallet{display:grid;grid-template-columns:1fr 1fr;gap:9px;width:100%;text-align:left}
+.wallet>div{border:1px solid #b4a7d13d;border-radius:7px;background:#101e278c;padding:10px 12px}
+.wallet span{display:block;font-size:10px;color:#c4b8e5}
+.wallet strong{display:block;font:600 23px 'Space Grotesk',sans-serif;margin-top:4px;color:#e2d9f5;font-variant-numeric:tabular-nums}
+.wallet>div+div{border-color:#e3ba683d}.wallet>div+div span,.wallet>div+div strong{color:#e9cc8d}
+.intro-panel{justify-content:safe center}
+.intro-panel .wallet,.upgrade-open{width:min(100%,300px);flex-shrink:0}
+.upgrade-open{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px;margin:9px 0 12px;border:1px solid #b4a7d14f;border-radius:6px;background:#38433d;font-weight:700;font-size:12px;color:#e2d9f5}
+.upgrade-open span{font-size:9px;font-weight:400;color:#abbcaa}
+#upgrade-dialog{width:min(430px,calc(100vw - 24px));padding:23px}
+#upgrade-dialog h2{margin:8px 0 17px}
+.upgrade-guide{font-size:10px!important;margin:12px 0}
+#upgrade-cards{display:grid;gap:10px;text-align:left}
+.upgrade-card{padding:13px;border:1px solid #94a48c38;border-radius:8px;background:#15262ca3}
+.upgrade-card-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.upgrade-card h3{font-size:13px;margin:0;color:#e2e9c6}
+.upgrade-card-head>b{font:600 11px 'Space Grotesk',sans-serif;color:#c8b9e5;white-space:nowrap}
+.upgrade-card p{font-size:9px;line-height:1.5;margin:5px 0 8px;color:#94a99b}
+.upgrade-effect{display:flex;align-items:baseline;gap:11px;font:600 20px 'Space Grotesk',sans-serif}
+.upgrade-effect strong{color:#dde7c6}.upgrade-effect b{color:#f0d999}.upgrade-effect span{font:400 10px 'Noto Sans KR',sans-serif;color:#81968c}
+.upgrade-track{height:3px;margin:9px 0;background:#0a171e;border-radius:3px;overflow:hidden}
+.upgrade-track i{display:block;width:100%;height:100%;background:#c6b1e1;transform-origin:left}
+.upgrade-buy{width:100%;min-height:35px;border:1px solid #c7b7dd;background:#b9acd0;color:#1b2730;border-radius:5px;font-size:11px;font-weight:800}
+.upgrade-buy:disabled{background:#26363b;color:#81938c;border-color:#61766950;opacity:.8}
+#upgrade-status{font-size:11px;min-height:18px;margin:13px 0 0;color:#ded9ae}
+.weapon-status{display:flex;align-items:center;gap:10px;margin-bottom:10px;color:#c9d9b4;font-size:10px}
+.weapon-status>b{font:500 10px 'Space Grotesk',sans-serif;min-width:69px;text-align:right}
+.reload-track{height:3px;flex:1;background:#0d171e;border-radius:4px;overflow:hidden}
+.reload-track i{display:block;height:100%;width:100%;background:#cbd9ab;transform-origin:left}
+.game[data-reloading=true] .weapon-status{color:#e7c28c}.game[data-reloading=true] .reload-track i{background:#e7c28c}
+.reward-receipt{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 10px;margin-top:16px;border:1px solid #aeb79440;border-radius:8px;background:#13242a}
+.reward-receipt span{font-size:9px;color:#c4b8e5}.reward-receipt strong{display:block;font:600 28px 'Space Grotesk',sans-serif;color:#e2d9f5;margin-top:5px}
+.reward-receipt>div+div span,.reward-receipt>div+div strong{color:#ebce92}
+#result-reward-detail{line-height:1.8;overflow-wrap:anywhere}
+@media(max-height:740px){.intro-panel{padding:12px 22px}.intro-panel h2{font-size:23px;margin:5px 0}.intro-panel>p{font-size:10px;margin:6px 0 9px}.intro-panel .cast{height:72px}.intro-panel .cast svg{height:48px}.intro-panel .wallet>div{padding:6px 10px}.intro-panel .wallet strong{font-size:18px;margin-top:2px}.intro-panel .wallet span{font-size:9px}.upgrade-open{padding:9px;margin:6px 0 8px}.intro-panel .primary-button{min-height:42px;padding:10px}.special-guide{margin-top:9px;font-size:8px}.weapon-status{margin-bottom:7px}}
