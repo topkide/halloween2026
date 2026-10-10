@@ -1,5 +1,5 @@
-import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261008-wave1';
-import {ghostSVG} from './ghost-art.mjs?v=20261008-wave1';
+import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261010-wave2';
+import {ghostSVG} from './ghost-art.mjs?v=20261010-wave2';
 
 const $=id=>document.getElementById(id);
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
@@ -27,7 +27,7 @@ function sound(kind){
       noise.buffer=shotNoise;gain.gain.setValueAtTime(1.3,at);gain.gain.exponentialRampToValueAtTime(.001,at+.085);
       noise.connect(gain);gain.connect(mutedGain);noise.onended=()=>{noise.disconnect();gain.disconnect();};noise.start(at);noise.stop(at+.085);
     }
-    const sounds={shot:[[145,38,.12,0,'sine'],[920,140,.035,0,'sawtooth']],miss:[[130,50,.08,0,'triangle']],hit:[[650,400,.1,0,'sine']],gold:[[784,990,.15,0,'triangle'],[988,1320,.18,.08,'triangle'],[1318,1760,.25,.16,'sine']],wave:[[440,660,.12,0,'triangle'],[660,880,.16,.1,'sine']],bomb:[[110,35,.6,0,'sawtooth']],ink:[[220,60,.28,0,'sawtooth']],timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]};
+    const sounds={shot:[[145,38,.12,0,'sine'],[920,140,.035,0,'sawtooth']],miss:[[130,50,.08,0,'triangle']],hit:[[650,400,.1,0,'sine']],gold:[[784,990,.15,0,'triangle'],[988,1320,.18,.08,'triangle'],[1318,1760,.25,.16,'sine']],wave:[[440,660,.12,0,'triangle'],[660,880,.16,.1,'sine']],timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]};
     for(const [from,to,duration,delay,wave] of sounds[kind]??sounds.hit){const at=soundContext.currentTime+delay,osc=soundContext.createOscillator(),gain=soundContext.createGain();osc.type=wave;osc.frequency.setValueAtTime(from,at);osc.frequency.exponentialRampToValueAtTime(to,at+duration);gain.gain.setValueAtTime(.32,at);gain.gain.exponentialRampToValueAtTime(.001,at+duration);osc.connect(gain);gain.connect(mutedGain);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(at);osc.stop(at+duration);}
   }catch{}
 }
@@ -42,7 +42,6 @@ function updateContract(){
 }
 function updateHud(){
   const ready=engine.state==='ready',briefing=engine.state==='briefing'||(engine.state==='paused'&&engine.pausedFrom==='briefing');
-  ui['ink-splash'].hidden=!(engine.inkLeft>0&&['playing','paused'].includes(engine.state));
   ui.game.dataset.state=engine.state;setText(ui.coins,number(engine.coins??0));setText(ui.best,number(best));
   const remaining=engine.remaining??config.duration,time=Math.ceil(remaining);
   if(ui['time-label'].dataset.value!==String(time)){ui['time-label'].innerHTML=time+'<span>s</span>';ui['time-label'].dataset.value=String(time);}
@@ -53,7 +52,7 @@ function updateHud(){
   ui.pause.disabled=!['playing','briefing'].includes(engine.state);ui['settings-open'].disabled=!ready;
   ui['wave-intro'].hidden=!briefing;
   if(briefing){
-    setText(ui['brief-cleared'],engine.clearedWaves?engine.clearedWaves+' WAVE CLEAR':'오늘 밤의 첫 현상금');
+    setText(ui['brief-cleared'],engine.clearedWaves?engine.clearedWaves+' WAVE CLEAR · 새로운 현상금':'오늘 밤의 첫 현상금');
     setText(ui['brief-wave'],'WAVE '+engine.wave);setText(ui['brief-base'],config.goldBase);setText(ui['brief-multiplier'],'×'+engine.bounty.multiplier);setText(ui['brief-reward'],number(engine.bounty.coins));setText(ui['brief-goal'],engine.waveGoal);setText(ui['brief-countdown'],Math.max(1,Math.ceil(engine.briefingLeft)));
   }
   updateContract();
@@ -63,21 +62,19 @@ function renderGhosts(){
   for(const [id,node] of entities)if(!alive.has(id)){node.remove();entities.delete(id);}
   for(const ghost of engine.ghosts){
     const def=TYPES[ghost.type],p=pose(ghost,size.width,size.height);let node=entities.get(ghost.id);
-    if(!node){node=document.createElement('button');node.type='button';node.className='ghost-target type-'+ghost.type;node.dataset.ghost=String(ghost.id);node.style.setProperty('--phase',-ghost.seed+'s');node.setAttribute('aria-label',def.name+' 사격');node.innerHTML=ghostSVG(ghost.type,{color:def.color})+'<span class="target-tag" hidden></span>';entities.set(ghost.id,node);ui['ghost-layer'].append(node);}
+    if(!node){node=document.createElement('button');node.type='button';node.className='ghost-target type-'+ghost.type;node.dataset.ghost=String(ghost.id);node.style.setProperty('--phase',-ghost.seed+'s');node.setAttribute('aria-label',def.name+' 사격');node.innerHTML=ghostSVG(ghost.type,{color:def.color});entities.set(ghost.id,node);ui['ghost-layer'].append(node);}
     const w=def.width*size.scale,h=def.height*size.scale;
     node.style.width=w+'px';node.style.height=h+'px';node.style.transform=`translate(${p.x*size.scale-w/2}px,${p.y*size.scale-h/2}px) rotate(${p.angle}deg) scale(${p.sx},${p.sy})`;
     node.style.opacity=p.alpha;node.style.pointerEvents=p.alpha<.3||engine.state!=='playing'?'none':'auto';node.disabled=engine.state!=='playing'||p.alpha<.3;
     const art=node.firstElementChild;art.style.transform='scaleX('+p.facing+')';
-    const label=node.lastElementChild,text=({gold:'황금 유령',bomb:'DANGER',ink:'먹물 주의'})[ghost.type]??'';
-    label.hidden=!text;setText(label,text);
   }
 }
 function hitEffect(hit,x,y){
   const effect=document.createElement('div');effect.className='shot-effect'+(hit.kind==='miss'?' miss':'');effect.style.left=x+'px';effect.style.top=y+'px';
-  const color=hit.kind==='gold'?'#ffe094':hit.kind==='miss'||hit.kind==='bomb'?'#f6aa96':'#dce8c7';effect.style.setProperty('--hit',color);
+  const color=hit.kind==='gold'?'#ffe094':hit.kind==='miss'?'#f6aa96':'#dce8c7';effect.style.setProperty('--hit',color);
   const art=hit.ghost?ghostSVG(hit.kind,{color:TYPES[hit.kind].color,staticPose:true}):'';
-  const small=hit.kind==='gold'?'황금 현상금':hit.kind==='miss'?'헛발!':hit.kind==='ink'?'먹물!':'';
-  const text=hit.kind==='miss'?'-'+config.missPenalty+'초':hit.kind==='gold'?'+'+number(hit.coins)+' 코인':hit.kind==='bomb'?'BOOM!':hit.kind==='ink'?'앗!':'명중';
+  const small=hit.kind==='gold'?'황금 현상금':hit.kind==='miss'?'헛발!':'';
+  const text=hit.kind==='miss'?'-'+config.missPenalty+'초':hit.kind==='gold'?'+'+number(hit.coins)+' 코인':'명중';
   const muzzleX=size.width*size.scale*.53,muzzleY=size.height*size.scale+16;
   const shotX=muzzleX-x,shotY=muzzleY-y,length=Math.hypot(shotX,shotY),rotation=Math.atan2(shotY,shotX)*180/Math.PI;
   const sparks=Array.from({length:3},(_,i)=>{const angle=i*Math.PI*2/3+.2;return '<i class="shot-spark" style="--dx:'+Math.cos(angle)*28+'px;--dy:'+Math.sin(angle)*28+'px;--angle:'+angle+'rad"></i>';}).join('');
@@ -100,7 +97,7 @@ function fire(event){
   const g=id===null?null:engine.ghosts.find(g=>g.id===id),p=g?pose(g,size.width,size.height):null;
   const x=event.type==='click'&&p?p.x*size.scale:event.clientX-size.left,y=event.type==='click'&&p?p.y*size.scale:event.clientY-size.top;
   const result=engine.shoot(id);if(!result)return;
-  hitEffect(result,x,y);sound('shot');sound(['miss','gold','bomb','ink'].includes(result.kind)?result.kind:'hit');
+  hitEffect(result,x,y);sound('shot');sound(['miss','gold'].includes(result.kind)?result.kind:'hit');
   if(result.kind==='miss')toast('헛발! 남은 시간 -'+config.missPenalty+'초',650);
   renderGhosts();flushEvents();updateHud();
 }
@@ -115,12 +112,12 @@ function ready(){
   clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();clearVisuals();engine=new Hunt({config});ui.intro.hidden=false;lastBounty='';renderGhosts();updateHud();
 }
 function finish(reason,cause){
-  if(endingTimer)return;ui['pause-dialog'].close();ui.ending.hidden=false;ui['ink-splash'].hidden=true;
-  const data=reason==='bomb'?['✹','폭탄을 건드렸어요!','위험한 한 발… 사냥이 끝났어요.']:reason==='quit'?['☾','사냥 종료','오늘 밤은 여기까지.']:['◷','시간 초과!',cause==='miss'?'헛발 사격으로 남은 시간을 모두 썼어요.':'남은 시간이 모두 줄어들었어요.'];
+  if(endingTimer)return;ui['pause-dialog'].close();ui.ending.hidden=false;
+  const data=reason==='quit'?['☾','사냥 종료','오늘 밤은 여기까지.']:['◷','시간 초과!',cause==='miss'?'헛발 사격으로 남은 시간을 모두 썼어요.':'남은 시간이 모두 줄어들었어요.'];
   setText(ui['ending-icon'],data[0]);setText(ui['ending-title'],data[1]);setText(ui['ending-copy'],data[2]);if(reason==='timeout')sound('timeout');
   const isBest=engine.coins>best;best=Math.max(best,engine.coins);lastResult={coins:engine.coins,wave:engine.wave,clearedWaves:engine.clearedWaves,kills:engine.kills,gold:engine.gold,shots:engine.shots,hits:engine.hits,misses:engine.misses,reason};save();
   endingTimer=setTimeout(()=>{
-    endingTimer=null;ui.ending.hidden=true;setText(ui['result-reason'],reason==='bomb'?'BOMB HIT':reason==='timeout'?"TIME’S UP":'HUNT COMPLETE');setText(ui['result-coins'],number(engine.coins));setText(ui['result-kills'],engine.kills);setText(ui['result-waves'],engine.clearedWaves);setText(ui['result-gold'],engine.gold);setText(ui['result-accuracy'],engine.shots?Math.round(engine.hits/engine.shots*100)+'%':'0%');ui['new-best'].hidden=!isBest;ui['result-dialog'].showModal();
+    endingTimer=null;ui.ending.hidden=true;setText(ui['result-reason'],reason==='timeout'?"TIME’S UP":'HUNT COMPLETE');setText(ui['result-coins'],number(engine.coins));setText(ui['result-kills'],engine.kills);setText(ui['result-waves'],engine.clearedWaves);setText(ui['result-gold'],engine.gold);setText(ui['result-accuracy'],engine.shots?Math.round(engine.hits/engine.shots*100)+'%':'0%');ui['new-best'].hidden=!isBest;ui['result-dialog'].showModal();
   },1200);
 }
 function pause(){if(engine.pause()){ui['pause-dialog'].showModal();updateHud();}}

@@ -7,8 +7,6 @@ export const SPECIES = [
 ];
 export const SPECIALS={
   gold:{id:'gold',name:'황금 유령',color:'#f5cc68',points:100,width:83,height:91},
-  bomb:{id:'bomb',name:'폭탄',color:'#ff736d',points:0,width:76,height:84},
-  ink:{id:'ink',name:'먹물 유령',color:'#9390b6',points:0,width:88,height:83},
 };
 export const TYPES=Object.fromEntries([...SPECIES,...Object.values(SPECIALS)].map(s=>[s.id,s]));
 export const DEFAULTS=Object.freeze({duration:60,spawn:.5,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:2.4,goldBase:100,goldChance:.15});
@@ -24,7 +22,8 @@ export function rollMultiplier(random=Math.random,previous=null){
   return choices.at(-1)[0];
 }
 export const MOTIONS={rise:[1.4,1.8],horizontal:[1.8,2.3],vertical:[1.8,2.3],inflate:[1.6,2],returnX:[2,2.4],returnY:[2,2.4]};
-const patterns={wisp:['rise'],pudge:['inflate'],skitter:['horizontal'],stilt:['vertical','returnY'],grasp:['returnX'],gold:['rise','horizontal'],bomb:['rise','horizontal'],ink:['rise','returnY']};
+export const GOLD_LIFETIME=Object.freeze([.7,.9]);
+const patterns={wisp:['rise'],pudge:['inflate'],skitter:['horizontal'],stilt:['vertical','returnY'],grasp:['returnX'],gold:['rise']};
 const clamp=(n,min=0,max=1)=>Math.max(min,Math.min(max,n));
 const mix=(a,b,t)=>a+(b-a)*t;
 const smooth=t=>{t=clamp(t);return t*t*(3-2*t);};
@@ -37,8 +36,9 @@ export function pose(ghost,width,height) {
   const startY=dir===1?-80:height+80,endY=dir===1?height+80:-80;
   if(motion==='rise'){
     // A short upward entrance, a stable aiming window, then a fade in place.
-    y=anchorY+Math.min(60,height*.15)*(1-smooth(u/.24));
-    alpha=Math.min(clamp(u/.1),clamp((1-u)/.16));
+    const gold=ghost.type==='gold';
+    y=anchorY+Math.min(gold?24:60,height*.15)*(1-smooth(u/(gold ? .12 : .24)));
+    alpha=Math.min(clamp(u/(gold ? .04 : .1)),clamp((1-u)/(gold ? .1 : .16)));
   } else if(motion==='horizontal'){
     x=mix(startX,endX,u);
   } else if(motion==='vertical'){
@@ -61,14 +61,14 @@ export class Hunt {
     this.random=random;this.config=settings(config);this.state='ready';this.ghosts=[];this.events=[];this.serial=0;
   }
   start(){
-    Object.assign(this,{remaining:this.config.duration,elapsed:0,coins:0,kills:0,shots:0,hits:0,misses:0,gold:0,inkLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
+    Object.assign(this,{remaining:this.config.duration,elapsed:0,coins:0,kills:0,shots:0,hits:0,misses:0,gold:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
     this.prepareWave();
   }
   prepareWave(){
     this.wave++;this.waveKills=0;this.waveGoal=Math.min(this.config.maxGoal,this.config.baseGoal+(this.wave-1)*this.config.goalStep);
     this.bounty={type:'gold',multiplier:rollMultiplier(this.random,this.bounty?.multiplier)};
     this.bounty.coins=this.config.goldBase*this.bounty.multiplier;
-    this.state='briefing';this.briefingLeft=this.config.briefingDuration;this.inkLeft=0;this.ghosts=[];
+    this.state='briefing';this.briefingLeft=this.config.briefingDuration;this.ghosts=[];
     this.events.push({kind:'wave',wave:this.wave,target:this.waveGoal,multiplier:this.bounty.multiplier,coins:this.bounty.coins});
   }
   beginWave(){
@@ -77,15 +77,16 @@ export class Hunt {
     // Every wave offers a golden bounty immediately, then random extras can appear.
     for(let i=0;i<3;i++){
       const type=i===1?'gold':SPECIES[Math.floor(this.random()*SPECIES.length)].id;
-      const g=this.spawn(type);g.age=g.life*.18;g.lane=.25+i*.25;g.anchor=.3+(i%2)*.4;
+      const g=this.spawn(type);
+      if(type!=='gold'){g.age=g.life*.18;g.lane=.25+i*.25;g.anchor=.3;}
     }
     this.events.push({kind:'wave-start',wave:this.wave});
   }
   spawn(forced){
     if(this.ghosts.length>=this.config.maxGhosts)return null;
     const n=this.random();
-    const type=forced??(n<this.config.goldChance?'gold':n<this.config.goldChance+.12?'bomb':n<this.config.goldChance+.19?'ink':SPECIES[Math.floor(this.random()*SPECIES.length)].id);
-    const options=patterns[type],motion=options[Math.floor(this.random()*options.length)],[min,max]=MOTIONS[motion];
+    const type=forced??(n<this.config.goldChance?'gold':SPECIES[Math.floor(this.random()*SPECIES.length)].id);
+    const options=patterns[type],motion=options[Math.floor(this.random()*options.length)],[min,max]=type==='gold'?GOLD_LIFETIME:MOTIONS[motion];
     const speed=1+Math.min(.4,(this.wave-1)*.04);
     const ghost={id:++this.serial,type,motion,age:0,life:mix(min,max,this.random())/speed,direction:this.random()<.5?1:-1,lane:.2+this.random()*.6,anchor:.22+this.random()*.56,seed:this.random()*6.28};
     this.ghosts.push(ghost);return ghost;
@@ -98,7 +99,6 @@ export class Hunt {
     if(this.state!=='playing')return;
     dt=Math.min(dt,this.remaining);this.remaining-=dt;this.elapsed+=dt;
     if(this.remaining<=.000001){this.remaining=0;this.end('timeout','clock');return;}
-    this.inkLeft=Math.max(0,this.inkLeft-dt);
     this.ghosts.forEach(g=>g.age+=dt);this.ghosts=this.ghosts.filter(g=>g.age<g.life);
     this.spawnLeft-=dt;
     if(this.spawnLeft<=.000001){this.spawn();this.spawnLeft=this.config.spawn;}
@@ -116,8 +116,6 @@ export class Hunt {
       return {kind:'miss',ghost:null,coins:0,penalty};
     }
     this.ghosts=this.ghosts.filter(g=>g!==ghost);
-    if(ghost.type==='bomb'){this.end('bomb');return {kind:'bomb',ghost,coins:0,penalty:0};}
-    if(ghost.type==='ink'){this.inkLeft=2.3;return {kind:'ink',ghost,coins:0,penalty:0};}
     this.hits++;this.kills++;this.waveKills++;
     const coins=ghost.type==='gold'?this.bounty.coins:0;this.coins+=coins;if(ghost.type==='gold')this.gold++;
     const hit={kind:ghost.type,ghost,coins,penalty:0};

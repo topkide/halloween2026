@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Hunt,DEFAULTS,SPECIES,TYPES,MOTIONS,pose,settings,rollMultiplier} from '../hunt-core.mjs';
+import {Hunt,DEFAULTS,SPECIES,TYPES,MOTIONS,GOLD_LIFETIME,pose,settings,rollMultiplier} from '../hunt-core.mjs';
 import {ghostSVG} from '../ghost-art.mjs';
 function rng(seed=19){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
 function briefing(config={}){const h=new Hunt({random:rng(),config});h.start();h.drain();return h;}
@@ -42,16 +42,18 @@ test('unlimited consecutive hits never require ammunition or reload',()=>{
 test('a repeated hit cannot add progress, coins, a miss penalty, or another wave transition',()=>{
  const h=playing(),g=target(h,'gold');h.shoot(g.id);const snapshot=JSON.stringify(h);assert.equal(h.shoot(g.id),null);assert.equal(JSON.stringify(h),snapshot);
 });
-test('bomb still ends immediately without awarding coins or wave progress',()=>{
- const h=playing(),remaining=h.remaining;h.shoot(target(h,'bomb').id);assert.equal(h.reason,'bomb');assert.equal(h.state,'ended');assert.equal(h.waveKills,0);assert.equal(h.coins,0);assert.equal(h.remaining,remaining);assert.equal(h.clearedWaves,0);
- const before=JSON.stringify(h);h.tick(3);assert.equal(h.shoot(),null);assert.equal(JSON.stringify(h),before);
+test('gold appears quickly, holds briefly, then expires before ordinary ghosts without a penalty',()=>{
+ const h=playing(),g=h.ghosts.find(g=>g.type==='gold'),ordinary=h.ghosts.filter(g=>g.type!=='gold');
+ assert.equal(g.age,0);assert.ok(g.life>=GOLD_LIFETIME[0]&&g.life<=GOLD_LIFETIME[1]);assert.equal(g.motion,'rise');
+ const at=u=>pose({...g,age:g.life*u},400,440),held=at(.12);
+ assert.equal(at(.04).alpha,1);assert.equal(held.y,at(.85).y);assert.equal(at(.85).alpha,1);assert.ok(at(.98).alpha<.3);assert.equal(at(1).alpha,0);
+ h.tick(g.life+.01);assert.ok(!h.ghosts.includes(g));assert.ok(ordinary.every(ghost=>h.ghosts.includes(ghost)));assert.equal(h.waveKills,0);assert.equal(h.misses,0);assert.ok(Math.abs(h.remaining-(60-g.life-.01))<1e-9);
+ assert.equal(h.shoot(g.id),null);assert.equal(h.shots,0);
 });
-test('ink obscures for 2.3 seconds while the clock continues, without counting toward the wave',()=>{
- const h=playing();const hit=h.shoot(target(h,'ink').id);assert.equal(hit.kind,'ink');assert.equal(h.inkLeft,2.3);assert.equal(h.waveKills,0);assert.equal(h.coins,0);assert.equal(h.misses,0);assert.equal(h.remaining,60);
- h.tick(1);assert.ok(h.inkLeft>1.2&&h.inkLeft<1.4);assert.equal(h.remaining,59);h.pause();const before=h.inkLeft;h.tick(4);assert.equal(h.inkLeft,before);h.resume();h.tick(1.4);assert.equal(h.inkLeft,0);assert.equal(h.state,'playing');
-});
-test('clearing or restarting a wave removes ink so its bounty preview remains readable',()=>{
- const h=playing();h.shoot(target(h,'ink').id);finishWave(h);assert.equal(h.state,'briefing');assert.equal(h.inkLeft,0);h.tick(2.4);h.shoot(target(h,'ink').id);h.start();assert.equal(h.inkLeft,0);
+test('every available ghost advances the wave; only gold awards coins and no hazard state remains',()=>{
+ const h=playing({baseGoal:20});assert.deepEqual(Object.keys(TYPES),[...SPECIES.map(s=>s.id),'gold']);
+ for(const type of Object.keys(TYPES)){const before=h.waveKills,hit=h.shoot(target(h,type).id);assert.equal(h.waveKills,before+1);assert.equal(hit.coins,type==='gold'?h.bounty.coins:0);assert.equal(h.state,'playing');}
+ assert.equal('inkLeft' in h,false);assert.equal(h.misses,0);assert.equal(h.remaining,60);
 });
 test('a lethal miss clamps the clock at zero and ends exactly once with a clear cause',()=>{
  const h=playing();h.tick(59.5);const hit=h.shoot();assert.equal(hit.penalty,.5);assert.equal(h.remaining,0);assert.equal(h.reason,'timeout');assert.equal(h.endCause,'miss');assert.equal(h.state,'ended');
@@ -66,23 +68,23 @@ test('pause freezes both gameplay and pre-wave briefings, then resumes the same 
 test('retry resets waves, coins, misses and clock without reviving old targets',()=>{
  const h=playing();h.shoot(target(h,'gold').id);h.shoot();const id=target(h).id;h.start();assert.equal(h.state,'briefing');assert.equal(h.coins,0);assert.equal(h.wave,1);assert.equal(h.clearedWaves,0);assert.equal(h.shots,0);assert.equal(h.misses,0);assert.equal(h.remaining,60);h.tick(2.4);assert.equal(h.shoot(id),null);
 });
-test('regular ghosts, gold and both hazards spawn with a strict eight-ghost cap',()=>{
+test('only ordinary and golden ghosts spawn with a strict eight-ghost cap',()=>{
  const h=playing({duration:120,spawn:.15}),seen=new Set();let peak=0;
  for(let i=0;i<1000;i++){const serial=h.serial;h.tick(.05);assert.ok(h.serial-serial<=1);peak=Math.max(peak,h.ghosts.length);assert.ok(h.ghosts.length<=8);h.ghosts.forEach(g=>seen.add(g.type));}
- assert.equal(peak,8);assert.deepEqual([...seen].sort(),[...Object.keys(TYPES)].sort());assert.equal(seen.size,8);
+ assert.equal(peak,8);assert.deepEqual([...seen].sort(),[...Object.keys(TYPES)].sort());assert.equal(seen.size,6);
  const standard=playing();const before=standard.serial;standard.tick(.49);assert.equal(standard.serial,before);standard.tick(.01);assert.equal(standard.serial,before+1);
 });
 test('wave difficulty is bounded and no goal can exceed twenty-four',()=>{
- const h=playing();for(let i=0;i<20;i++){finishWave(h);assert.ok(h.waveGoal<=24);h.tick(2.4);for(const g of h.ghosts)assert.ok(g.life>=1.4/1.4&&g.life<=2.4);}
+ const h=playing();for(let i=0;i<20;i++){finishWave(h);assert.ok(h.waveGoal<=24);h.tick(2.4);for(const g of h.ghosts)assert.ok(g.type==='gold'?g.life>=.5&&g.life<=.9:g.life>=1&&g.life<=2.4);}
  assert.equal(h.waveGoal,24);
 });
 test('multiplier weighting retains all outcomes and excludes the previous wave value',()=>{
  assert.deepEqual([0,.379,.38,.679,.68,.879,.88,.969,.97,.999].map(n=>rollMultiplier(()=>n)),[2,2,3,3,5,5,8,8,10,10]);
  for(const previous of [2,3,5,8,10])for(const n of [0,.2,.5,.8,.999])assert.notEqual(rollMultiplier(()=>n,previous),previous);
 });
-test('settings tolerate corrupt data and the current art contains eight distinct puppets',()=>{
+test('settings tolerate corrupt data and the current art contains six distinct puppets',()=>{
  assert.deepEqual(settings(null),{...DEFAULTS});assert.deepEqual(settings({duration:NaN}),{...DEFAULTS});assert.equal(settings({baseGoal:6.8}).baseGoal,7);assert.equal(settings({missPenalty:0}).missPenalty,.5);assert.equal(settings({duration:500}).duration,120);
- const art=Object.keys(TYPES).map(id=>ghostSVG(id,{color:TYPES[id].color}));assert.equal(new Set(art).size,8);art.forEach(svg=>{assert.match(svg,/<svg/);assert.doesNotMatch(svg,/<script|<foreignObject/);});
+ const art=Object.keys(TYPES).map(id=>ghostSVG(id,{color:TYPES[id].color}));assert.equal(new Set(art).size,6);art.forEach(svg=>{assert.match(svg,/<svg/);assert.doesNotMatch(svg,/<script|<foreignObject/);});
 });
 test('all six quick motion paths remain finite and upright at short and tall screen sizes',()=>{
  assert.deepEqual(Object.keys(MOTIONS),['rise','horizontal','vertical','inflate','returnX','returnY']);
