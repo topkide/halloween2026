@@ -1,4 +1,4 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-golddash1';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-goldappear1';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
 

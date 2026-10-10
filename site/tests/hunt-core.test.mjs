@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Hunt,DEFAULTS,BOUNTY_TIMING,SPECIES,TYPES,MOTIONS,GOLD_LIFETIME,pose,settings,rollMultiplier} from '../hunt-core.mjs';
+import {Hunt,DEFAULTS,BOUNTY_TIMING,SPECIES,TYPES,MOTIONS,GOLD_APPEAR_DURATION,GOLD_MOVE_DURATION,pose,settings,rollMultiplier} from '../hunt-core.mjs';
 import {ghostSVG} from '../ghost-art.mjs';
 import {STORAGE_KEY,readProgress} from '../progress.mjs';
 function rng(seed=19){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
@@ -78,9 +78,9 @@ test('a repeated hit cannot add progress, score, a miss penalty, or another wave
 });
 test('gold appears quickly, dashes out, then expires before ordinary ghosts without a penalty',()=>{
  const h=playing(),g=h.ghosts.find(g=>g.type==='gold'),ordinary=h.ghosts.filter(g=>g.type!=='gold');
- assert.equal(g.age,0);assert.ok(g.life>=GOLD_LIFETIME[0]&&g.life<=GOLD_LIFETIME[1]);assert.equal(g.motion,'goldDash');
+ assert.equal(g.age,0);assert.ok(g.life>=GOLD_APPEAR_DURATION+GOLD_MOVE_DURATION[0]&&g.life<=GOLD_APPEAR_DURATION+GOLD_MOVE_DURATION[1]);assert.equal(g.motion,'goldDash');
  const at=u=>pose({...g,age:g.life*u},400,440),held=at(.12);
- assert.equal(at(.04).alpha,1);assert.equal(held.y,at(.04).y);assert.equal(held.x,at(.04).x);assert.ok(held.x!==at(.85).x||held.y!==at(.85).y);assert.equal(at(.85).alpha,1);assert.ok(at(.98).alpha<.3);assert.equal(at(1).alpha,0);
+ assert.equal(at(.04).alpha,1);assert.equal(held.y,at(.04).y);assert.equal(held.x,at(.04).x);assert.ok(held.x!==at(.85).x||held.y!==at(.85).y);assert.equal(at(.85).alpha,1);assert.ok(at(.99).alpha<.3);assert.equal(at(1).alpha,0);
  h.tick(g.life+.01);assert.ok(!h.ghosts.includes(g));assert.ok(ordinary.every(ghost=>h.ghosts.includes(ghost)));assert.equal(h.waveKills,0);assert.equal(h.misses,0);assert.ok(Math.abs(h.remaining-(60-g.life-.01))<1e-9);
  assert.equal(h.shoot(g.id),null);assert.equal(h.shots,0);
 });
@@ -109,7 +109,7 @@ test('only ordinary and golden ghosts spawn with a strict eight-ghost cap',()=>{
  const standard=playing();const before=standard.serial;standard.tick(.22);assert.equal(standard.serial,before);standard.tick(.01);assert.equal(standard.serial,before+1);
 });
 test('wave difficulty is bounded and no goal can exceed twenty-four',()=>{
- const h=playing();for(let i=0;i<20;i++){finishWave(h);assert.ok(h.waveGoal<=24);advanceBriefing(h);for(const g of h.ghosts)assert.ok(g.type==='gold'?g.life>=.5&&g.life<=.9:g.life>=1&&g.life<=2.4);}
+ const h=playing();for(let i=0;i<20;i++){finishWave(h);assert.ok(h.waveGoal<=24);advanceBriefing(h);for(const g of h.ghosts)assert.ok(g.type==='gold'?g.life>=GOLD_APPEAR_DURATION+GOLD_MOVE_DURATION[0]/1.4&&g.life<=GOLD_APPEAR_DURATION+GOLD_MOVE_DURATION[1]:g.life>=1&&g.life<=2.4);}
  assert.equal(h.waveGoal,24);
 });
 test('multiplier weighting retains all outcomes and excludes the previous wave value',()=>{

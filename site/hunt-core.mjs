@@ -23,7 +23,8 @@ export function rollMultiplier(random=Math.random,previous=null){
   return choices.at(-1)[0];
 }
 export const MOTIONS={rise:[1.4,1.8],horizontal:[1.8,2.3],vertical:[1.8,2.3],inflate:[1.6,2],returnX:[2,2.4],returnY:[2,2.4]};
-export const GOLD_LIFETIME=Object.freeze([.7,.9]);
+export const GOLD_APPEAR_DURATION=.24;
+export const GOLD_MOVE_DURATION=Object.freeze([.6,.8]);
 export const GOLD_DIRECTIONS=Object.freeze(['east','west','south','north']);
 const patterns={wisp:['rise'],pudge:['inflate'],skitter:['horizontal'],stilt:['vertical','returnY'],grasp:['returnX'],gold:['goldDash']};
 const clamp=(n,min=0,max=1)=>Math.max(min,Math.min(max,n));
@@ -37,13 +38,13 @@ export function pose(ghost,width,height) {
   const startX=dir===1?-70:width+70,endX=dir===1?width+70:-70;
   const startY=dir===1?-80:height+80,endY=dir===1?height+80:-80;
   if(motion==='goldDash'){
-    // A brief, identical reveal gives no directional cue; then a single straight dash offscreen.
-    const travel=clamp((u-.14)/.86),edgeX=TYPES.gold.width/2+8,edgeY=TYPES.gold.height/2+8;
+    // Fully visible at its spawn point first. Movement has a separate clock after the reveal.
+    const travel=clamp((t-GOLD_APPEAR_DURATION)/Math.max(.001,ghost.life-GOLD_APPEAR_DURATION)),edgeX=TYPES.gold.width/2+8,edgeY=TYPES.gold.height/2+8;
     if(ghost.dashDirection==='west')x=mix(anchorX,-edgeX,travel);
     else if(ghost.dashDirection==='north')y=mix(anchorY,-edgeY,travel);
     else if(ghost.dashDirection==='south')y=mix(anchorY,height+edgeY,travel);
     else x=mix(anchorX,width+edgeX,travel);
-    alpha=Math.min(clamp(u/.035),clamp((1-u)/.08));
+    alpha=clamp((1-travel)/.08);
   } else if(motion==='rise'){
     // A short upward entrance, a stable aiming window, then a fade in place.
     y=anchorY+Math.min(60,height*.15)*(1-smooth(u/.24));
@@ -97,10 +98,12 @@ export class Hunt {
     if(type==='gold'&&this.waveGold+this.ghosts.filter(g=>g.type==='gold').length>=this.config.goldLimit){
       return null;
     }
-    const options=patterns[type],motion=options[Math.floor(this.random()*options.length)],[min,max]=type==='gold'?GOLD_LIFETIME:MOTIONS[motion];
+    const options=patterns[type],motion=options[Math.floor(this.random()*options.length)],[min,max]=type==='gold'?GOLD_MOVE_DURATION:MOTIONS[motion];
     const speed=1+Math.min(.4,(this.wave-1)*.04);
     const ghost={id:++this.serial,type,motion,age:0,life:mix(min,max,this.random())/speed,direction:this.random()<.5?1:-1,lane:.2+this.random()*.6,anchor:.22+this.random()*.56,seed:this.random()*6.28};
     if(type==='gold'){
+      // Difficulty changes travel speed, never the time available to see the initial appearance.
+      ghost.life+=GOLD_APPEAR_DURATION;
       ghost.dashDirection=GOLD_DIRECTIONS[Math.floor(this.random()*GOLD_DIRECTIONS.length)];
       ghost.anchor=.12+this.random()*.76;ghost.lane=.12+this.random()*.76;ghost.direction=1;
     }

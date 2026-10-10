@@ -1,7 +1,7 @@
-import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-golddash1';
-import {STORAGE_KEY as KEY,readProgress} from './progress.mjs?v=20261011-golddash1';
-import {ghostSVG} from './ghost-art.mjs?v=20261011-golddash1';
-import {createBountyReel,reelOffset,visibleBounty} from './bounty-reel.mjs?v=20261011-golddash1';
+import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-goldappear1';
+import {STORAGE_KEY as KEY,readProgress} from './progress.mjs?v=20261011-goldappear1';
+import {ghostSVG} from './ghost-art.mjs?v=20261011-goldappear1';
+import {createBountyReel,reelOffset,visibleBounty} from './bounty-reel.mjs?v=20261011-goldappear1';
 
 const $=id=>document.getElementById(id);
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));

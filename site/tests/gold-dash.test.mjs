@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Hunt,BOUNTY_TIMING,GOLD_DIRECTIONS,pose,settings} from '../hunt-core.mjs';
+import {Hunt,BOUNTY_TIMING,GOLD_DIRECTIONS,GOLD_APPEAR_DURATION,GOLD_MOVE_DURATION,pose,settings} from '../hunt-core.mjs';
 import {STORAGE_KEY,readProgress} from '../progress.mjs';
 
 function briefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);h.drain();}
@@ -67,6 +67,23 @@ test('gold direction is uniform over the RNG range and independent of its starti
     const h=new Hunt({random:()=>n});h.start();briefing(h);const g=h.ghosts.find(g=>g.type==='gold');
     assert.equal(g.dashDirection,GOLD_DIRECTIONS[i]);assert.equal(g.direction,1);assert.equal(g.motion,'goldDash');
     assert.ok(g.anchor>=.12&&g.anchor<=.88&&g.lane>=.12&&g.lane<=.88);
+  }
+});
+
+test('gold is fully visible and stationary from its first frame before any directional movement',()=>{
+  for(const wave of [1,20])for(const dashDirection of GOLD_DIRECTIONS){
+    const h=playing();h.ghosts=[];h.wave=wave;
+    const g=h.spawn('gold');g.dashDirection=dashDirection;
+    assert.ok(g.life>=GOLD_APPEAR_DURATION+GOLD_MOVE_DURATION[0]/1.4);
+    const at=t=>pose({...g,age:t},400,440),appearance=at(0);
+    assert.equal(appearance.alpha,1);
+    for(const t of [.016,.08,.16,GOLD_APPEAR_DURATION]){
+      const p=at(t);assert.equal(p.alpha,1);assert.equal(p.x,appearance.x);assert.equal(p.y,appearance.y);
+    }
+    const moving=at(GOLD_APPEAR_DURATION+.01);
+    assert.equal(moving.alpha,1);assert.ok(moving.x!==appearance.x||moving.y!==appearance.y);
+    // The fully visible appearance is also immediately shootable.
+    assert.equal(h.shoot(g.id)?.kind,'gold');
   }
 });
 

@@ -1,4 +1,4 @@
-import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261011-golddash1';
+import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261011-goldappear1';
 
 const VALUES=[2,3,5,8,10];
 export function createBountyReel(multiplier,wave){
