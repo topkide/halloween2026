@@ -1,15 +1,15 @@
 export const SPECIES = [
-  {id:'wisp',name:'길쭉이',color:'#ad9de4',points:0,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
-  {id:'pudge',name:'뚱보',color:'#bad18b',points:0,width:95,height:92,habit:'제자리에서 커졌다가 작아짐'},
-  {id:'skitter',name:'납작이',color:'#f18f75',points:0,width:98,height:63,habit:'좌우로 곧게 이동'},
-  {id:'stilt',name:'성큼이',color:'#86bfc8',points:0,width:70,height:110,habit:'위아래로 이동하거나 멈춘 뒤 돌아감'},
-  {id:'grasp',name:'주렁이',color:'#d69fcb',points:0,width:103,height:96,habit:'옆에서 와서 멈춘 뒤 같은 길로 돌아감'},
+  {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
+  {id:'pudge',name:'뚱보',color:'#bad18b',points:100,width:104,height:100,habit:'크게 나타나 제자리에서 커졌다가 작아짐'},
+  {id:'skitter',name:'납작이',color:'#f18f75',points:300,width:76,height:49,habit:'작은 몸으로 좌우로 곧게 이동'},
+  {id:'stilt',name:'성큼이',color:'#86bfc8',points:250,width:70,height:110,habit:'위아래로 이동하거나 멈춘 뒤 돌아감'},
+  {id:'grasp',name:'주렁이',color:'#d69fcb',points:150,width:103,height:96,habit:'옆에서 와서 멈춘 뒤 같은 길로 돌아감'},
 ];
 export const SPECIALS={
-  gold:{id:'gold',name:'황금 유령',color:'#f5cc68',points:100,width:83,height:91},
+  gold:{id:'gold',name:'황금 유령',color:'#f5cc68',points:500,width:83,height:91},
 };
 export const TYPES=Object.fromEntries([...SPECIES,...Object.values(SPECIALS)].map(s=>[s.id,s]));
-export const DEFAULTS=Object.freeze({duration:60,spawn:.5,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:2.4,goldBase:100,goldChance:.15});
+export const DEFAULTS=Object.freeze({duration:60,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:2.4,goldBase:SPECIALS.gold.points,goldChance:.15});
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const bound=(key,min,max)=>Number.isFinite(value[key])?Math.max(min,Math.min(max,value[key])):DEFAULTS[key];
@@ -61,15 +61,15 @@ export class Hunt {
     this.random=random;this.config=settings(config);this.state='ready';this.ghosts=[];this.events=[];this.serial=0;
   }
   start(){
-    Object.assign(this,{remaining:this.config.duration,elapsed:0,coins:0,kills:0,shots:0,hits:0,misses:0,gold:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
+    Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
     this.prepareWave();
   }
   prepareWave(){
     this.wave++;this.waveKills=0;this.waveGoal=Math.min(this.config.maxGoal,this.config.baseGoal+(this.wave-1)*this.config.goalStep);
     this.bounty={type:'gold',multiplier:rollMultiplier(this.random,this.bounty?.multiplier)};
-    this.bounty.coins=this.config.goldBase*this.bounty.multiplier;
+    this.bounty.points=this.config.goldBase*this.bounty.multiplier;
     this.state='briefing';this.briefingLeft=this.config.briefingDuration;this.ghosts=[];
-    this.events.push({kind:'wave',wave:this.wave,target:this.waveGoal,multiplier:this.bounty.multiplier,coins:this.bounty.coins});
+    this.events.push({kind:'wave',wave:this.wave,target:this.waveGoal,multiplier:this.bounty.multiplier,points:this.bounty.points});
   }
   beginWave(){
     if(this.state!=='briefing')return;
@@ -101,7 +101,8 @@ export class Hunt {
     if(this.remaining<=.000001){this.remaining=0;this.end('timeout','clock');return;}
     this.ghosts.forEach(g=>g.age+=dt);this.ghosts=this.ghosts.filter(g=>g.age<g.life);
     this.spawnLeft-=dt;
-    if(this.spawnLeft<=.000001){this.spawn();this.spawnLeft=this.config.spawn;}
+    // Preserve normal frame overshoot without releasing a burst after a slow frame.
+    if(this.spawnLeft<=.000001){this.spawn();this.spawnLeft=this.config.spawn+Math.max(this.spawnLeft,-dt);if(this.spawnLeft<=0)this.spawnLeft=this.config.spawn;}
   }
   shoot(id=null){
     if(this.state!=='playing')return null;
@@ -113,12 +114,14 @@ export class Hunt {
     if(!ghost){
       this.misses++;const penalty=Math.min(this.remaining,this.config.missPenalty);this.remaining-=penalty;
       if(this.remaining<=.000001){this.remaining=0;this.end('timeout','miss');}
-      return {kind:'miss',ghost:null,coins:0,penalty};
+      return {kind:'miss',ghost:null,points:0,penalty};
     }
     this.ghosts=this.ghosts.filter(g=>g!==ghost);
     this.hits++;this.kills++;this.waveKills++;
-    const coins=ghost.type==='gold'?this.bounty.coins:0;this.coins+=coins;if(ghost.type==='gold')this.gold++;
-    const hit={kind:ghost.type,ghost,coins,penalty:0};
+    const points=ghost.type==='gold'?this.bounty.points:TYPES[ghost.type].points;
+    this.score+=points;
+    if(ghost.type==='gold'){this.gold++;this.goldScore+=points;}else this.normalScore+=points;
+    const hit={kind:ghost.type,ghost,points,penalty:0};
     if(this.waveKills>=this.waveGoal){
       this.clearedWaves++;this.events.push({kind:'wave-clear',wave:this.wave});this.prepareWave();
     }

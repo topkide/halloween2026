@@ -1,15 +1,14 @@
-import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261010-wave2';
-import {ghostSVG} from './ghost-art.mjs?v=20261010-wave2';
+import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261010-score1';
+import {STORAGE_KEY as KEY,readProgress} from './progress.mjs?v=20261010-score1';
+import {ghostSVG} from './ghost-art.mjs?v=20261010-score1';
 
 const $=id=>document.getElementById(id);
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
-const KEY='catjump-wave-hunt-v1';
 const pointerInput=typeof window.PointerEvent==='function';
-let stored={};try{stored=JSON.parse(localStorage.getItem(KEY));if(!stored){const old=JSON.parse(localStorage.getItem('catjump-bounty-hunt-v1'))||{};stored={soundOn:old.soundOn};}}catch{}stored=stored||{};
-let config=settings(stored.config),best=Number.isSafeInteger(stored.best)&&stored.best>=0?stored.best:0,soundOn=stored.soundOn!==false;
+let {config,best,soundOn,lastResult}=readProgress(key=>localStorage.getItem(key));
 let engine=new Hunt({config}),size={width:400,height:440,scale:1,left:0,top:0};
 let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,lastBounty='',soundContext=null,mutedGain=null,shotNoise=null;
-const entities=new Map(),impacts=[];let lastResult=stored.lastResult??null;
+const entities=new Map(),impacts=[];
 const number=n=>Math.round(n).toLocaleString('ko-KR');
 function save(){try{localStorage.setItem(KEY,JSON.stringify({best,soundOn,config,lastResult}));}catch{$('storage-note').textContent='이 브라우저에서는 기록을 저장할 수 없어요.';}}
 function updateSound(){ui.sound.textContent=soundOn?'♪':'♪̸';ui.sound.setAttribute('aria-label',soundOn?'사운드 켜짐':'사운드 꺼짐');ui.sound.setAttribute('aria-pressed',String(soundOn));if(mutedGain)mutedGain.gain.value=soundOn?.2:0;}
@@ -37,12 +36,12 @@ function setText(node,text){if(node.textContent!==String(text))node.textContent=
 function toast(text,ms=1700){setText(ui['field-toast'],text);ui['field-toast'].classList.add('visible');toastUntil=performance.now()+ms;}
 function updateContract(){
   const multiplier=engine.bounty?.multiplier,key=(engine.wave??0)+':'+multiplier;if(key===lastBounty)return;lastBounty=key;
-  setText(ui['wanted-reward'],multiplier?'+'+number(engine.bounty.coins)+' 코인':number(config.goldBase)+' × 배수');setText(ui.multiplier,multiplier?'×'+multiplier:'×?');
+  setText(ui['wanted-reward'],multiplier?'+'+number(engine.bounty.points)+'점':number(config.goldBase)+'점 × 배수');setText(ui.multiplier,multiplier?'×'+multiplier:'×?');
   ui.wanted.classList.toggle('jackpot',multiplier>=8);
 }
 function updateHud(){
   const ready=engine.state==='ready',briefing=engine.state==='briefing'||(engine.state==='paused'&&engine.pausedFrom==='briefing');
-  ui.game.dataset.state=engine.state;setText(ui.coins,number(engine.coins??0));setText(ui.best,number(best));
+  ui.game.dataset.state=engine.state;setText(ui.score,number(engine.score??0));setText(ui.best,number(best));
   const remaining=engine.remaining??config.duration,time=Math.ceil(remaining);
   if(ui['time-label'].dataset.value!==String(time)){ui['time-label'].innerHTML=time+'<span>s</span>';ui['time-label'].dataset.value=String(time);}
   ui['time-fill'].style.transform='scaleX('+Math.max(0,remaining/config.duration)+')';ui.game.dataset.urgent=String(remaining<=10&&!ready);
@@ -53,7 +52,7 @@ function updateHud(){
   ui['wave-intro'].hidden=!briefing;
   if(briefing){
     setText(ui['brief-cleared'],engine.clearedWaves?engine.clearedWaves+' WAVE CLEAR · 새로운 현상금':'오늘 밤의 첫 현상금');
-    setText(ui['brief-wave'],'WAVE '+engine.wave);setText(ui['brief-base'],config.goldBase);setText(ui['brief-multiplier'],'×'+engine.bounty.multiplier);setText(ui['brief-reward'],number(engine.bounty.coins));setText(ui['brief-goal'],engine.waveGoal);setText(ui['brief-countdown'],Math.max(1,Math.ceil(engine.briefingLeft)));
+    setText(ui['brief-wave'],'WAVE '+engine.wave);setText(ui['brief-base'],config.goldBase);setText(ui['brief-multiplier'],'×'+engine.bounty.multiplier);setText(ui['brief-reward'],number(engine.bounty.points));setText(ui['brief-goal'],engine.waveGoal);setText(ui['brief-countdown'],Math.max(1,Math.ceil(engine.briefingLeft)));
   }
   updateContract();
 }
@@ -73,8 +72,8 @@ function hitEffect(hit,x,y){
   const effect=document.createElement('div');effect.className='shot-effect'+(hit.kind==='miss'?' miss':'');effect.style.left=x+'px';effect.style.top=y+'px';
   const color=hit.kind==='gold'?'#ffe094':hit.kind==='miss'?'#f6aa96':'#dce8c7';effect.style.setProperty('--hit',color);
   const art=hit.ghost?ghostSVG(hit.kind,{color:TYPES[hit.kind].color,staticPose:true}):'';
-  const small=hit.kind==='gold'?'황금 현상금':hit.kind==='miss'?'헛발!':'';
-  const text=hit.kind==='miss'?'-'+config.missPenalty+'초':hit.kind==='gold'?'+'+number(hit.coins)+' 코인':'명중';
+  const small=hit.kind==='gold'?'황금 보너스':hit.kind==='miss'?'헛발!':'';
+  const text=hit.kind==='miss'?'-'+config.missPenalty+'초':'+'+number(hit.points)+'점';
   const muzzleX=size.width*size.scale*.53,muzzleY=size.height*size.scale+16;
   const shotX=muzzleX-x,shotY=muzzleY-y,length=Math.hypot(shotX,shotY),rotation=Math.atan2(shotY,shotX)*180/Math.PI;
   const sparks=Array.from({length:3},(_,i)=>{const angle=i*Math.PI*2/3+.2;return '<i class="shot-spark" style="--dx:'+Math.cos(angle)*28+'px;--dy:'+Math.sin(angle)*28+'px;--angle:'+angle+'rad"></i>';}).join('');
@@ -115,9 +114,9 @@ function finish(reason,cause){
   if(endingTimer)return;ui['pause-dialog'].close();ui.ending.hidden=false;
   const data=reason==='quit'?['☾','사냥 종료','오늘 밤은 여기까지.']:['◷','시간 초과!',cause==='miss'?'헛발 사격으로 남은 시간을 모두 썼어요.':'남은 시간이 모두 줄어들었어요.'];
   setText(ui['ending-icon'],data[0]);setText(ui['ending-title'],data[1]);setText(ui['ending-copy'],data[2]);if(reason==='timeout')sound('timeout');
-  const isBest=engine.coins>best;best=Math.max(best,engine.coins);lastResult={coins:engine.coins,wave:engine.wave,clearedWaves:engine.clearedWaves,kills:engine.kills,gold:engine.gold,shots:engine.shots,hits:engine.hits,misses:engine.misses,reason};save();
+  const isBest=engine.score>best;best=Math.max(best,engine.score);lastResult={score:engine.score,normalScore:engine.normalScore,goldScore:engine.goldScore,wave:engine.wave,clearedWaves:engine.clearedWaves,kills:engine.kills,gold:engine.gold,shots:engine.shots,hits:engine.hits,misses:engine.misses,reason};save();
   endingTimer=setTimeout(()=>{
-    endingTimer=null;ui.ending.hidden=true;setText(ui['result-reason'],reason==='timeout'?"TIME’S UP":'HUNT COMPLETE');setText(ui['result-coins'],number(engine.coins));setText(ui['result-kills'],engine.kills);setText(ui['result-waves'],engine.clearedWaves);setText(ui['result-gold'],engine.gold);setText(ui['result-accuracy'],engine.shots?Math.round(engine.hits/engine.shots*100)+'%':'0%');ui['new-best'].hidden=!isBest;ui['result-dialog'].showModal();
+    endingTimer=null;ui.ending.hidden=true;setText(ui['result-reason'],reason==='timeout'?"TIME’S UP":'HUNT COMPLETE');setText(ui['result-score'],number(engine.score));setText(ui['result-normal-score'],number(engine.normalScore)+'점');setText(ui['result-gold-score'],number(engine.goldScore)+'점');setText(ui['result-kills'],engine.kills);setText(ui['result-waves'],engine.clearedWaves);setText(ui['result-gold'],engine.gold);setText(ui['result-accuracy'],engine.shots?Math.round(engine.hits/engine.shots*100)+'%':'0%');ui['new-best'].hidden=!isBest;ui['result-dialog'].showModal();
   },1200);
 }
 function pause(){if(engine.pause()){ui['pause-dialog'].showModal();updateHud();}}
@@ -143,6 +142,6 @@ function frame(now){
   if(now-hudAt>80){updateHud();hudAt=now;}
   requestAnimationFrame(frame);
 }
-ui.cast.innerHTML=SPECIES.map(s=>'<div title="'+s.habit+'">'+ghostSVG(s.id,{color:s.color})+'<small>'+s.name+'</small></div>').join('');
+ui.cast.innerHTML=[...SPECIES].sort((a,b)=>a.points-b.points).map(s=>'<div title="'+s.habit+' · '+s.points+'점">'+ghostSVG(s.id,{color:s.color})+'<small>'+s.name+'</small><strong>'+s.points+'점</strong></div>').join('');
 ui['wanted-art'].innerHTML=ghostSVG('gold',{color:TYPES.gold.color,staticPose:true});ui['brief-art'].innerHTML=ghostSVG('gold',{color:TYPES.gold.color,staticPose:true});
 measure();updateSound();ready();requestAnimationFrame(frame);

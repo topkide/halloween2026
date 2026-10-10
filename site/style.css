@@ -95,10 +95,11 @@ button:active:not(:disabled){filter:brightness(1.12)}
 .eyebrow{font:600 8px 'Space Grotesk',sans-serif;letter-spacing:2.1px;color:#aabd97}
 .intro-panel h2{font-size:31px;line-height:1.28;font-weight:800;letter-spacing:-1.7px;margin:12px 0 4px}
 .intro-panel h2 em{font-style:normal;color:#dfe8b5}
-.cast{display:flex;align-items:center;justify-content:center;width:min(100%,320px);height:89px;margin:2px 0}
+.cast{display:flex;align-items:center;justify-content:center;width:min(100%,320px);height:108px;margin:2px 0}
 .cast>div{flex:1;min-width:0;height:100%;position:relative}
 .cast svg{width:100%;height:79px}
-.cast small{position:absolute;bottom:-3px;left:0;right:0;color:#a6b6aa;font-size:8px}
+.cast small{position:absolute;bottom:17px;left:0;right:0;color:#a6b6aa;font-size:8px}
+.cast strong{position:absolute;bottom:0;left:0;right:0;font:600 12px 'Space Grotesk',sans-serif;color:#e5e9b8}
 .intro-panel>p{font-size:12px;line-height:1.8;color:#afc0b6;margin:12px 0 15px}
 .intro-panel>p b{color:#e7e6c2;font-weight:600}
 .primary-button{display:flex;align-items:center;justify-content:center;gap:28px;width:100%;padding:14px 18px;min-height:49px;border:1px solid #e4e9bb;background:#dce7ad;color:#23322c;border-radius:7px;font-size:14px;font-weight:800;box-shadow:0 4px #7e916959}
@@ -196,7 +197,7 @@ to{opacity:0;transform:scale(1.2)}
 .wanted-bottom>b{font-size:14px}
 .intro-panel{padding-block:13px}
 .intro-panel h2{font-size:25px;margin:7px 0 0}
-.cast{height:66px;margin:0}
+.cast{height:86px;margin:0;flex-shrink:0}
 .cast svg{height:59px}
 .intro-panel>p{font-size:10px;margin:8px 0 10px}
 .special-guide{margin-top:11px}
