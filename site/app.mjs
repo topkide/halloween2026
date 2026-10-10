@@ -1,7 +1,7 @@
-import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261010-reel1';
-import {STORAGE_KEY as KEY,readProgress} from './progress.mjs?v=20261010-reel1';
-import {ghostSVG} from './ghost-art.mjs?v=20261010-reel1';
-import {createBountyReel,reelOffset,visibleBounty} from './bounty-reel.mjs?v=20261010-reel1';
+import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-goldcap1';
+import {STORAGE_KEY as KEY,readProgress} from './progress.mjs?v=20261011-goldcap1';
+import {ghostSVG} from './ghost-art.mjs?v=20261011-goldcap1';
+import {createBountyReel,reelOffset,visibleBounty} from './bounty-reel.mjs?v=20261011-goldcap1';
 
 const $=id=>document.getElementById(id);
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
@@ -62,6 +62,9 @@ function updateHud(){
   setText(ui['wave-number'],engine.wave??1);setText(ui['wave-count'],engine.waveKills??0);setText(ui['wave-goal'],engine.waveGoal??config.baseGoal);
   ui['wave-fill'].style.transform='scaleX('+((engine.waveKills??0)/(engine.waveGoal??config.baseGoal))+')';
   setText(ui['miss-cost'],config.missPenalty);setText(ui['intro-time'],config.duration);setText(ui['intro-penalty'],config.missPenalty);
+  setText(ui['intro-gold-limit'],config.goldLimit);
+  const waveGold=engine.waveGold??0;
+  setText(ui['wanted-limit'],'황금 '+waveGold+'/'+config.goldLimit+(waveGold>=config.goldLimit?' · 완료':' 처치'));
   ui.pause.disabled=!['playing','briefing'].includes(engine.state);ui['settings-open'].disabled=!ready;
   ui['wave-intro'].hidden=!briefing;
   if(briefing){
@@ -105,6 +108,7 @@ function flushEvents(){for(const event of engine.drain()){
   if(event.kind==='wave'){clearVisuals();prepareBountyReel();updateContract();updateHud();sound('reel-tick');lastReelSoundAt=performance.now();}
   if(event.kind==='bounty-reveal'){sound(event.multiplier>=8?'gold':'bounty-stop');updateContract();updateHud();}
   if(event.kind==='wave-start')sound('wave');
+  if(event.kind==='gold-limit')toast('황금 사냥 완료! 일반 유령을 잡아 다음 웨이브로',2000);
   if(event.kind==='end')finish(event.reason,event.cause);
 }}
 function fire(event){
@@ -147,10 +151,10 @@ ui['pause-dialog'].addEventListener('cancel',event=>{event.preventDefault();resu
 ui.sound.addEventListener('click',()=>{soundOn=!soundOn;updateSound();save();});
 document.addEventListener('keydown',event=>{if(event.repeat||event.target.matches('input'))return;if(event.key==='Escape'&&['playing','briefing'].includes(engine.state)){event.preventDefault();pause();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing','briefing'].includes(engine.state))pause();lastFrame=performance.now();});
-function fillSettings(){ui['setting-duration'].value=config.duration;ui['setting-penalty'].value=config.missPenalty;ui['setting-goal'].value=config.baseGoal;ui['setting-spawn'].value=config.spawn;}
+function fillSettings(){ui['setting-duration'].value=config.duration;ui['setting-penalty'].value=config.missPenalty;ui['setting-goal'].value=config.baseGoal;ui['setting-spawn'].value=config.spawn;ui['setting-gold-limit'].value=config.goldLimit;}
 ui['settings-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;fillSettings();setText(ui['settings-status'],'');ui['settings-dialog'].showModal();});
 ui['settings-close'].addEventListener('click',()=>ui['settings-dialog'].close());
-ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({duration:Number(ui['setting-duration'].value),missPenalty:Number(ui['setting-penalty'].value),baseGoal:Number(ui['setting-goal'].value),spawn:Number(ui['setting-spawn'].value)});save();ui['settings-dialog'].close();ready();});
+ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({duration:Number(ui['setting-duration'].value),missPenalty:Number(ui['setting-penalty'].value),baseGoal:Number(ui['setting-goal'].value),spawn:Number(ui['setting-spawn'].value),goldLimit:Number(ui['setting-gold-limit'].value)});save();ui['settings-dialog'].close();ready();});
 ui.defaults.addEventListener('click',()=>{config={...DEFAULTS};fillSettings();save();ready();setText(ui['settings-status'],'기본값을 복원했어요.');});
 ui['reset-open'].addEventListener('click',()=>{if(ui['settings-dialog'].open)ui['reset-dialog'].showModal();});ui['reset-cancel'].addEventListener('click',()=>ui['reset-dialog'].close());
 ui['reset-confirm'].addEventListener('click',()=>{if(!ui['reset-dialog'].open||engine.state!=='ready')return;best=0;lastResult=null;save();ui['reset-dialog'].close();updateHud();setText(ui['settings-status'],'사냥 기록을 초기화했어요.');});

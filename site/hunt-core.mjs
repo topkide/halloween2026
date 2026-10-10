@@ -10,11 +10,11 @@ export const SPECIALS={
 };
 export const TYPES=Object.fromEntries([...SPECIES,...Object.values(SPECIALS)].map(s=>[s.id,s]));
 export const BOUNTY_TIMING=Object.freeze({spin:1.8,hold:1.1});
-export const DEFAULTS=Object.freeze({duration:60,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldChance:.15});
+export const DEFAULTS=Object.freeze({duration:60,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldChance:.15,goldLimit:2});
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const bound=(key,min,max)=>Number.isFinite(value[key])?Math.max(min,Math.min(max,value[key])):DEFAULTS[key];
-  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',.5,5),baseGoal:Math.round(bound('baseGoal',4,20))};
+  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',.5,5),baseGoal:Math.round(bound('baseGoal',4,20)),goldLimit:Math.round(bound('goldLimit',1,10))};
 }
 export function rollMultiplier(random=Math.random,previous=null){
   const choices=[[2,38],[3,30],[5,20],[8,9],[10,3]].filter(([value])=>value!==previous);
@@ -66,7 +66,7 @@ export class Hunt {
     this.prepareWave();
   }
   prepareWave(){
-    this.wave++;this.waveKills=0;this.waveGoal=Math.min(this.config.maxGoal,this.config.baseGoal+(this.wave-1)*this.config.goalStep);
+    this.wave++;this.waveKills=0;this.waveGold=0;this.waveGoal=Math.min(this.config.maxGoal,this.config.baseGoal+(this.wave-1)*this.config.goalStep);
     this.bounty={type:'gold',multiplier:rollMultiplier(this.random,this.bounty?.multiplier)};
     this.bounty.points=this.config.goldBase*this.bounty.multiplier;
     this.state='briefing';this.briefingLeft=this.config.briefingDuration;this.bountyRevealed=false;this.ghosts=[];
@@ -75,7 +75,7 @@ export class Hunt {
   beginWave(){
     if(this.state!=='briefing'||!this.bountyRevealed)return;
     this.state='playing';this.briefingLeft=0;this.spawnLeft=this.config.spawn;
-    // Every wave offers a golden bounty immediately, then random extras can appear.
+    // Every wave offers a golden bounty immediately, then random chances until the capture cap.
     for(let i=0;i<3;i++){
       const type=i===1?'gold':SPECIES[Math.floor(this.random()*SPECIES.length)].id;
       const g=this.spawn(type);
@@ -86,7 +86,12 @@ export class Hunt {
   spawn(forced){
     if(this.ghosts.length>=this.config.maxGhosts)return null;
     const n=this.random();
-    const type=forced??(n<this.config.goldChance?'gold':SPECIES[Math.floor(this.random()*SPECIES.length)].id);
+    let type=forced??(n<this.config.goldChance?'gold':SPECIES[Math.floor(this.random()*SPECIES.length)].id);
+    // Live gold reserves a slot, but only a successful hit consumes it. Escapes free the slot.
+    if(type==='gold'&&this.waveGold+this.ghosts.filter(g=>g.type==='gold').length>=this.config.goldLimit){
+      if(forced==='gold')return null;
+      type=SPECIES[Math.floor(this.random()*SPECIES.length)].id;
+    }
     const options=patterns[type],motion=options[Math.floor(this.random()*options.length)],[min,max]=type==='gold'?GOLD_LIFETIME:MOTIONS[motion];
     const speed=1+Math.min(.4,(this.wave-1)*.04);
     const ghost={id:++this.serial,type,motion,age:0,life:mix(min,max,this.random())/speed,direction:this.random()<.5?1:-1,lane:.2+this.random()*.6,anchor:.22+this.random()*.56,seed:this.random()*6.28};
@@ -127,7 +132,10 @@ export class Hunt {
     this.hits++;this.kills++;this.waveKills++;
     const points=ghost.type==='gold'?this.bounty.points:TYPES[ghost.type].points;
     this.score+=points;
-    if(ghost.type==='gold'){this.gold++;this.goldScore+=points;}else this.normalScore+=points;
+    if(ghost.type==='gold'){
+      this.gold++;this.waveGold++;this.goldScore+=points;
+      if(this.waveGold===this.config.goldLimit)this.events.push({kind:'gold-limit',wave:this.wave});
+    }else this.normalScore+=points;
     const hit={kind:ghost.type,ghost,points,penalty:0};
     if(this.waveKills>=this.waveGoal){
       this.clearedWaves++;this.events.push({kind:'wave-clear',wave:this.wave});this.prepareWave();
