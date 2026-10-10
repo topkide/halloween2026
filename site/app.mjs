@@ -1,7 +1,7 @@
-import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-goldcap1';
-import {STORAGE_KEY as KEY,readProgress} from './progress.mjs?v=20261011-goldcap1';
-import {ghostSVG} from './ghost-art.mjs?v=20261011-goldcap1';
-import {createBountyReel,reelOffset,visibleBounty} from './bounty-reel.mjs?v=20261011-goldcap1';
+import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-golddash1';
+import {STORAGE_KEY as KEY,readProgress} from './progress.mjs?v=20261011-golddash1';
+import {ghostSVG} from './ghost-art.mjs?v=20261011-golddash1';
+import {createBountyReel,reelOffset,visibleBounty} from './bounty-reel.mjs?v=20261011-golddash1';
 
 const $=id=>document.getElementById(id);
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
@@ -151,10 +151,10 @@ ui['pause-dialog'].addEventListener('cancel',event=>{event.preventDefault();resu
 ui.sound.addEventListener('click',()=>{soundOn=!soundOn;updateSound();save();});
 document.addEventListener('keydown',event=>{if(event.repeat||event.target.matches('input'))return;if(event.key==='Escape'&&['playing','briefing'].includes(engine.state)){event.preventDefault();pause();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing','briefing'].includes(engine.state))pause();lastFrame=performance.now();});
-function fillSettings(){ui['setting-duration'].value=config.duration;ui['setting-penalty'].value=config.missPenalty;ui['setting-goal'].value=config.baseGoal;ui['setting-spawn'].value=config.spawn;ui['setting-gold-limit'].value=config.goldLimit;}
+function fillSettings(){ui['setting-duration'].value=config.duration;ui['setting-penalty'].value=config.missPenalty;ui['setting-goal'].value=config.baseGoal;ui['setting-spawn'].value=config.spawn;ui['setting-gold-limit'].value=config.goldLimit;ui['setting-gold-interval'].value=config.goldInterval;}
 ui['settings-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;fillSettings();setText(ui['settings-status'],'');ui['settings-dialog'].showModal();});
 ui['settings-close'].addEventListener('click',()=>ui['settings-dialog'].close());
-ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({duration:Number(ui['setting-duration'].value),missPenalty:Number(ui['setting-penalty'].value),baseGoal:Number(ui['setting-goal'].value),spawn:Number(ui['setting-spawn'].value),goldLimit:Number(ui['setting-gold-limit'].value)});save();ui['settings-dialog'].close();ready();});
+ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({duration:Number(ui['setting-duration'].value),missPenalty:Number(ui['setting-penalty'].value),baseGoal:Number(ui['setting-goal'].value),spawn:Number(ui['setting-spawn'].value),goldLimit:Number(ui['setting-gold-limit'].value),goldInterval:Number(ui['setting-gold-interval'].value)});save();ui['settings-dialog'].close();ready();});
 ui.defaults.addEventListener('click',()=>{config={...DEFAULTS};fillSettings();save();ready();setText(ui['settings-status'],'기본값을 복원했어요.');});
 ui['reset-open'].addEventListener('click',()=>{if(ui['settings-dialog'].open)ui['reset-dialog'].showModal();});ui['reset-cancel'].addEventListener('click',()=>ui['reset-dialog'].close());
 ui['reset-confirm'].addEventListener('click',()=>{if(!ui['reset-dialog'].open||engine.state!=='ready')return;best=0;lastResult=null;save();ui['reset-dialog'].close();updateHud();setText(ui['settings-status'],'사냥 기록을 초기화했어요.');});

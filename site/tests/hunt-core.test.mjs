@@ -76,11 +76,11 @@ test('unlimited consecutive hits never require ammunition or reload',()=>{
 test('a repeated hit cannot add progress, score, a miss penalty, or another wave transition',()=>{
  const h=playing(),g=target(h,'gold');h.shoot(g.id);const snapshot=JSON.stringify(h);assert.equal(h.shoot(g.id),null);assert.equal(JSON.stringify(h),snapshot);
 });
-test('gold appears quickly, holds briefly, then expires before ordinary ghosts without a penalty',()=>{
+test('gold appears quickly, dashes out, then expires before ordinary ghosts without a penalty',()=>{
  const h=playing(),g=h.ghosts.find(g=>g.type==='gold'),ordinary=h.ghosts.filter(g=>g.type!=='gold');
- assert.equal(g.age,0);assert.ok(g.life>=GOLD_LIFETIME[0]&&g.life<=GOLD_LIFETIME[1]);assert.equal(g.motion,'rise');
+ assert.equal(g.age,0);assert.ok(g.life>=GOLD_LIFETIME[0]&&g.life<=GOLD_LIFETIME[1]);assert.equal(g.motion,'goldDash');
  const at=u=>pose({...g,age:g.life*u},400,440),held=at(.12);
- assert.equal(at(.04).alpha,1);assert.equal(held.y,at(.85).y);assert.equal(at(.85).alpha,1);assert.ok(at(.98).alpha<.3);assert.equal(at(1).alpha,0);
+ assert.equal(at(.04).alpha,1);assert.equal(held.y,at(.04).y);assert.equal(held.x,at(.04).x);assert.ok(held.x!==at(.85).x||held.y!==at(.85).y);assert.equal(at(.85).alpha,1);assert.ok(at(.98).alpha<.3);assert.equal(at(1).alpha,0);
  h.tick(g.life+.01);assert.ok(!h.ghosts.includes(g));assert.ok(ordinary.every(ghost=>h.ghosts.includes(ghost)));assert.equal(h.waveKills,0);assert.equal(h.misses,0);assert.ok(Math.abs(h.remaining-(60-g.life-.01))<1e-9);
  assert.equal(h.shoot(g.id),null);assert.equal(h.shots,0);
 });

@@ -10,11 +10,11 @@ export const SPECIALS={
 };
 export const TYPES=Object.fromEntries([...SPECIES,...Object.values(SPECIALS)].map(s=>[s.id,s]));
 export const BOUNTY_TIMING=Object.freeze({spin:1.8,hold:1.1});
-export const DEFAULTS=Object.freeze({duration:60,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldChance:.15,goldLimit:2});
+export const DEFAULTS=Object.freeze({duration:60,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldInterval:4,goldLimit:2});
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const bound=(key,min,max)=>Number.isFinite(value[key])?Math.max(min,Math.min(max,value[key])):DEFAULTS[key];
-  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',.5,5),baseGoal:Math.round(bound('baseGoal',4,20)),goldLimit:Math.round(bound('goldLimit',1,10))};
+  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',.5,5),baseGoal:Math.round(bound('baseGoal',4,20)),goldLimit:Math.round(bound('goldLimit',1,10)),goldInterval:bound('goldInterval',1,30)};
 }
 export function rollMultiplier(random=Math.random,previous=null){
   const choices=[[2,38],[3,30],[5,20],[8,9],[10,3]].filter(([value])=>value!==previous);
@@ -24,7 +24,8 @@ export function rollMultiplier(random=Math.random,previous=null){
 }
 export const MOTIONS={rise:[1.4,1.8],horizontal:[1.8,2.3],vertical:[1.8,2.3],inflate:[1.6,2],returnX:[2,2.4],returnY:[2,2.4]};
 export const GOLD_LIFETIME=Object.freeze([.7,.9]);
-const patterns={wisp:['rise'],pudge:['inflate'],skitter:['horizontal'],stilt:['vertical','returnY'],grasp:['returnX'],gold:['rise']};
+export const GOLD_DIRECTIONS=Object.freeze(['east','west','south','north']);
+const patterns={wisp:['rise'],pudge:['inflate'],skitter:['horizontal'],stilt:['vertical','returnY'],grasp:['returnX'],gold:['goldDash']};
 const clamp=(n,min=0,max=1)=>Math.max(min,Math.min(max,n));
 const mix=(a,b,t)=>a+(b-a)*t;
 const smooth=t=>{t=clamp(t);return t*t*(3-2*t);};
@@ -35,11 +36,18 @@ export function pose(ghost,width,height) {
   let x=anchorX,y=anchorY,sx=1,sy=1,alpha=1;
   const startX=dir===1?-70:width+70,endX=dir===1?width+70:-70;
   const startY=dir===1?-80:height+80,endY=dir===1?height+80:-80;
-  if(motion==='rise'){
+  if(motion==='goldDash'){
+    // A brief, identical reveal gives no directional cue; then a single straight dash offscreen.
+    const travel=clamp((u-.14)/.86),edgeX=TYPES.gold.width/2+8,edgeY=TYPES.gold.height/2+8;
+    if(ghost.dashDirection==='west')x=mix(anchorX,-edgeX,travel);
+    else if(ghost.dashDirection==='north')y=mix(anchorY,-edgeY,travel);
+    else if(ghost.dashDirection==='south')y=mix(anchorY,height+edgeY,travel);
+    else x=mix(anchorX,width+edgeX,travel);
+    alpha=Math.min(clamp(u/.035),clamp((1-u)/.08));
+  } else if(motion==='rise'){
     // A short upward entrance, a stable aiming window, then a fade in place.
-    const gold=ghost.type==='gold';
-    y=anchorY+Math.min(gold?24:60,height*.15)*(1-smooth(u/(gold ? .12 : .24)));
-    alpha=Math.min(clamp(u/(gold ? .04 : .1)),clamp((1-u)/(gold ? .1 : .16)));
+    y=anchorY+Math.min(60,height*.15)*(1-smooth(u/.24));
+    alpha=Math.min(clamp(u/.1),clamp((1-u)/.16));
   } else if(motion==='horizontal'){
     x=mix(startX,endX,u);
   } else if(motion==='vertical'){
@@ -62,7 +70,7 @@ export class Hunt {
     this.random=random;this.config=settings(config);this.state='ready';this.ghosts=[];this.events=[];this.serial=0;
   }
   start(){
-    Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
+    Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,goldSpawnLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
     this.prepareWave();
   }
   prepareWave(){
@@ -75,27 +83,35 @@ export class Hunt {
   beginWave(){
     if(this.state!=='briefing'||!this.bountyRevealed)return;
     this.state='playing';this.briefingLeft=0;this.spawnLeft=this.config.spawn;
-    // Every wave offers a golden bounty immediately, then random chances until the capture cap.
+    // Only the first wave is guaranteed an immediate gold. Later waves keep the run's cooldown.
     for(let i=0;i<3;i++){
-      const type=i===1?'gold':SPECIES[Math.floor(this.random()*SPECIES.length)].id;
-      const g=this.spawn(type);
-      if(type!=='gold'){g.age=g.life*.18;g.lane=.25+i*.25;g.anchor=.3;}
+      const g=(i===1?this.spawnGoldIfReady():null)??this.spawn();
+      if(g.type!=='gold'){g.age=g.life*.18;g.lane=.25+i*.25;g.anchor=.3;}
     }
     this.events.push({kind:'wave-start',wave:this.wave});
   }
   spawn(forced){
     if(this.ghosts.length>=this.config.maxGhosts)return null;
-    const n=this.random();
-    let type=forced??(n<this.config.goldChance?'gold':SPECIES[Math.floor(this.random()*SPECIES.length)].id);
+    const type=forced??SPECIES[Math.floor(this.random()*SPECIES.length)].id;
     // Live gold reserves a slot, but only a successful hit consumes it. Escapes free the slot.
     if(type==='gold'&&this.waveGold+this.ghosts.filter(g=>g.type==='gold').length>=this.config.goldLimit){
-      if(forced==='gold')return null;
-      type=SPECIES[Math.floor(this.random()*SPECIES.length)].id;
+      return null;
     }
     const options=patterns[type],motion=options[Math.floor(this.random()*options.length)],[min,max]=type==='gold'?GOLD_LIFETIME:MOTIONS[motion];
     const speed=1+Math.min(.4,(this.wave-1)*.04);
     const ghost={id:++this.serial,type,motion,age:0,life:mix(min,max,this.random())/speed,direction:this.random()<.5?1:-1,lane:.2+this.random()*.6,anchor:.22+this.random()*.56,seed:this.random()*6.28};
+    if(type==='gold'){
+      ghost.dashDirection=GOLD_DIRECTIONS[Math.floor(this.random()*GOLD_DIRECTIONS.length)];
+      ghost.anchor=.12+this.random()*.76;ghost.lane=.12+this.random()*.76;ghost.direction=1;
+    }
     this.ghosts.push(ghost);return ghost;
+  }
+  spawnGoldIfReady(){
+    if(this.goldSpawnLeft>.000001)return null;
+    const ghost=this.spawn('gold');
+    // Reset from an actual appearance. A full field/quota defers one chance, never a burst.
+    if(ghost)this.goldSpawnLeft=this.config.goldInterval;
+    return ghost;
   }
   tick(dt){
     if(!Number.isFinite(dt)||dt<=0)return;
@@ -112,7 +128,10 @@ export class Hunt {
     dt=Math.min(dt,this.remaining);this.remaining-=dt;this.elapsed+=dt;
     if(this.remaining<=.000001){this.remaining=0;this.end('timeout','clock');return;}
     this.ghosts.forEach(g=>g.age+=dt);this.ghosts=this.ghosts.filter(g=>g.age<g.life);
+    this.goldSpawnLeft=Math.max(0,this.goldSpawnLeft-dt);
     this.spawnLeft-=dt;
+    // Gold takes priority when due; don't release an ordinary target in the same frame.
+    if(this.spawnGoldIfReady()){this.spawnLeft=this.config.spawn;return;}
     // Preserve normal frame overshoot without releasing a burst after a slow frame.
     if(this.spawnLeft<=.000001){this.spawn();this.spawnLeft=this.config.spawn+Math.max(this.spawnLeft,-dt);if(this.spawnLeft<=0)this.spawnLeft=this.config.spawn;}
   }

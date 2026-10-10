@@ -5,7 +5,7 @@ import {STORAGE_KEY,readProgress} from '../progress.mjs';
 
 function advanceBriefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);h.drain();}
 function playing(config={}){
-  // Every random spawn attempts gold, exercising the limit at its highest pressure.
+  // Fixed RNG makes the scheduled gold and ordinary targets deterministic.
   const h=new Hunt({random:()=>.01,config});h.start();advanceBriefing(h);return h;
 }
 function hit(h,g){g.age=g.life*.3;return h.shoot(g.id);}
@@ -29,6 +29,7 @@ test('escaping gold releases its slot without consuming a capture, reward, or mi
   h.tick(escaped.life+.01);
   assert.ok(!h.ghosts.includes(escaped));assert.equal(h.shoot(escaped.id),null);
   assert.equal(h.waveGold,0);assert.equal(h.goldScore,0);assert.equal(h.waveKills,0);assert.equal(h.misses,0);
+  assert.ok(h.ghosts.every(g=>g.type!=='gold'));h.tick(h.goldSpawnLeft);
   const retry=h.ghosts.find(g=>g.type==='gold');assert.ok(retry);assert.notEqual(retry.id,escaped.id);
   hit(h,retry);assert.equal(h.waveGold,1);assert.equal(h.goldScore,h.bounty.points);
   for(let i=0;i<100;i++){h.tick(.05);assert.ok(h.ghosts.every(g=>g.type!=='gold'));}
@@ -38,6 +39,7 @@ test('an escape after one capture preserves the remaining opportunity',()=>{
   const h=playing(),first=h.ghosts.find(g=>g.type==='gold'),escaped=h.spawn('gold');
   hit(h,first);h.tick(escaped.life+.01);
   assert.equal(h.waveGold,1);assert.equal(h.gold,1);
+  h.tick(h.goldSpawnLeft);
   const retry=h.ghosts.find(g=>g.type==='gold');assert.ok(retry);hit(h,retry);
   assert.equal(h.waveGold,2);assert.equal(h.gold,2);assert.equal(h.goldScore,2*h.bounty.points);
 });
@@ -48,6 +50,7 @@ test('ordinary captures unlock a new quota and a new wave bounty; restart clears
   while(h.state==='playing')hit(h,h.spawn('wisp'));
   assert.equal(h.wave,2);assert.equal(h.waveGold,0);assert.equal(h.gold,2);assert.equal(h.goldScore,reward);
   assert.notEqual(h.bounty.multiplier,previous);advanceBriefing(h);
+  assert.ok(h.ghosts.every(g=>g.type!=='gold'));h.tick(h.goldSpawnLeft);
   hit(h,h.ghosts.find(g=>g.type==='gold'));assert.equal(h.waveGold,1);assert.equal(h.gold,3);
   h.pause();h.tick(10);assert.equal(h.waveGold,1);h.resume();assert.equal(h.waveGold,1);
   h.start();assert.equal(h.waveGold,0);assert.equal(h.gold,0);assert.equal(h.wave,1);assert.equal(h.score,0);
