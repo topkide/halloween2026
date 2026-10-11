@@ -181,9 +181,9 @@ function fire(event){
 }
 if(pointerInput)ui.arena.addEventListener('pointerdown',fire);ui.arena.addEventListener('click',fire);
 function start(){
-  if(engine.state!=='ready')return;const entry=useTicket(eventData);if(!entry.ok)return;
+  if(engine.state!=='ready'&&!(engine.state==='ended'&&ui['result-dialog'].open))return;const entry=useTicket(eventData);if(!entry.ok)return;
   const previous=eventData;eventData=entry.state;if(!save()){eventData=previous;return;}
-  ui['upgrade-dialog'].close();clearVisuals();showScreen('hunt-screen');
+  ui['upgrade-dialog'].close();ui['result-dialog'].close();clearVisuals();showScreen('hunt-screen');
   currentRunId=crypto.randomUUID();engine=new Hunt({config,upgrades:economy.levels,weapon:entry.weapon,spawnMultiplier:entry.spawnMultiplier});engine.start();lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();
 }
 function ready(){
@@ -216,6 +216,7 @@ function renderResult(){
   setText(ui['result-event-coins'],'+'+number(rewards.eventCoins*(doubled?2:1)));
   setText(ui['result-waves'],lastResult.clearedWaves);
   setText(ui['result-tickets'],'('+eventData.tickets+'/'+EVENT.maxTickets+')');
+  ui['result-retry'].disabled=eventData.tickets===0;
   ui['result-double'].disabled=doubled||rewards.eventCoins===0;
   ui['result-double'].dataset.claimed=String(doubled);
   setText(ui['result-double-label'],doubled?'적용 중':'보상 2배');
@@ -230,7 +231,7 @@ ui['continue-ad'].addEventListener('click',()=>{
   if(!ui['continue-dialog'].open||!engine.continueRun())return;
   ui['continue-dialog'].close();clearVisuals();showScreen('hunt-screen');lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();sound('bounty-stop');
 });
-ui['result-retry'].addEventListener('click',()=>{ready();openUpgrades();});ui['upgrade-open'].addEventListener('click',openUpgrades);ui['upgrade-start'].addEventListener('click',start);
+ui['result-retry'].addEventListener('click',()=>{if(ui['result-dialog'].open)start();});ui['upgrade-open'].addEventListener('click',openUpgrades);ui['upgrade-start'].addEventListener('click',start);
 ui['upgrade-cards'].addEventListener('click',event=>{
   const button=event.target.closest('[data-upgrade]');if(!button||button.disabled||engine.state!=='ready')return;
   const key=button.dataset.upgrade,purchase=buyUpgrade(economy,key);if(!purchase.ok)return;

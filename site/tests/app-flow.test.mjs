@@ -59,7 +59,7 @@ function application(audio=null,saved=null,{storageFails=false,reducedMotion=fal
   const finishTimers=()=>{for(const [id,callback] of [...timers]){timers.delete(id);callback();}};
   const end=()=>{flow.hunt.end('timeout','clock');flow.flushEvents();finishTimers();};
   const catchOne=()=>{const ghost=flow.hunt.spawn('pudge');ghost.age=ghost.life*.3;flow.hunt.shoot(ghost.id);flow.flushEvents();};
-  return {flow,nodes,start,advance,end,catchOne,finishTimers,stored:()=>JSON.parse(storage.get(KEY)??'null')};
+  return {flow,nodes,start,advance,end,catchOne,finishTimers,setStorageFailure:value=>{storageFails=value;},stored:()=>JSON.parse(storage.get(KEY)??'null')};
 }
 
 const settingFields=[['setting-duration','duration'],['setting-recovery-percent','waveRecoveryPercent'],['setting-recovery-limit','recoveryLimit'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit'],['setting-miss-penalty','missPenalty']];
@@ -270,11 +270,44 @@ test('back or Escape from the continue dialog opens results and preserves earned
   }
 });
 
-test('retry opens upgrades without a ticket charge and a new entry restores its one continue allowance',()=>{
-  const app=application();app.start();app.advance();app.end();app.nodes.get('continue-back').click();
-  app.nodes.get('result-retry').click();assert.equal(app.nodes.get('upgrade-dialog').open,true);assert.equal(app.flow.tickets,4);
-  app.nodes.get('upgrade-start').click();assert.equal(app.flow.tickets,3);assert.equal(app.flow.hunt.continueUsed,false);
+test('retry immediately starts one fresh run, preserving settings and upgrades without restoring consumed boosts',()=>{
+  const config=settings({duration:123.5,spawn:.4,ghostCoins:{wisp:12.5}}),levels={time:3,gold:4,shop:5};
+  const app=application(null,{progressVersion:PROGRESS_VERSION,config,economy:{levels},eventState:{tickets:3,shotgunReady:true,ghostsX2Ready:true}});
+  app.start();assert.equal(app.flow.hunt.weapon,'shotgun');assert.equal(app.flow.hunt.spawnMultiplier,2);app.advance();
+  for(let i=0;i<8;i++)app.catchOne();app.advance();app.end();
+  app.nodes.get('continue-ad').click();app.advance();app.end();
+  assert.equal(app.flow.hunt.continueUsed,true);assert.equal(app.nodes.get('result-dialog').open,true);
+  app.nodes.get('result-double').click();
+  const oldRunId=app.flow.runId,coins={...app.flow.coins},result=app.stored().lastResult;
+  app.nodes.get('result-retry').click();
+  const hunt=app.flow.hunt,newRunId=app.flow.runId;
+  assert.equal(hunt.state,'briefing');assert.equal(hunt.wave,1);assert.equal(hunt.kills,0);assert.equal(hunt.remaining,123.5);
+  assert.equal(hunt.continueUsed,false);assert.equal(hunt.weapon,'standard');assert.equal(hunt.spawnMultiplier,1);
+  assert.notEqual(newRunId,oldRunId);assert.equal(app.flow.tickets,1);assert.equal(app.stored().eventState.tickets,1);
+  assert.deepEqual(hunt.config,config);assert.deepEqual(hunt.upgrades,levels);assert.deepEqual(app.flow.coins,coins);
+  assert.deepEqual(app.stored().lastResult,result);assert.equal(app.nodes.get('result-dialog').open,false);assert.equal(app.nodes.get('upgrade-dialog').open,false);
+  app.nodes.get('result-retry').click();
+  assert.equal(app.flow.hunt,hunt);assert.equal(app.flow.runId,newRunId);assert.equal(app.flow.tickets,1);
   app.advance();app.end();assert.equal(app.nodes.get('continue-dialog').open,true);
+});
+
+test('retry with no tickets or failed storage preserves the completed run, wallet and available bonus',()=>{
+  for(const failure of ['tickets','storage']){
+    const app=application(null,{progressVersion:PROGRESS_VERSION,eventState:{tickets:failure==='tickets'?1:3}});app.start();app.advance();
+    for(let i=0;i<8;i++)app.catchOne();app.nodes.get('pause').click();app.nodes.get('quit').click();
+    const before=app.stored(),live=JSON.parse(JSON.stringify(app.flow.progress)),hunt=app.flow.hunt,runId=app.flow.runId;
+    const retry=app.nodes.get('result-retry'),bonus=app.nodes.get('result-double'),bonusLabel=app.nodes.get('result-double-label').textContent;
+    assert.equal(retry.disabled,failure==='tickets');assert.equal(bonus.disabled,false);
+    if(failure==='storage')app.setStorageFailure(true);
+    retry.click();
+    assert.equal(app.flow.hunt,hunt);assert.equal(app.flow.runId,runId);assert.equal(hunt.state,'ended');
+    assert.deepEqual(app.stored(),before);assert.deepEqual(JSON.parse(JSON.stringify(app.flow.progress)),live);
+    assert.equal(app.nodes.get('result-dialog').open,true);assert.equal(app.nodes.get('upgrade-dialog').open,false);
+    assert.equal(bonus.disabled,false);assert.equal(app.nodes.get('result-double-label').textContent,bonusLabel);
+    app.setStorageFailure(false);bonus.click();
+    assert.equal(app.flow.coins.eventCoins,before.economy.eventCoins+before.lastResult.earnedEventCoins);
+    assert.equal(app.flow.tickets,before.eventState.tickets);assert.equal(bonus.disabled,true);
+  }
 });
 
 for(const reducedMotion of [false,true])test(`bounty reel visibly changes before revealing its fixed result with reduced motion ${reducedMotion}`,()=>{
