@@ -1,6 +1,6 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-missions';
-import {cleanEconomy} from './upgrades.mjs?v=20261011-missions';
-import {missionState} from './missions.mjs?v=20261011-missions';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-mission-peek';
+import {cleanEconomy} from './upgrades.mjs?v=20261011-mission-peek';
+import {missionState} from './missions.mjs?v=20261011-mission-peek';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
 export const PROGRESS_VERSION=7;

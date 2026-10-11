@@ -1,14 +1,14 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-missions';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-missions';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-missions';
-import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-missions';
-import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-missions';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-missions';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-mission-peek';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-mission-peek';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-mission-peek';
+import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-mission-peek';
+import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-mission-peek';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-mission-peek';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-missions';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-missions';
-import {CombatAudio} from './combat-audio.mjs?v=20261011-missions';
-import {missionState,addMissionCaptures,missionSummary,claimMissionReward} from './missions.mjs?v=20261011-missions';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-mission-peek';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-mission-peek';
+import {CombatAudio} from './combat-audio.mjs?v=20261011-mission-peek';
+import {missionState,addMissionCaptures,missionSummary,claimMissionReward} from './missions.mjs?v=20261011-mission-peek';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -78,7 +78,7 @@ function renderMissions(){
   ui['mission-claim'].dataset.claimed=String(summary.rewardClaimed);
   setText(ui['mission-claim'],summary.rewardClaimed?'획득 완료':'받기');
 }
-ui['mission-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;renderMissions();ui['mission-dialog'].showModal();});
+ui['mission-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;renderMissions();ui['mission-dialog'].showModal();ui['mission-list'].scrollTop=0;});
 ui['mission-back'].addEventListener('click',()=>ui['mission-dialog'].close());
 ui['mission-dialog'].addEventListener('cancel',event=>{event.preventDefault();ui['mission-dialog'].close();});
 ui['mission-claim'].addEventListener('click',()=>{
