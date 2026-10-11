@@ -4,7 +4,7 @@ import {Hunt,DEFAULTS,BOUNTY_TIMING,SPECIES,TYPES,MOTIONS,GOLD_APPEAR_DURATION,G
 import {ghostSVG} from '../ghost-art.mjs';
 import {STORAGE_KEY,readProgress} from '../progress.mjs';
 function rng(seed=19){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
-function briefing(config={}){const h=new Hunt({random:rng(),config});h.start();h.drain();return h;}
+function briefing(config={}){const h=new Hunt({random:rng(),config:{duration:60,...config}});h.start();h.drain();return h;}
 function advanceBriefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);}
 function playing(config={}){const h=briefing(config);advanceBriefing(h);h.drain();return h;}
 function target(h,type='wisp'){
@@ -63,14 +63,14 @@ test('current score records and custom settings survive reload while malformed s
 test('bounty remains fixed throughout a wave instead of changing on an eight-second timer',()=>{
  const h=playing(),before={...h.bounty};h.tick(9);assert.deepEqual(h.bounty,before);assert.equal(h.wave,1);assert.equal(h.remaining,51);
 });
-test('clearing a wave opens the next briefing, increases the goal, and preserves score and time',()=>{
+test('clearing a wave opens the next briefing, increases the goal, preserves score, and recovers remaining time',()=>{
  const h=playing();h.tick(3);h.shoot();const remaining=h.remaining,previous=h.bounty.multiplier,payout=h.bounty.points;
- finishWave(h,'gold');assert.equal(h.state,'briefing');assert.equal(h.clearedWaves,1);assert.equal(h.wave,2);assert.equal(h.waveGoal,10);assert.equal(h.waveKills,0);assert.equal(h.kills,8);assert.equal(h.score,7*200+payout);assert.equal(h.normalScore,7*200);assert.equal(h.goldScore,payout);assert.equal(h.remaining,remaining);assert.notEqual(h.bounty.multiplier,previous);assert.equal(h.ghosts.length,0);
- assert.equal(h.drain().filter(e=>e.kind==='wave-clear').length,1);assert.equal(h.shoot(),null);advanceBriefing(h);assert.equal(h.state,'playing');assert.equal(h.remaining,remaining);
+ finishWave(h,'gold');assert.equal(h.state,'briefing');assert.equal(h.clearedWaves,1);assert.equal(h.wave,2);assert.equal(h.waveGoal,10);assert.equal(h.waveKills,0);assert.equal(h.kills,8);assert.equal(h.score,7*200+payout);assert.equal(h.normalScore,7*200);assert.equal(h.goldScore,payout);assert.ok(Math.abs(h.remaining-remaining*1.1)<1e-8);assert.notEqual(h.bounty.multiplier,previous);assert.equal(h.ghosts.length,0);
+ assert.equal(h.drain().filter(e=>e.kind==='wave-clear').length,1);assert.equal(h.shoot(),null);advanceBriefing(h);assert.equal(h.state,'playing');assert.ok(Math.abs(h.remaining-remaining*1.1)<1e-8);
 });
 test('ammunition remains unlimited across waves',()=>{
  const h=playing();for(let i=0;i<65;i++){if(h.state==='briefing')advanceBriefing(h);assert.notEqual(h.shoot(target(h).id),null);}
- assert.equal(h.shots,65);assert.equal(h.hits,65);assert.equal(h.remaining,60);assert.ok(h.clearedWaves>=4);
+ assert.equal(h.shots,65);assert.equal(h.hits,65);assert.equal(h.remaining,60+h.recoveredTime);assert.ok(h.clearedWaves>=4);
  for(const key of ['ammo','reserveAmmo','reload','boost'])assert.equal(key in h,false);
 });
 test('a repeated hit cannot add progress, score, a miss penalty, or another wave transition',()=>{

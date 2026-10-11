@@ -42,7 +42,7 @@ test('capture limit blocks scheduled gold until the next wave without spending e
 
 test('the selected interval controls the number of appearances with room and no captures',()=>{
   for(const goldInterval of [2,4,6]){
-    const h=playing({spawn:2,goldInterval});const ids=new Set(h.ghosts.filter(g=>g.type==='gold').map(g=>g.id));
+    const h=playing({duration:60,spawn:2,goldInterval});const ids=new Set(h.ghosts.filter(g=>g.type==='gold').map(g=>g.id));
     for(let i=0;i<1200;i++){h.tick(.05);h.ghosts.filter(g=>g.type==='gold').forEach(g=>ids.add(g.id));}
     assert.equal(h.state,'ended');assert.equal(ids.size,60/goldInterval);assert.equal(h.gold,0);assert.equal(h.waveGold,0);
   }

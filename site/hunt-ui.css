@@ -54,3 +54,6 @@
 #coin-gains{position:absolute;inset:0;pointer-events:none;z-index:3}
 .coin-gain{position:absolute;bottom:-15px;transform:translateX(-50%);white-space:nowrap;padding:2px 7px;border-radius:8px;background:#253224ed;border:1px solid #cde69b70;color:#e7ffb9;font-size:13px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #102010;box-shadow:0 2px 7px #100b2344}
 @container game (max-height:520px){.coin-gain{font-size:11px;padding:2px 5px;bottom:-13px}}
+
+.hunt-screen .wave-intro .time-recovery{position:absolute;top:9px;left:50%;transform:translateX(-50%);margin:0;padding:5px 12px;background:#203a30ed;border:1px solid #bfe5a355;border-radius:20px;color:#d8ffb4;font-size:13px;line-height:1.2;white-space:nowrap}
+@container field (max-height:300px){.hunt-screen .wave-intro .time-recovery{top:5px;left:auto;right:7px;transform:none;font-size:9px;padding:3px 6px}.hunt-screen .wave-intro:has(.time-recovery:not([hidden])){padding-top:24px;gap:5px}}

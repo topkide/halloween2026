@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-hud1';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-recovery1';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -12,11 +12,11 @@ export const SPECIALS={
 };
 export const TYPES=Object.fromEntries([...SPECIES,...Object.values(SPECIALS)].map(s=>[s.id,s]));
 export const BOUNTY_TIMING=Object.freeze({spin:1.8,hold:1.1});
-export const DEFAULTS=Object.freeze({duration:60,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldInterval:2.5,goldLimit:2});
+export const DEFAULTS=Object.freeze({duration:90,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldInterval:2.5,goldLimit:2,waveRecoveryPercent:10,recoveryLimit:30});
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const bound=(key,min,max)=>Number.isFinite(value[key])?Math.max(min,Math.min(max,value[key])):DEFAULTS[key];
-  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',.5,5),baseGoal:Math.round(bound('baseGoal',4,20)),goldLimit:Math.round(bound('goldLimit',1,10)),goldInterval:bound('goldInterval',1,30)};
+  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',.5,5),baseGoal:Math.round(bound('baseGoal',4,20)),goldLimit:Math.round(bound('goldLimit',1,10)),goldInterval:bound('goldInterval',1,30),waveRecoveryPercent:bound('waveRecoveryPercent',0,50),recoveryLimit:bound('recoveryLimit',0,300)};
 }
 export function rollMultiplier(random=Math.random,previous=null){
   const choices=[[2,38],[3,30],[5,20],[8,9],[10,3]].filter(([value])=>value!==previous);
@@ -74,7 +74,7 @@ export class Hunt {
   }
   start(){
     Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,goldSpawnLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
-    this.firstGoldSpawned=false;this.earnedUpgradeCoins=0;this.earnedEventCoins=0;this.waveRewards=[];this.prepareWave();
+    this.firstGoldSpawned=false;this.earnedUpgradeCoins=0;this.earnedEventCoins=0;this.waveRewards=[];this.recoveredTime=0;this.lastTimeRecovery=0;this.prepareWave();
   }
   prepareWave(){
     this.wave++;this.waveKills=0;this.waveGold=0;this.waveGoal=Math.min(this.config.maxGoal,this.config.baseGoal+(this.wave-1)*this.config.goalStep);
@@ -172,7 +172,10 @@ export class Hunt {
     if(this.waveKills>=this.waveGoal){
       const reward={wave:this.wave,base:this.waveBaseReward,bonus:this.wavePendingBonus,total:this.waveBaseReward+this.wavePendingBonus};
       this.earnedEventCoins+=reward.total;this.waveRewards.push(reward);
-      this.clearedWaves++;this.events.push({kind:'wave-clear',...reward});this.prepareWave();
+      // Recover from the clock at the final hit, once per clear, within the run budget.
+      this.lastTimeRecovery=Math.min(this.remaining*this.config.waveRecoveryPercent/100,Math.max(0,this.config.recoveryLimit-this.recoveredTime));
+      this.remaining+=this.lastTimeRecovery;this.recoveredTime+=this.lastTimeRecovery;
+      this.clearedWaves++;this.events.push({kind:'wave-clear',...reward,timeRecovery:this.lastTimeRecovery});this.prepareWave();
     }
     return hit;
   }

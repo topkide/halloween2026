@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-hud1';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-hud1';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-hud1';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-hud1';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-hud1';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-hud1';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-recovery1';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-recovery1';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-recovery1';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-recovery1';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-recovery1';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-recovery1';
 
-import {GhostAim,pickGhost} from './ghost-aim.mjs?v=20261011-hud1';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-hud1';
+import {GhostAim,pickGhost} from './ghost-aim.mjs?v=20261011-recovery1';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-recovery1';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -35,8 +35,7 @@ function updateWallet(){
   setText(ui['ticket-count'],eventData.tickets+' / '+EVENT.maxTickets);
   setText(ui['distance-count'],eventData.distance+' / '+EVENT.distancePerTicket+'m');
   ui['distance-fill'].style.transform='scaleX('+eventData.distance/EVENT.distancePerTicket+')';
-  setText(ui['best-wave'],bestWave);
-  ui['owned-decor'].innerHTML=eventData.owned.map(id=>id==='badge'?'<span class="owned-badge">✦ 호박 사냥꾼</span>':id==='friend'?'<span class="owned-friend">'+ghostPixel('wisp')+'</span>':'<span class="owned-lantern">'+coinPixel('pumpkin')+'</span>').join('');
+  ui['owned-decor'].innerHTML=eventData.owned.filter(id=>id!=='badge').map(id=>id==='friend'?'<span class="owned-friend">'+ghostPixel('wisp')+'</span>':'<span class="owned-lantern">'+coinPixel('pumpkin')+'</span>').join('');
 }
 function effectLabel(key,levels){const e=upgradeEffects(levels);return key==='gold'?Math.round(e.goldChance*100)+'%':key==='shop'?'+'+e.shopBonusPercent+'%':'+'+e.extraCoinsPerGhost+'개 / 마리';}
 function renderUpgrades(){
@@ -63,14 +62,17 @@ function updateHud(){
   const ready=engine.state==='ready',briefing=engine.state==='briefing'||engine.state==='paused'&&engine.pausedFrom==='briefing';
   ui['hunt-screen'].dataset.state=engine.state;
   const remaining=engine.remaining??config.duration;
-  const seconds=Math.ceil(remaining);setText(ui['time-label'],Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'));ui['time-fill'].style.transform='scaleX('+Math.max(0,remaining/config.duration)+')';
+  const seconds=Math.ceil(remaining);setText(ui['time-label'],Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'));ui['time-fill'].style.transform='scaleX('+Math.min(1,Math.max(0,remaining/config.duration))+')';
   ui['hunt-screen'].dataset.urgent=String(remaining<=10&&!ready);
   setText(ui['wave-number'],engine.wave??1);setText(ui['wave-count'],engine.waveKills??0);setText(ui['wave-goal'],engine.waveGoal??config.baseGoal);
   setText(ui['run-upgrade'],number(engine.earnedUpgradeCoins??0));
   const revealed=engine.bountyRevealed;
   setText(ui.multiplier,revealed?'×'+engine.bounty.multiplier:'×?');
   ui.pause.disabled=!['playing','briefing'].includes(engine.state);ui['settings-open'].disabled=!ready;ui['wave-intro'].hidden=!briefing;
+  ui['time-recovery'].hidden=!briefing||!(engine.lastTimeRecovery>0);
   if(briefing){
+    const recovered=engine.lastTimeRecovery??0;
+    setText(ui['time-recovery'],recovered>0?'시간 +'+(recovered<.1?'0.1초 미만':Number(recovered.toFixed(1))+'초')+' 회복':'');
     ui['wave-intro'].dataset.reveal=revealed?'revealed':'rolling';
     ui['brief-reel'].hidden=revealed||reducedMotion.matches;ui['brief-multiplier'].hidden=!revealed&&!reducedMotion.matches;
     setText(ui['brief-status'],revealed?(engine.bounty.multiplier>=8?'대박! 현상금 확정':'이번 웨이브 현상금 확정'):'이번 현상금은 몇 배일까요?');
@@ -216,9 +218,9 @@ ui['pause-dialog'].addEventListener('cancel',event=>{event.preventDefault();resu
 ui.sound.addEventListener('click',()=>{soundOn=!soundOn;updateSound();save();});
 document.addEventListener('keydown',event=>{if(!event.repeat&&event.key==='Escape'&&['playing','briefing'].includes(engine.state)){event.preventDefault();pause();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing','briefing'].includes(engine.state))pause();lastFrame=performance.now();});
-function fillSettings(){for(const [id,key] of [['setting-duration','duration'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit']])ui[id].value=config[key];}
+function fillSettings(){for(const [id,key] of [['setting-duration','duration'],['setting-recovery-percent','waveRecoveryPercent'],['setting-recovery-limit','recoveryLimit'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit']])ui[id].value=config[key];}
 ui['settings-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;fillSettings();setText(ui['settings-status'],'');ui['settings-dialog'].showModal();});
-ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({...config,duration:Number(ui['setting-duration'].value),spawn:Number(ui['setting-spawn'].value),goldInterval:Number(ui['setting-gold-interval'].value),goldLimit:Number(ui['setting-gold-limit'].value)});save();ui['settings-dialog'].close();ready();});
+ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({...config,duration:Number(ui['setting-duration'].value),waveRecoveryPercent:Number(ui['setting-recovery-percent'].value),recoveryLimit:Number(ui['setting-recovery-limit'].value),spawn:Number(ui['setting-spawn'].value),goldInterval:Number(ui['setting-gold-interval'].value),goldLimit:Number(ui['setting-gold-limit'].value)});save();ui['settings-dialog'].close();ready();});
 ui['reset-records'].addEventListener('click',()=>info('최고 기록을 초기화할까요?','최고 웨이브 기록만 0으로 돌아가요. 보유 코인, 강화, 교환한 장식과 플레이 기회는 유지돼요.','최고 기록 초기화',()=>{const previous=bestWave;bestWave=0;if(!save())bestWave=previous;updateWallet();setText(ui['settings-status'],'최고 웨이브 기록을 초기화했어요.');}));
 ui.defaults.addEventListener('click',()=>{config={...DEFAULTS};fillSettings();save();setText(ui['settings-status'],'기본값을 복원했어요.');});
 ui['demo-credit'].addEventListener('click',()=>{const previous=economy;economy={...economy,upgradeCoins:Math.min(1e9,economy.upgradeCoins+100),eventCoins:Math.min(1e9,economy.eventCoins+100)};if(!save()){economy=previous;return;}updateWallet();setText(ui['settings-status'],'체험용 강화 코인과 호박 코인을 각각 100개 받았어요.');});

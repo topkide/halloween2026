@@ -1,4 +1,4 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-hud1';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-recovery1';
 
 // Small alpha masks are prepared once, never sampled from the canvas per shot.
 export class GhostAim {
