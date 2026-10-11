@@ -128,12 +128,12 @@ function hitEffect(hit,x,y,ghostBox,boxes){
     ],{duration:shotgun?170:130,easing:'cubic-bezier(.16,1,.3,1)'});
   }
 }
-function clearVisuals({keepShots=false}={}){
-  if(!keepShots){shots.clear();recoil?.cancel();clockPulse?.cancel();coinPulse?.cancel();}
+function clearVisuals(){
+  shots.clear();recoil?.cancel();clockPulse?.cancel();coinPulse?.cancel();
   for(const node of entities.values())node.remove();entities.clear();ui.ending.hidden=true;
 }
 function flushEvents(){for(const event of engine.drain()){
-  if(event.kind==='wave'){clearVisuals({keepShots:true});prepareBountyReel();updateHud();sound('reel-tick');}
+  if(event.kind==='wave'){clearVisuals();prepareBountyReel();updateHud();sound('reel-tick');}
   if(event.kind==='bounty-reveal'){sound(event.multiplier>=8?'gold':'bounty-stop');updateHud();}
   if(event.kind==='wave-start')sound('wave');
   if(event.kind==='end')finish(event.reason,event.cause);

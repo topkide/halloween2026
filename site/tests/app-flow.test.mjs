@@ -36,7 +36,7 @@ function application(){
     setTimeout:callback=>{const id=++serial;timers.set(id,callback);return id;},clearTimeout:id=>timers.delete(id),
   });
   const source=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8').replace(/^import .* from .*;\r?\n/gm,'');
-  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},flushEvents};',context);
+  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},renderGhosts,flushEvents};',context);
   const flow=context.flow;
   const start=()=>{nodes.get('upgrade-open').click();nodes.get('upgrade-start').click();};
   const advance=()=>{flow.hunt.tick(BOUNTY_TIMING.spin);flow.hunt.tick(BOUNTY_TIMING.hold);flow.hunt.ghosts=[];flow.flushEvents();};
@@ -76,4 +76,21 @@ test('retry opens upgrades without a ticket charge and a new entry restores its 
   app.nodes.get('result-retry').click();assert.equal(app.nodes.get('upgrade-dialog').open,true);assert.equal(app.flow.tickets,4);
   app.nodes.get('upgrade-start').click();assert.equal(app.flow.tickets,3);assert.equal(app.flow.hunt.continueUsed,false);
   app.advance();app.end();assert.equal(app.nodes.get('continue-dialog').open,true);
+});
+
+test('a new bounty briefing immediately clears old targets, impact fragments, shotgun marks and payout numbers',()=>{
+  const app=application();app.start();app.advance();
+  for(let i=0;i<7;i++)app.catchOne();
+  const h=app.flow.hunt,ghost=h.spawn('pudge');ghost.age=ghost.life*.3;
+  app.flow.renderGhosts();assert.ok(app.flow.targets.size>0);
+  const hit=h.shoot(ghost.id),box={x:150,y:170,width:75,height:90,facing:1};
+  // The real firing path creates the final hit effects before draining the wave event.
+  app.flow.effects.shoot(hit,150,170,box,1000);
+  app.flow.effects.shotgun(hit,150,170,72,new Map([[ghost.id,box]]),1000);
+  assert.ok(app.flow.effects.bursts.length>0);assert.ok(app.flow.effects.spreads.length>0);assert.ok(app.flow.effects.labels.length>0);
+  app.flow.flushEvents();
+  assert.equal(h.state,'briefing');assert.equal(app.nodes.get('wave-intro').hidden,false);
+  assert.equal(app.flow.targets.size,0);assert.equal(app.flow.effects.bursts.length,0);assert.equal(app.flow.effects.spreads.length,0);assert.equal(app.flow.effects.labels.length,0);
+  assert.equal(app.flow.effects.dirty,false);
+  app.flow.effects.render(1001);assert.equal(app.flow.effects.dirty,false);
 });
