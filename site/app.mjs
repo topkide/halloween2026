@@ -1,14 +1,14 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261012-play-controls';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261012-play-controls';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261012-play-controls';
-import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-common-defaults';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261012-open-settings';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261012-open-settings';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261012-open-settings';
+import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261012-open-settings';
 import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-common-defaults';
 import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-common-defaults';
 
 import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-common-defaults';
 import {ShotEffects} from './shot-effects.mjs?v=20261011-common-defaults';
 import {CombatAudio} from './combat-audio.mjs?v=20261011-common-defaults';
-import {missionState,addMissionCaptures,missionSummary,claimMissionReward} from './missions.mjs?v=20261011-common-defaults';
+import {missionState,addMissionCaptures,missionSummary,claimMissionReward} from './missions.mjs?v=20261012-open-settings';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -101,7 +101,7 @@ function updateHud(){
   ui['shotgun-active'].hidden=engine.weapon!=='shotgun'||ready;
   ui['ghosts-x2-active'].hidden=engine.spawnMultiplier!==2||ready;
   const remaining=engine.remaining??config.duration;
-  const seconds=Math.ceil(remaining);setText(ui['time-label'],Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'));ui['time-fill'].style.transform='scaleX('+Math.min(1,Math.max(0,remaining/config.duration))+')';
+  const seconds=Math.max(0,Math.ceil(remaining));setText(ui['time-label'],Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'));ui['time-fill'].style.transform='scaleX('+(config.duration>0?Math.min(1,Math.max(0,remaining/config.duration)):0)+')';
   ui['hunt-screen'].dataset.urgent=String(remaining>0&&remaining<=10&&!ready&&engine.state!=='ended');
   setText(ui['wave-number'],engine.wave??1);setText(ui['wave-count'],engine.waveKills??0);setText(ui['wave-goal'],engine.waveGoal??config.baseGoal);
   setText(ui['run-upgrade'],number(engine.earnedUpgradeCoins??0));

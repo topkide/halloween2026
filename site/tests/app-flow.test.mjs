@@ -80,19 +80,34 @@ test('opening an older browser saves the new baseline immediately, displays it i
   assert.equal(app.flow.hunt.weapon,'shotgun');assert.equal(app.flow.hunt.spawnMultiplier,2);
 });
 
-test('settings changed after the baseline migration are retained on the next browser opening',()=>{
-  const app=application(null,{progressVersion:7,config:{spawn:.4}}),custom={duration:75,waveRecoveryPercent:20,recoveryLimit:60,spawn:.4,goldInterval:6,goldLimit:4,missPenalty:1.3};
+test('all prototype inputs allow arbitrary decimal values without browser range limits',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  for(const [id] of settingFields){
+    const input=html.match(new RegExp('<input\\b[^>]*\\bid="'+id+'"[^>]*>'))?.[0];
+    assert.ok(input,id);assert.doesNotMatch(input,/\s(?:min|max)\s*=/);assert.match(input,/\bstep="any"/);
+  }
+});
+
+test('settings outside the former limits survive saving, reopening and starting a run, then restore to defaults',()=>{
+  const app=application(null,{progressVersion:7,config:{spawn:.4}}),custom={duration:600.5,waveRecoveryPercent:125.5,recoveryLimit:9999.25,spawn:.001,goldInterval:.01,goldLimit:100.5,missPenalty:20.75};
   app.nodes.get('settings-open').click();
   for(const [id,key] of settingFields)app.nodes.get(id).value=String(custom[key]);
   app.nodes.get('settings-form').dispatch('submit',{preventDefault(){}});
+  for(const [,key] of settingFields)assert.equal(app.stored().config[key],custom[key]);
   const reloaded=application(null,app.stored());reloaded.nodes.get('settings-open').click();
   for(const [id,key] of settingFields)assert.equal(reloaded.nodes.get(id).value,custom[key]);
   reloaded.nodes.get('settings-dialog').close();reloaded.start();
   for(const [,key] of settingFields)assert.equal(reloaded.flow.hunt.config[key],custom[key]);
+  const restored=application(null,app.stored());restored.nodes.get('settings-open').click();restored.nodes.get('defaults').click();
+  for(const [id,key] of settingFields){assert.equal(restored.nodes.get(id).value,DEFAULTS[key]);assert.equal(restored.stored().config[key],DEFAULTS[key]);}
+  restored.nodes.get('settings-dialog').close();restored.start();
+  for(const [,key] of settingFields)assert.equal(restored.flow.hunt.config[key],DEFAULTS[key]);
+  const zero=application(null,{progressVersion:PROGRESS_VERSION,config:{duration:0}});zero.start();zero.flow.updateHud();
+  assert.equal(zero.flow.hunt.remaining,0);assert.equal(zero.nodes.get('time-fill').style.transform,'scaleX(0)');
 });
 
 test('miss penalty settings, including zero, affect actual empty taps and survive reopening the browser',()=>{
-  for(const penalty of [1.3,0]){
+  for(const penalty of [1.3,0,20.75]){
     const app=application();app.nodes.get('settings-open').click();
     app.nodes.get('setting-miss-penalty').value=String(penalty);
     app.nodes.get('settings-form').dispatch('submit',{preventDefault(){}});

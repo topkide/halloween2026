@@ -8,9 +8,9 @@ export function upgradeLevels(value={}){
 }
 export function upgradeEffects(value={}, {recoveryBasePercent=BALANCE.timeStartPercent}={}){
   const levels=upgradeLevels(value);
-  const base=Number.isFinite(recoveryBasePercent)?Math.max(0,Math.min(BALANCE.timeMaxPercent,recoveryBasePercent)):BALANCE.timeStartPercent;
+  const base=Number.isFinite(recoveryBasePercent)?recoveryBasePercent:BALANCE.timeStartPercent;
   const interpolate=(start,end,level)=>start+(end-start)*level/BALANCE.maxLevel;
-  return Object.freeze({timeRecoveryPercent:interpolate(base,BALANCE.timeMaxPercent,levels.time),goldChance:interpolate(BALANCE.goldStartPercent,BALANCE.goldMaxPercent,levels.gold)/100,shopBonusPercent:interpolate(0,BALANCE.shopMaxBonusPercent,levels.shop)});
+  return Object.freeze({timeRecoveryPercent:interpolate(base,Math.max(base,BALANCE.timeMaxPercent),levels.time),goldChance:interpolate(BALANCE.goldStartPercent,BALANCE.goldMaxPercent,levels.gold)/100,shopBonusPercent:interpolate(0,BALANCE.shopMaxBonusPercent,levels.shop)});
 }
 export function cleanEconomy(value={}){
   return {upgradeCoins:whole(value?.upgradeCoins),eventCoins:whole(value?.eventCoins),levels:upgradeLevels(value?.levels),claimedRuns:runIds(value?.claimedRuns),doubledRuns:runIds(value?.doubledRuns)};

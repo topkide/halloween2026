@@ -1,4 +1,4 @@
-import {upgradeLevels} from './upgrades.mjs?v=20261011-common-defaults';
+import {upgradeLevels} from './upgrades.mjs?v=20261012-open-settings';
 
 export const MISSIONS=Object.freeze([
   {id:'pudge',kind:'capture',goal:500,title:'뚱보 유령 500마리 잡기'},

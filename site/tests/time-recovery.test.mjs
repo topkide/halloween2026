@@ -51,9 +51,16 @@ test('misses are deducted before the recovery calculation; timeout and quit neve
 test('the recovery rate and budget are configurable, validated, and may be disabled',()=>{
   const h=playing({waveRecoveryPercent:20,recoveryLimit:50});h.tick(40);clear(h);near(h.remaining,60);
   for(const config of [{waveRecoveryPercent:0},{recoveryLimit:0}]){const off=playing(config);clear(off);assert.equal(off.remaining,90);assert.equal(off.recoveredTime,0);}
-  assert.equal(settings({waveRecoveryPercent:99}).waveRecoveryPercent,30);
-  assert.equal(settings({recoveryLimit:-1}).recoveryLimit,0);
+  assert.equal(settings({waveRecoveryPercent:99}).waveRecoveryPercent,99);
+  assert.equal(settings({recoveryLimit:-1}).recoveryLimit,-1);
   assert.equal(settings({recoveryLimit:NaN}).recoveryLimit,30);
+});
+test('a recovery rate above thirty percent applies in play and upgrading never reduces that configured rate',()=>{
+  for(const time of [0,15,30]){
+    const h=new Hunt({config:{duration:1000,waveRecoveryPercent:99.5,recoveryLimit:500},upgrades:{time}});
+    h.start();advance(h);h.tick(600);clear(h);
+    near(h.effects.timeRecoveryPercent,99.5);near(h.lastTimeRecovery,398);near(h.recoveredTime,398);near(h.remaining,798);
+  }
 });
 test('old timing adopts common defaults while current custom timing, upgrades and owned badges survive with retired coins refunded',()=>{
   const economy={upgradeCoins:123,eventCoins:77,levels:{gold:2,reward:3,shop:1},claimedRuns:[]};

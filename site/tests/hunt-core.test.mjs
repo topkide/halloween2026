@@ -105,6 +105,18 @@ test('a lethal miss clamps the clock at zero and ends exactly once with a clear 
 test('natural timeout also ends once and locks all rewards',()=>{
  const h=playing();h.tick(200);assert.equal(h.remaining,0);assert.equal(h.elapsed,60);assert.equal(h.endCause,'clock');assert.equal(h.state,'ended');assert.equal(h.shoot(),null);h.tick(1);assert.equal(h.drain().filter(e=>e.kind==='end').length,1);
 });
+test('a zero-duration run ends on its first playing tick without spending negative time',()=>{
+ const h=playing({duration:0});h.tick(1/60);
+ assert.equal(h.state,'ended');assert.equal(h.remaining,0);assert.equal(h.elapsed,0);assert.equal(h.endCause,'clock');
+ assert.equal(h.shoot(),null);h.tick(1);assert.equal(h.drain().filter(e=>e.kind==='end').length,1);
+});
+test('a zero spawn interval releases at most one ordinary ghost per frame and respects the live cap',()=>{
+ const h=playing({spawn:0,goldLimit:0});h.ghosts=[];
+ for(let i=0;i<12;i++){
+  const before=h.serial;h.tick(1/60);
+  assert.equal(h.serial-before,i<h.maxGhosts?1:0);assert.equal(h.ghosts.length,Math.min(i+1,h.maxGhosts));
+ }
+});
 test('pause freezes both gameplay and pre-wave briefings, then resumes the same phase',()=>{
  for(const h of [briefing(),playing()]){const phase=h.state,remaining=h.remaining;h.tick(.4);const before=h.state==='briefing'?h.briefingLeft:h.remaining;assert.equal(h.pause(),true);const snapshot=JSON.stringify(h);h.tick(30);assert.equal(h.shoot(),null);assert.equal(JSON.stringify(h),snapshot);h.resume();assert.equal(h.state,phase);h.tick(.2);assert.ok((phase==='briefing'?h.briefingLeft:h.remaining)<before);assert.ok(h.remaining<=remaining);}
 });
@@ -126,17 +138,17 @@ test('multiplier weighting retains all outcomes and excludes the previous wave v
  for(const previous of [2,3,5,8,10])for(const n of [0,.2,.5,.8,.999])assert.notEqual(rollMultiplier(()=>n,previous),previous);
 });
 test('settings tolerate corrupt data and the current art contains six distinct puppets',()=>{
- assert.deepEqual(settings(null),{...DEFAULTS});assert.deepEqual(settings({duration:NaN}),{...DEFAULTS});assert.equal(settings({baseGoal:6.8}).baseGoal,7);assert.equal(settings({duration:500}).duration,120);
+ assert.deepEqual(settings(null),{...DEFAULTS});assert.deepEqual(settings({duration:NaN}),{...DEFAULTS});
  const art=Object.keys(TYPES).map(id=>ghostSVG(id,{color:TYPES[id].color}));assert.equal(new Set(art).size,6);art.forEach(svg=>{assert.match(svg,/<svg/);assert.doesNotMatch(svg,/<script|<foreignObject/);});
 });
-test('miss penalty settings accept zero, clamp to five seconds, and reject malformed saved values',()=>{
- assert.equal(DEFAULTS.missPenalty,2);
- for(const [value,expected] of [[-1,0],[0,0],[.1,.1],[1.7,1.7],[5,5],[6,5]])assert.equal(settings({missPenalty:value}).missPenalty,expected);
- for(const missPenalty of [NaN,Infinity,-Infinity,null,'0',false,{},[]])assert.equal(settings({missPenalty}).missPenalty,DEFAULTS.missPenalty);
- for(const missPenalty of [0,.1,1.7,5]){
-  const saved={progressVersion:PROGRESS_VERSION,config:{missPenalty}};
-  assert.equal(readProgress(key=>key===STORAGE_KEY?JSON.stringify(saved):null).config.missPenalty,missPenalty);
+test('all configurable settings preserve finite values without bounds or rounding, including after reload',()=>{
+ const keys=['duration','spawn','missPenalty','baseGoal','goldLimit','goldInterval','waveRecoveryPercent','recoveryLimit'];
+ for(const value of [0,-1.25,.125,1000000.5]){
+  const config=Object.fromEntries(keys.map(key=>[key,value])),normalized=settings(config);
+  const saved={progressVersion:PROGRESS_VERSION,config},loaded=readProgress(key=>key===STORAGE_KEY?JSON.stringify(saved):null);
+  for(const key of keys){assert.equal(normalized[key],value,key);assert.equal(loaded.config[key],value,key);}
  }
+ for(const key of keys)for(const value of [NaN,Infinity,-Infinity,null,'0',false,{},[]])assert.equal(settings({[key]:value})[key],DEFAULTS[key],key);
 });
 test('all six quick motion paths remain finite and upright at short and tall screen sizes',()=>{
  assert.deepEqual(Object.keys(MOTIONS),['rise','horizontal','vertical','inflate','returnX','returnY']);

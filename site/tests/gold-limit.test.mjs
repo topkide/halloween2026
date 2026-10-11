@@ -22,6 +22,13 @@ test('only two successful golden captures are possible, including simultaneous t
   assert.equal(h.wave,1);assert.equal(h.waveKills,2);assert.equal(h.waveGold,2);
   assert.equal(h.drain().filter(e=>e.kind==='gold-limit').length,1);
 });
+test('a zero gold limit suppresses initial, scheduled and directly requested gold while ordinary ghosts still spawn',()=>{
+  const h=playing({goldLimit:0});
+  assert.equal(h.ghosts.length,3);assert.ok(h.ghosts.every(g=>g.type!=='gold'));assert.equal(h.spawn('gold'),null);
+  const before=h.serial;
+  for(let i=0;i<100;i++){h.tick(.05);assert.ok(h.ghosts.every(g=>g.type!=='gold'));}
+  assert.ok(h.serial>before);assert.equal(h.waveGold,0);assert.equal(h.gold,0);
+});
 
 test('escaping gold releases its slot without consuming a capture, reward, or miss',()=>{
   const h=playing({goldLimit:1}),escaped=h.ghosts.find(g=>g.type==='gold');
@@ -68,6 +75,6 @@ test('custom limits are enforced and existing saves adopt the default without lo
   const read=()=>readProgress(key=>key===STORAGE_KEY?JSON.stringify(saved):null);
   assert.equal(read().config.goldLimit,2);assert.equal(read().best,8900);assert.equal(read().config.spawn,.31);assert.equal(read().soundOn,false);
   saved.config.goldLimit=4;assert.equal(read().config.goldLimit,4);
-  assert.equal(settings({goldLimit:0}).goldLimit,1);assert.equal(settings({goldLimit:100}).goldLimit,10);
-  assert.equal(settings({goldLimit:2.8}).goldLimit,3);assert.equal(settings({goldLimit:NaN}).goldLimit,2);
+  assert.equal(settings({goldLimit:0}).goldLimit,0);assert.equal(settings({goldLimit:100}).goldLimit,100);
+  assert.equal(settings({goldLimit:2.8}).goldLimit,2.8);assert.equal(settings({goldLimit:NaN}).goldLimit,2);
 });
