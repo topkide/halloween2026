@@ -37,7 +37,7 @@
 .hunt-screen .bounty-reel{width:100%;height:clamp(38px,7cqh,52px);border-radius:0;background:none;color:#4c2e21;font-size:clamp(28px,6cqh,40px)}
 .hunt-screen .bounty-reel span{height:clamp(38px,7cqh,52px)}
 .hunt-screen #brief-multiplier{font-size:clamp(28px,6cqh,40px);color:#4c2e21;line-height:1;font-weight:850}
-.hunt-screen #brief-status{margin:9px 0 0;color:#6c4831;font-size:clamp(9px,1.8cqh,12px);line-height:1.4}
+
 .hunt-screen .wave-intro[data-reveal=revealed] .bounty-card{border-color:#ffe2a2}
 .hunt-screen .wave-intro[data-reveal=revealed] .bounty-formula{background:#fff0bd88;border-color:#a77735}
 @container game (max-height:720px){
@@ -48,7 +48,7 @@
   .hunt-hud{padding:6px 8px}.hunt-topline{gap:9px;grid-template-columns:minmax(0,1fr) 27px}.hunt-topline .icon-button{width:27px;height:25px;font-size:17px}.hunt-clock{height:22px}.hunt-clock strong{font-size:14px}.hunt-status-row{grid-template-columns:minmax(46px,.9fr) minmax(79px,1.5fr) minmax(64px,1.1fr);gap:5px;margin-top:5px}.bounty-status{height:44px;gap:6px;padding:2px 5px}.bounty-status .wanted-art{width:27px;height:38px}.bounty-status>b{font-size:22px}.wave-status>strong{font-size:11px}.wave-status>span{font-size:10px;gap:4px}.run-wallet{gap:4px;padding:5px 3px}.run-wallet>b{font-size:12px}.run-wallet>span{width:20px;height:22px}
 }
 @container field (max-height:300px){
-  .hunt-screen .wave-intro{padding:8px 15px;gap:7px}.hunt-screen .wave-intro h2{font-size:18px}.hunt-screen .bounty-card{padding:8px 14px;width:min(100%,220px);max-height:calc(100% - 29px)}.hunt-screen .wanted-label{font-size:20px}.hunt-screen .bounty-reward{margin:4px 0 8px;gap:8px;padding:2px 9px}.bounty-reward>[data-coin]{width:24px;height:26px}.bounty-reward>strong{font-size:20px}.poster-portrait{height:70px;margin:1px 0 8px}.hunt-screen .bounty-formula{height:32px}.hunt-screen .bounty-reel,.hunt-screen .bounty-reel span{height:30px;font-size:24px}.hunt-screen #brief-multiplier{font-size:24px}.hunt-screen #brief-status{font-size:8px;margin:4px 0 0}
+  .hunt-screen .wave-intro{padding:8px 15px;gap:7px}.hunt-screen .wave-intro h2{font-size:18px}.hunt-screen .bounty-card{padding:8px 14px;width:min(100%,220px);max-height:calc(100% - 29px)}.hunt-screen .wanted-label{font-size:20px}.hunt-screen .bounty-reward{margin:4px 0 8px;gap:8px;padding:2px 9px}.bounty-reward>[data-coin]{width:24px;height:26px}.bounty-reward>strong{font-size:20px}.poster-portrait{height:70px;margin:1px 0 8px}.hunt-screen .bounty-formula{height:32px}.hunt-screen .bounty-reel,.hunt-screen .bounty-reel span{height:30px;font-size:24px}.hunt-screen #brief-multiplier{font-size:24px}
 }
 
 /* Each silver payout floats beside the live balance, with at most four labels. */

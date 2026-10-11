@@ -90,8 +90,6 @@ function updateHud(){
     setText(ui['time-recovery'],recovered>0?'시간 +'+(recovered<.1?'0.1초 미만':Number(recovered.toFixed(1))+'초')+' 회복':'');
     ui['wave-intro'].dataset.reveal=revealed?'revealed':'rolling';
     ui['brief-reel'].hidden=revealed||reducedMotion.matches;ui['brief-multiplier'].hidden=!revealed&&!reducedMotion.matches;
-    ui['brief-status'].hidden=revealed;
-    setText(ui['brief-status'],'현상금 배수 추첨 중');
     setText(ui['brief-coins'],revealed?'+'+number(engine.bounty.coins):'+?');
     setText(ui['brief-wave'],'Wave '+engine.wave);
     setText(ui['brief-multiplier'],revealed?'X'+engine.bounty.multiplier:'X?');
