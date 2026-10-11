@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-shotgun2';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-shotgun2';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-shotgun2';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-shotgun2';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun} from './event-core.mjs?v=20261011-shotgun2';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-shotgun2';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-event-ui';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-event-ui';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-event-ui';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-event-ui';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun} from './event-core.mjs?v=20261011-event-ui';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-event-ui';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-shotgun2';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-shotgun2';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-event-ui';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-event-ui';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -31,7 +31,7 @@ function measure(){const r=ui.arena.getBoundingClientRect();if(r.width>0)size={w
 new ResizeObserver(measure).observe(ui.arena);window.addEventListener('resize',measure,{passive:true});window.addEventListener('scroll',measure,{passive:true});
 function updateWallet(){
   for(const id of ['wallet-upgrade','upgrade-balance'])setText(ui[id],number(economy.upgradeCoins));
-  for(const id of ['wallet-event','upgrade-event-balance','shop-balance'])setText(ui[id],number(economy.eventCoins));
+  for(const id of ['wallet-event','shop-balance'])setText(ui[id],number(economy.eventCoins));
   setText(ui['ticket-count'],eventData.tickets+' / '+EVENT.maxTickets);
   setText(ui['distance-count'],eventData.distance+' / '+EVENT.distancePerTicket+'m');
   ui['distance-fill'].style.transform='scaleX('+eventData.distance/EVENT.distancePerTicket+')';
@@ -44,18 +44,19 @@ function effectLabel(key,levels){
 }
 function renderUpgrades(){
   updateWallet();
-  const descriptions={time:'클리어 순간 남은 시간 회복 · 한 판 최대 '+config.recoveryLimit+'초',gold:config.goldInterval+'초마다 등장 추첨 · 한 웨이브 최대 '+config.goldLimit+'마리 처치',shop:'웨이브 기본 보상과 황금 현상금이 함께 증가'};
+  const names={time:'시간 회복',gold:'황금 유령 확률',shop:'웨이브 보상 증가'};
+  const descriptions={time:'웨이브 완료 시 남은 시간 회복',gold:'황금 유령 등장 확률',shop:'클리어 및 황금 유령 보상'};
   ui['upgrade-cards'].innerHTML=Object.entries(UPGRADES).map(([key,definition])=>{
     const level=economy.levels[key],cost=upgradeCost(level),max=cost===null,next={...economy.levels,[key]:level+1};
-    return '<article class="upgrade-card"><div class="upgrade-card-head"><h3>'+definition.name+'</h3><b>'+(max?'MAX':'Lv. '+level+' / '+BALANCE.maxLevel)+'</b></div><p>'+descriptions[key]+'</p><div class="upgrade-bottom"><div class="upgrade-effect"><strong>'+effectLabel(key,economy.levels)+'</strong>'+(max?'<span>최대 강화</span>':'<span>→</span><b>'+effectLabel(key,next)+'</b>')+'</div><button type="button" class="upgrade-buy" data-upgrade="'+key+'" '+(max||economy.upgradeCoins<cost?'disabled':'')+'>'+(max?'최대 레벨':coinPixel('ghost')+number(cost)+' · 강화')+'</button></div><div class="upgrade-track"><i style="transform:scaleX('+level/BALANCE.maxLevel+')"></i></div></article>';
+    const label=max?definition.name+' 최대 레벨':definition.name+' 강화 · '+number(cost)+' 코인 · 다음 효과 '+effectLabel(key,next);
+    return '<article class="upgrade-card"><div class="upgrade-art"><img src="assets/upgrade-'+key+'.png" alt="" width="80" height="80"></div><div class="upgrade-copy"><h3>'+names[key]+' <span>Lv.'+level+'</span></h3><p>'+descriptions[key]+' <strong>'+effectLabel(key,economy.levels)+'</strong></p><small>'+(max?'최대 강화 완료':'다음 '+effectLabel(key,next)+' · 최대 Lv.'+BALANCE.maxLevel)+'</small></div><button type="button" class="upgrade-buy" data-upgrade="'+key+'" aria-label="'+label+'" '+(max||economy.upgradeCoins<cost?'disabled':'')+'>'+coinPixel('ghost')+'<b>'+(max?'MAX':number(cost))+'</b></button></article>';
   }).join('');
   ui['upgrade-start'].disabled=eventData.tickets===0;
-  ui['upgrade-start'].innerHTML=eventData.tickets?(eventData.shotgunReady?'샷건으로 사냥 시작':'사냥 시작')+' <span>기회 1개 사용 · '+config.duration+'초</span>':'플레이 기회를 충전해 주세요';
+  setText(ui['upgrade-tickets'],'('+eventData.tickets+'/'+EVENT.maxTickets+')');
   ui['shotgun-ad'].disabled=eventData.shotgunReady;
-  setText(ui['shotgun-ad'],eventData.shotgunReady?'✓ 장착 완료':'▶ 광고로 받기');
-  ui['shotgun-offer'].dataset.ready=String(eventData.shotgunReady);
-  setText(ui['shotgun-copy'],eventData.shotgunReady?'다음 사냥 한 판 동안 적용돼요.':'원형 범위 사격 · 한 마리라도 맞히면 명중');
-  setText(ui['upgrade-status'],economy.upgradeCoins<20?'일반 유령을 잡아 강화 코인을 모아보세요.':'원하는 강화를 골라 사냥을 준비하세요.');
+  ui['shotgun-ad'].dataset.ready=String(eventData.shotgunReady);
+  setText(ui['shotgun-label'],eventData.shotgunReady?'장착 완료':'샷건 장착');
+  setText(ui['upgrade-status'],eventData.tickets===0?'메인화면에서 플레이 기회를 충전해 주세요.':eventData.shotgunReady?'다음 한 판은 샷건으로 시작해요.':'강화는 다음 사냥에도 유지돼요.');
 }
 function openUpgrades(){if(engine.state!=='ready')return;renderUpgrades();ui['upgrade-dialog'].showModal();}
 function toast(text,ms=1700){setText(ui['field-toast'],text);ui['field-toast'].classList.add('visible');toastUntil=performance.now()+ms;}
@@ -186,21 +187,30 @@ function ready(){
 function finish(reason,cause){
   if(endingTimer||lastResult?.runId===currentRunId)return;ui['pause-dialog'].close();ui.ending.hidden=false;
   setText(ui['ending-title'],reason==='quit'?'사냥 종료':'시간 초과!');setText(ui['ending-copy'],reason==='quit'?'오늘 밤의 보상을 정리하고 있어요.':cause==='miss'?'헛발로 남은 시간을 모두 썼어요.':'남은 시간이 모두 줄어들었어요.');if(reason==='timeout')sound('timeout');
-  const isBest=engine.clearedWaves>bestWave;bestWave=Math.max(bestWave,engine.clearedWaves);
+  bestWave=Math.max(bestWave,engine.clearedWaves);
   lastResult={runId:currentRunId,clearedWaves:engine.clearedWaves,kills:engine.kills,gold:engine.gold,earnedUpgradeCoins:engine.earnedUpgradeCoins,earnedEventCoins:engine.earnedEventCoins,waveRewards:engine.waveRewards,reason};
   const settled=settleRun(economy,lastResult,engine.upgrades);economy=settled.economy;lastResult.rewards=settled.rewards;save();updateWallet();
-  setText(ui['result-upgrade-coins'],'+'+number(settled.rewards.upgradeCoins));setText(ui['result-event-coins'],'+'+number(settled.rewards.eventCoins));
-  setText(ui['result-waves'],engine.clearedWaves);setText(ui['result-kills'],engine.kills);setText(ui['result-gold'],engine.gold);ui['new-best'].hidden=!isBest;
-  const base=engine.waveRewards.reduce((n,r)=>n+r.base,0),bonus=engine.waveRewards.reduce((n,r)=>n+r.bonus,0);
-  setText(ui['result-detail'],'웨이브 보상 '+base+' + 황금 보너스 '+bonus+' 호박 코인'+(engine.wavePendingBonus?' · 미완료 웨이브의 황금 보너스 '+engine.wavePendingBonus+'개는 지급되지 않았어요.':'.'));
-  setText(ui['result-reason'],reason==='timeout'?"TIME’S UP":'HUNT COMPLETE');
+  renderResult();
   endingTimer=setTimeout(()=>{endingTimer=null;ui.ending.hidden=true;ui['result-dialog'].showModal();},1200);
+}
+function renderResult(){
+  if(!lastResult)return;
+  const rewards=lastResult.rewards,doubled=economy.doubledRuns.includes(lastResult.runId);
+  setText(ui['result-upgrade-coins'],'+'+number(rewards.upgradeCoins));
+  setText(ui['result-event-coins'],'+'+number(rewards.eventCoins*(doubled?2:1)));
+  setText(ui['result-waves'],lastResult.clearedWaves);
+  setText(ui['result-tickets'],'('+eventData.tickets+'/'+EVENT.maxTickets+')');
+  ui['result-double'].disabled=doubled||rewards.eventCoins===0;
+  ui['result-double'].dataset.claimed=String(doubled);
+  setText(ui['result-double-label'],doubled?'2배 받기 완료':'보상 2배');
+  setText(ui['result-status'],doubled?'호박 코인 보상을 2배로 받았어요!':rewards.eventCoins===0?'웨이브를 완료하면 호박 코인을 받아요.':'광고 체험으로 호박 코인만 2배');
 }
 function pause(){if(engine.pause()){ui['pause-dialog'].showModal();updateHud();}}
 function resume(){ui['pause-dialog'].close();engine.resume();lastFrame=performance.now();updateHud();}
 ui.pause.addEventListener('click',pause);ui.resume.addEventListener('click',resume);
 ui.quit.addEventListener('click',()=>{resume();engine.end('quit');flushEvents();updateHud();});
-ui['result-home'].addEventListener('click',ready);ui['upgrade-open'].addEventListener('click',openUpgrades);ui['upgrade-start'].addEventListener('click',start);
+ui['result-home'].addEventListener('click',ready);
+ui['result-retry'].addEventListener('click',()=>{ready();openUpgrades();});ui['upgrade-open'].addEventListener('click',openUpgrades);ui['upgrade-start'].addEventListener('click',start);
 ui['upgrade-cards'].addEventListener('click',event=>{
   const button=event.target.closest('[data-upgrade]');if(!button||button.disabled||engine.state!=='ready')return;
   const key=button.dataset.upgrade,purchase=buyUpgrade(economy,key);if(!purchase.ok)return;
@@ -230,6 +240,16 @@ ui['shotgun-ad'].addEventListener('click',()=>{
     if(engine.state!=='ready'||eventData.shotgunReady)return;
     const previous=eventData;eventData=grantShotgun(eventData);if(!save()){eventData=previous;return;}
     renderUpgrades();sound('bounty-stop');setText(ui['upgrade-status'],'샷건 장착 완료! 사냥을 시작해 보세요.');
+  });
+});
+ui['result-double'].addEventListener('click',()=>{
+  if(!ui['result-dialog'].open||!lastResult||ui['result-double'].disabled)return;
+  const result=lastResult;
+  info('획득 보상 2배','실제 광고 연결 전의 체험 기능이에요. 이번 판 호박 코인 '+number(result.rewards.eventCoins)+'개를 추가로 받아 총 '+number(result.rewards.eventCoins*2)+'개가 돼요. 강화 코인은 그대로 유지돼요.','보상 2배 체험',()=>{
+    if(lastResult?.runId!==result.runId||!ui['result-dialog'].open)return;
+    const bonus=doubleRunReward(economy,result);if(!bonus.awarded)return;
+    const previous=economy;economy=bonus.economy;if(!save()){economy=previous;return;}
+    updateWallet();renderResult();sound('gold');
   });
 });
 ui['distance-open'].addEventListener('click',()=>info('일반게임에서 기회 모으기','일반게임에서 누적 300m마다 플레이 기회 1개를 얻어요. 지금은 연동 전이므로 300m 달성을 체험할 수 있어요. 최대 30개일 때는 추가 적립되지 않아요.','일반게임 +300m 체험',()=>changeTickets(addDistance(eventData,300))));

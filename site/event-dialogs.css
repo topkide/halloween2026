@@ -1,0 +1,74 @@
+/* Shared floating placard and framed panels from the upgrade / result wireframes. */
+#upgrade-dialog,#result-dialog{width:min(440px,calc(100vw - 24px));max-width:none;max-height:calc(100dvh - 24px);margin:auto;padding:0!important;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible;color:#f8ecdb}
+.event-dialog .event-panel{margin-top:26px;padding:42px 18px 18px;border:2px solid #af8491;border-radius:23px;background:linear-gradient(150deg,#493247,#30243b 75%);box-shadow:inset 0 1px #ffe7c330,0 18px 60px #09061299}
+.event-dialog .event-dialog-title{position:absolute;z-index:1;top:0;left:50%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;width:62%;height:54px;margin:0;padding:0 12px;border:2px solid #c99b80;border-radius:15px;background:linear-gradient(#674650,#473044);box-shadow:inset 0 1px #f4dab63b,0 4px 0 #1b122845;font-size:24px;letter-spacing:-.7px;white-space:nowrap;color:#ffe4b3}
+.event-back{position:absolute;z-index:2;top:2px;left:0;width:52px;height:50px;padding:0;background:transparent;border:0;color:#f6b46d;text-shadow:0 3px #38202a;font-size:42px;font-weight:800;line-height:1}
+#upgrade-dialog .upgrade-wallet{display:flex;align-items:center;justify-content:center;gap:12px;width:fit-content;min-width:155px;margin:0 auto 18px;padding:8px 22px;border:1px solid #b099ae70;border-radius:12px;background:#241c30;box-shadow:inset 0 2px 9px #130e2255;font-variant-numeric:tabular-nums}
+.upgrade-wallet>[data-coin]{width:39px;height:42px}.upgrade-wallet>b{font-size:29px;line-height:1}
+#upgrade-cards{display:grid;grid-template-columns:1fr;gap:12px;clear:none;margin:0;padding:0}
+#upgrade-dialog .upgrade-card{display:grid;grid-template-columns:66px minmax(0,1fr) 57px;align-items:center;gap:10px;min-height:99px;margin:0;padding:10px;border:1px solid #bca1af66;border-radius:13px;background:linear-gradient(100deg,#352639,#291f34);box-shadow:inset 0 1px #f5d7b90b;text-align:left}
+.upgrade-art{display:flex;align-items:center;justify-content:center;aspect-ratio:1;border:1px solid #f1d9a880;border-radius:10px;background:radial-gradient(circle,#f8e8cb,#d0b58d);overflow:hidden}
+.upgrade-art img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 1px #613c3244)}
+#upgrade-dialog .upgrade-copy{min-width:0}
+#upgrade-dialog .upgrade-copy h3{font-size:15px;font-weight:750;line-height:1.4;letter-spacing:-.5px;margin:0 0 7px;color:#f8ecdf;overflow-wrap:anywhere}
+.upgrade-copy h3>span{display:inline-block;color:#eed093;font-size:12px;white-space:nowrap;margin-left:2px}
+#upgrade-dialog .upgrade-copy p{display:block;font-size:10px;color:#d4bfcf;line-height:1.5;margin:0;min-height:0;word-break:keep-all}
+.upgrade-copy p>strong{color:#ffe3a3;font-size:12px;white-space:nowrap}
+.upgrade-copy>small{display:block;font-size:9px;line-height:1.4;color:#a88eaa;margin-top:3px}
+#upgrade-dialog .upgrade-buy{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;min-width:0;min-height:72px;margin:0;padding:5px 2px;border:1px solid #ceb89f88;border-radius:9px;background:linear-gradient(#816071,#573f58);box-shadow:inset 0 1px #f6e1c333,0 3px #19112577;color:#fff0c9;white-space:nowrap}
+#upgrade-dialog .upgrade-buy svg{width:33px;height:35px;margin:0}
+#upgrade-dialog .upgrade-buy b{font-size:15px;line-height:1.15;font-variant-numeric:tabular-nums}
+#upgrade-dialog .upgrade-buy:disabled{opacity:.47;box-shadow:none}
+#upgrade-dialog .status{margin:10px 0;min-height:16px;font-size:10px!important;line-height:1.45;color:#d7b9c4!important;text-align:center}
+.event-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.event-dialog .event-action,.event-dialog .reward-ad{display:flex;align-items:center;justify-content:center;min-height:65px;margin:0;padding:10px 8px;border:1px solid #e9c09899;border-radius:12px;background:linear-gradient(#b38063,#855941);box-shadow:inset 0 1px #ffe6b854,0 4px #1b13286b;color:#fff1d3;font-size:17px;font-weight:750;line-height:1.35}
+.event-dialog .event-action{flex-direction:column;gap:2px}
+#upgrade-start{width:100%;margin:0!important;padding:10px 8px;min-height:65px}
+#upgrade-start span,.event-dialog .event-action>span{display:block;margin:0;font-size:12px;font-weight:500;color:#f1d9c0}
+.event-dialog .event-action.secondary{background:linear-gradient(#614659,#443348);border-color:#b493a777}
+.event-dialog .reward-ad{gap:10px;background:linear-gradient(#629544,#3a652e);border-color:#b0da8899;box-shadow:inset 0 1px #d5f3a633,0 4px #16291e88;color:#f4f8d8}
+.video-mark{display:flex;align-items:center;justify-content:center;flex:none;width:31px;height:30px;border:2px solid #d3e7acb3;border-radius:5px;color:#e8f4bb;font-size:18px;padding-left:2px}
+#shotgun-ad{min-width:0;font-size:16px;white-space:nowrap}
+#shotgun-ad:disabled,#result-double:disabled{opacity:.7;box-shadow:none;cursor:default}
+#shotgun-ad[data-ready=true],#result-double[data-claimed=true]{background:#36533c;border-color:#a6c48480;opacity:1}
+.event-dialog .result-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.result-summary>div{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:78px;padding:10px;border:1px solid #baa3b76b;border-radius:11px;background:#261c32}
+.result-silver>[data-coin]{width:42px;height:46px;flex:none}.result-silver>strong{font-size:30px;letter-spacing:-1px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.result-summary>.result-completed{flex-direction:column;gap:3px}
+.result-completed>small{font-size:10px;color:#c7aebf}.result-completed>strong{font-size:29px;font-weight:750;color:#f5dbaf;line-height:1.1}.result-completed strong>span{font-size:15px;letter-spacing:1px;font-weight:600}.result-completed b{font-size:30px}
+.result-prize{margin:15px 0 17px;padding:0 15px 12px;border:1px solid #d9ae7f70;border-radius:15px;background:radial-gradient(ellipse at 50% 35%,#67462d66,transparent 70%),#281d32;text-align:center}
+.result-prize>h3{display:table;margin:-1px auto 0;padding:8px 28px;border:1px solid #d9ae7f80;border-top:0;border-radius:0 0 11px 11px;background:#503b43;color:#ffe0ae;font-size:19px;font-weight:650;letter-spacing:-.5px}
+.result-pumpkin{display:flex;align-items:center;justify-content:center;gap:14px;min-height:165px;padding:19px 0;font-variant-numeric:tabular-nums}
+.result-pumpkin>[data-coin]{width:104px;height:112px;flex-shrink:0;filter:drop-shadow(0 8px 16px #f6a64224)}
+#result-event-coins{font-size:50px;line-height:1;color:#ffd283;letter-spacing:-2px;text-shadow:0 3px #7b442733;overflow-wrap:anywhere;min-width:0}
+#result-double{width:100%;font-size:22px;min-height:62px}
+#result-dialog .status{font-size:10px!important;margin:10px 0 0;line-height:1.5;min-height:15px;color:#cbb4be!important}
+@media(max-width:380px){
+  .event-dialog .event-panel{padding:37px 12px 14px;border-radius:19px}
+  .event-dialog .event-dialog-title{font-size:21px;height:49px}
+  #upgrade-dialog .upgrade-card{grid-template-columns:53px minmax(0,1fr) 48px;gap:7px;padding:8px;min-height:88px}
+  #upgrade-dialog .upgrade-copy h3{font-size:12px;letter-spacing:-.5px;margin-bottom:5px}.upgrade-copy h3>span{font-size:10px}
+  #upgrade-dialog .upgrade-copy p{font-size:9px}.upgrade-copy p>strong{font-size:11px}.upgrade-copy>small{font-size:8px}
+  #upgrade-dialog .upgrade-buy{min-height:65px}.event-dialog-actions{gap:10px}
+  #shotgun-ad{font-size:14px}.video-mark{width:25px;height:26px;font-size:15px}
+  .event-dialog .result-summary{gap:9px}.result-summary>div{gap:5px;min-height:69px;padding:8px}.result-silver>[data-coin]{width:32px;height:36px}.result-silver>strong{font-size:25px}
+  .result-pumpkin{gap:10px;min-height:150px}.result-pumpkin>[data-coin]{width:88px;height:94px}#result-event-coins{font-size:42px}
+}
+@media(max-height:620px){
+  #upgrade-dialog .upgrade-wallet{padding:5px 19px;margin-bottom:12px}.upgrade-wallet>[data-coin]{width:31px;height:34px}.upgrade-wallet>b{font-size:25px}
+  #upgrade-cards{gap:9px}#upgrade-dialog .upgrade-card{min-height:80px;padding:7px}#upgrade-dialog .status{margin:7px 0}
+  .event-dialog .event-action,.event-dialog .reward-ad,#upgrade-start{min-height:57px;padding:8px}
+  .result-pumpkin{min-height:135px;padding:12px 0}.result-prize{margin:12px 0 14px}.result-summary>div{min-height:67px}
+}
+@media(orientation:landscape) and (max-height:500px){
+  #upgrade-dialog,#result-dialog{width:min(680px,calc(100vw - 32px))}
+  .event-dialog .event-dialog-title{width:230px;height:43px;font-size:21px}.event-dialog .event-panel{margin-top:20px;padding:30px 14px 12px}.event-back{font-size:33px;height:39px}
+  #upgrade-dialog .upgrade-wallet{padding:3px 18px;margin-bottom:8px}.upgrade-wallet>[data-coin]{width:25px;height:27px}.upgrade-wallet>b{font-size:22px}
+  #upgrade-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  #upgrade-dialog .upgrade-card{grid-template-columns:43px minmax(0,1fr);gap:7px;min-height:0;padding:7px}
+  #upgrade-dialog .upgrade-copy h3{font-size:12px;margin-bottom:4px}.upgrade-copy h3>span{font-size:10px}#upgrade-dialog .upgrade-copy p{font-size:9px}.upgrade-copy>small{display:none}
+  #upgrade-dialog .upgrade-buy{grid-column:1/-1;flex-direction:row;gap:7px;min-height:31px;padding:2px}#upgrade-dialog .upgrade-buy svg{width:22px;height:24px}#upgrade-dialog .upgrade-buy b{font-size:13px}
+  .event-dialog .event-action,.event-dialog .reward-ad,#upgrade-start{min-height:43px;padding:5px;flex-direction:row;gap:10px;font-size:15px}#upgrade-start span{display:inline;font-size:11px}
+  .result-summary>div{min-height:50px;padding:5px}.result-summary>.result-completed{flex-direction:row;gap:10px}.result-silver>[data-coin]{width:31px;height:35px}.result-silver>strong{font-size:25px}
+  .result-prize{display:grid;grid-template-columns:1fr 1fr;column-gap:15px;align-items:center;margin:9px 0;padding:8px 13px}.result-prize>h3{grid-column:1;margin:0;border:0;background:none;padding:0;font-size:14px}.result-pumpkin{grid-column:1;grid-row:2/4;min-height:70px;padding:3px 0}.result-pumpkin>[data-coin]{width:63px;height:68px}#result-event-coins{font-size:35px}#result-double{grid-column:2;grid-row:1/3;font-size:19px;min-height:49px}#result-dialog .status{grid-column:2;margin:0;font-size:9px!important}
+}

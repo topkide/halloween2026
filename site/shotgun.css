@@ -1,38 +1,3 @@
-/* One-run ad reward, separate from permanent upgrades. */
-.shotgun-offer{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:8px;align-items:center;margin-top:12px;padding:10px;border:1px solid #d7ba785e;border-radius:12px;background:linear-gradient(120deg,#59442a66,#29202e)}
-.shotgun-icon{width:36px;height:36px;filter:drop-shadow(0 2px 3px #130d22)}
-.shotgun-offer h3{margin:0;color:#ffe0a0;font-size:13px;line-height:1.35}
-.shotgun-offer h3 small{display:inline;font-size:9px;color:#c7ac87;font-weight:500;margin-left:3px}
-#upgrade-dialog .shotgun-offer p{margin:3px 0 0;font-size:9px;line-height:1.45;color:#d1c0cc}
-#shotgun-ad{background:#477438;border:1px solid #a7c07a77;border-radius:8px;box-shadow:0 2px 0 #182615;padding:9px 8px;min-height:38px;font-size:10px;font-weight:750;white-space:nowrap;color:#f6f6d4}
-#shotgun-offer[data-ready=true]{border-color:#b5d98a99;background:#31402c66}
-#shotgun-ad:disabled{background:#2d432b;color:#d8edb0;opacity:1;box-shadow:none;cursor:default}
+/* Shotgun state during play. The pre-game action lives in event-dialogs.css. */
 .shotgun-active{position:absolute;z-index:5;right:9px;bottom:9px;pointer-events:none;padding:5px 8px;border:1px solid #dab47570;border-radius:7px;color:#ffe0a0;background:#24192cdc;font-size:10px;font-weight:700}
 .hunt-screen[data-state=briefing] .shotgun-active{display:none}
-#upgrade-dialog .dialog-intro{margin:7px 0;font-size:10px!important}
-@media(max-height:700px){
-  #upgrade-dialog .dialog-intro,#upgrade-dialog .fine-print{display:none}
-  #upgrade-dialog .dialog-heading small{display:none}
-  #upgrade-cards{margin-top:9px}
-  #upgrade-dialog .upgrade-card{padding:8px}
-  #upgrade-dialog .upgrade-track{margin-top:5px}
-  .shotgun-offer{margin-top:8px;padding:8px;gap:6px}
-  .shotgun-offer h3{font-size:12px}
-  #upgrade-dialog .status{margin:5px 0}
-}
-@media(max-height:590px){
-  #upgrade-dialog{padding:12px 14px}
-  #upgrade-dialog .upgrade-card p{display:none}
-  .upgrade-card-head{margin-bottom:6px}
-  .shotgun-offer{grid-template-columns:28px minmax(0,1fr) auto;padding:7px}
-  .shotgun-icon{width:28px;height:32px}
-  #upgrade-dialog .shotgun-offer p{font-size:8px}
-  .shotgun-offer h3 small{font-size:8px}
-  #shotgun-ad{font-size:9px;padding:6px;min-height:34px}
-}
-@media(orientation:landscape) and (max-height:500px){
-  .shotgun-offer{grid-template-columns:28px minmax(0,1fr) auto;margin-top:7px;padding:5px 9px}
-  #upgrade-dialog .shotgun-offer-copy{display:flex;align-items:center;gap:10px}
-  #upgrade-dialog .shotgun-offer p{margin:0}
-  #upgrade-dialog .status{margin:4px 0;min-height:12px}
-}

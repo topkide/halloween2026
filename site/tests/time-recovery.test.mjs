@@ -48,7 +48,7 @@ test('the recovery rate and budget are configurable, validated, and may be disab
 test('old default duration migrates once while custom timing, active upgrades and owned badges survive with retired coins refunded',()=>{
   const economy={upgradeCoins:123,eventCoins:77,levels:{gold:2,reward:3,shop:1},claimedRuns:[]};
   const load=(version,duration)=>readProgress(k=>k===STORAGE_KEY?JSON.stringify({progressVersion:version,config:{duration,spawn:.31},economy,bestWave:7,eventState:{tickets:3,owned:['badge']}}):null);
-  const migrated=load(4,60);assert.equal(migrated.config.duration,90);assert.equal(migrated.config.spawn,.31);assert.deepEqual(migrated.economy,{...economy,upgradeCoins:213,levels:{time:0,gold:2,shop:1}});assert.equal(migrated.bestWave,7);assert.deepEqual(migrated.eventState.owned,['badge']);
+  const migrated=load(4,60);assert.equal(migrated.config.duration,90);assert.equal(migrated.config.spawn,.31);assert.deepEqual(migrated.economy,{...economy,upgradeCoins:213,levels:{time:0,gold:2,shop:1},doubledRuns:[]});assert.equal(migrated.bestWave,7);assert.deepEqual(migrated.eventState.owned,['badge']);
   assert.equal(load(4,90).config.duration,90);assert.equal(load(4,75).config.duration,75);
   assert.equal(load(PROGRESS_VERSION,60).config.duration,60);
 });
