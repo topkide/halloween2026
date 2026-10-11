@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-recovery1';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-upgrades30';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -16,7 +16,7 @@ export const DEFAULTS=Object.freeze({duration:90,spawn:.23,missPenalty:2,baseGoa
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const bound=(key,min,max)=>Number.isFinite(value[key])?Math.max(min,Math.min(max,value[key])):DEFAULTS[key];
-  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',.5,5),baseGoal:Math.round(bound('baseGoal',4,20)),goldLimit:Math.round(bound('goldLimit',1,10)),goldInterval:bound('goldInterval',1,30),waveRecoveryPercent:bound('waveRecoveryPercent',0,50),recoveryLimit:bound('recoveryLimit',0,300)};
+  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',.5,5),baseGoal:Math.round(bound('baseGoal',4,20)),goldLimit:Math.round(bound('goldLimit',1,10)),goldInterval:bound('goldInterval',1,30),waveRecoveryPercent:bound('waveRecoveryPercent',0,30),recoveryLimit:bound('recoveryLimit',0,300)};
 }
 export function rollMultiplier(random=Math.random,previous=null){
   const choices=[[2,38],[3,30],[5,20],[8,9],[10,3]].filter(([value])=>value!==previous);
@@ -70,7 +70,7 @@ export function pose(ghost,width,height) {
 }
 export class Hunt {
   constructor({random=Math.random,config={},upgrades={}}={}){
-    this.random=random;this.config=settings(config);this.upgrades=Object.freeze(upgradeLevels(upgrades));this.effects=upgradeEffects(this.upgrades);this.state='ready';this.ghosts=[];this.events=[];this.serial=0;
+    this.random=random;this.config=settings(config);this.upgrades=Object.freeze(upgradeLevels(upgrades));this.effects=upgradeEffects(this.upgrades,{recoveryBasePercent:this.config.waveRecoveryPercent});this.state='ready';this.ghosts=[];this.events=[];this.serial=0;
   }
   start(){
     Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,goldSpawnLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
@@ -165,7 +165,7 @@ export class Hunt {
       this.gold++;this.waveGold++;this.goldScore+=points;
       if(this.waveGold===this.config.goldLimit)this.events.push({kind:'gold-limit',wave:this.wave});
     }else this.normalScore+=points;
-    const upgradeCoins=ghost.type==='gold'?0:GHOST_COINS[ghost.type]+this.effects.extraCoinsPerGhost;
+    const upgradeCoins=ghost.type==='gold'?0:GHOST_COINS[ghost.type];
     const bonusCoins=ghost.type==='gold'?this.bounty.coins:0;
     this.earnedUpgradeCoins+=upgradeCoins;this.wavePendingBonus+=bonusCoins;
     const hit={kind:ghost.type,ghost,points,upgradeCoins,bonusCoins,penalty:0};
@@ -173,7 +173,7 @@ export class Hunt {
       const reward={wave:this.wave,base:this.waveBaseReward,bonus:this.wavePendingBonus,total:this.waveBaseReward+this.wavePendingBonus};
       this.earnedEventCoins+=reward.total;this.waveRewards.push(reward);
       // Recover from the clock at the final hit, once per clear, within the run budget.
-      this.lastTimeRecovery=Math.min(this.remaining*this.config.waveRecoveryPercent/100,Math.max(0,this.config.recoveryLimit-this.recoveredTime));
+      this.lastTimeRecovery=Math.min(this.remaining*this.effects.timeRecoveryPercent/100,Math.max(0,this.config.recoveryLimit-this.recoveredTime));
       this.remaining+=this.lastTimeRecovery;this.recoveredTime+=this.lastTimeRecovery;
       this.clearedWaves++;this.events.push({kind:'wave-clear',...reward,timeRecovery:this.lastTimeRecovery});this.prepareWave();
     }

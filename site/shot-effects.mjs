@@ -1,4 +1,4 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-recovery1';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-upgrades30';
 
 // One canvas and one existing RAF. Each shot has a fixed particle budget and lifetime.
 export const SHOT_LIMITS=Object.freeze({bursts:8,particles:12,lifetime:700,pixelRatio:2});

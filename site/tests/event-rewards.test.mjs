@@ -8,18 +8,18 @@ const playing=(levels={})=>{const h=new Hunt({random:()=>.2,upgrades:levels});h.
 const catchGhost=(h,type)=>{const g=h.spawn(type);g.age=type==='gold'?0:g.life*.3;return h.shoot(g.id);};
 const advance=h=>{h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);h.ghosts=[];};
 
-test('each ordinary species gives its own upgrade coins and the per-ghost upgrade adds to that value',()=>{
-  for(const level of [0,3,10]){
-    const h=playing({reward:level});let total=0;
-    for(const [type,base] of Object.entries(GHOST_COINS)){const hit=catchGhost(h,type);assert.equal(hit.upgradeCoins,base+level);assert.equal(hit.bonusCoins,0);total+=base+level;}
+test('ordinary species keep fixed upgrade coins regardless of all upgrade levels',()=>{
+  for(const level of [0,15,30]){
+    const h=playing({time:level,gold:level,shop:level});let total=0;
+    for(const [type,base] of Object.entries(GHOST_COINS)){const hit=catchGhost(h,type);assert.equal(hit.upgradeCoins,base);assert.equal(hit.bonusCoins,0);total+=base;}
     assert.equal(h.earnedUpgradeCoins,total);assert.equal(h.earnedEventCoins,0);
     const gold=catchGhost(h,'gold');assert.equal(gold.upgradeCoins,0);assert.equal(h.earnedUpgradeCoins,total);
   }
 });
 test('later waves and shop upgrades raise the base and golden bounty together',()=>{
   assert.deepEqual([1,2,3].map(w=>waveReward(w,{})),[10,15,20]);
-  assert.deepEqual([1,2,3].map(w=>waveReward(w,{shop:5})),[15,22,30]);
-  const h=playing({shop:10});assert.equal(h.waveBaseReward,20);assert.equal(h.bounty.coins,20*h.bounty.multiplier);
+  assert.deepEqual([1,2,3].map(w=>waveReward(w,{shop:15})),[20,30,40]);
+  const h=playing({shop:30});assert.equal(h.waveBaseReward,30);assert.equal(h.bounty.coins,30*h.bounty.multiplier);
 });
 test('gold bonuses are pending until clear, include a golden final kill, and cannot be paid twice',()=>{
   const h=playing();const bounty=h.bounty.coins;

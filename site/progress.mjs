@@ -1,8 +1,8 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-recovery1';
-import {cleanEconomy} from './upgrades.mjs?v=20261011-recovery1';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-upgrades30';
+import {cleanEconomy} from './upgrades.mjs?v=20261011-upgrades30';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
-export const PROGRESS_VERSION=5;
+export const PROGRESS_VERSION=6;
 
 export function readProgress(getItem){
   const read=key=>{
@@ -14,14 +14,17 @@ export function readProgress(getItem){
     const level=current.economy?.levels?.reload;
     const retiredLevel=(current.progressVersion??0)<3&&Number.isSafeInteger(level)&&level>0?Math.min(10,level):0;
     const refundedReloadCoins=retiredLevel*20+10*retiredLevel*(retiredLevel-1)/2;
+    const rewardLevel=current.economy?.levels?.reward;
+    const retiredRewardLevel=(current.progressVersion??0)<6&&Number.isSafeInteger(rewardLevel)&&rewardLevel>0?Math.min(10,rewardLevel):0;
+    const refundedRewardCoins=retiredRewardLevel*20+10*retiredRewardLevel*(retiredRewardLevel-1)/2;
     const economy=cleanEconomy(current.economy);
-    economy.upgradeCoins=Math.min(1_000_000_000,economy.upgradeCoins+refundedReloadCoins);
+    economy.upgradeCoins=Math.min(1_000_000_000,economy.upgradeCoins+refundedReloadCoins+refundedRewardCoins);
     return {
       config:settings({...current.config,...((current.progressVersion??0)<2&&current.config?.goldInterval===4?{goldInterval:DEFAULTS.goldInterval}:{}),...((current.progressVersion??0)<5&&current.config?.duration===60?{duration:DEFAULTS.duration}:{})}),
       best:Number.isSafeInteger(current.best)&&current.best>=0?current.best:0,
       lastResult:current.lastResult??null,
       soundOn:current.soundOn!==false,
-      economy,refundedReloadCoins,
+      economy,refundedReloadCoins,refundedRewardCoins,
       bestWave:Number.isSafeInteger(current.bestWave)&&current.bestWave>=0?current.bestWave:0,eventState:current.eventState,
     };
   }

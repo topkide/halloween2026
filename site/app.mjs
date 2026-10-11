@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-recovery1';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-recovery1';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-recovery1';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-recovery1';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-recovery1';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-recovery1';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-upgrades30';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-upgrades30';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-upgrades30';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-upgrades30';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-upgrades30';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-upgrades30';
 
-import {GhostAim,pickGhost} from './ghost-aim.mjs?v=20261011-recovery1';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-recovery1';
+import {GhostAim,pickGhost} from './ghost-aim.mjs?v=20261011-upgrades30';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-upgrades30';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -37,10 +37,14 @@ function updateWallet(){
   ui['distance-fill'].style.transform='scaleX('+eventData.distance/EVENT.distancePerTicket+')';
   ui['owned-decor'].innerHTML=eventData.owned.filter(id=>id!=='badge').map(id=>id==='friend'?'<span class="owned-friend">'+ghostPixel('wisp')+'</span>':'<span class="owned-lantern">'+coinPixel('pumpkin')+'</span>').join('');
 }
-function effectLabel(key,levels){const e=upgradeEffects(levels);return key==='gold'?Math.round(e.goldChance*100)+'%':key==='shop'?'+'+e.shopBonusPercent+'%':'+'+e.extraCoinsPerGhost+'개 / 마리';}
+function effectLabel(key,levels){
+  const e=upgradeEffects(levels,{recoveryBasePercent:config.waveRecoveryPercent});
+  const percent=value=>Number(value.toFixed(1)).toLocaleString('ko-KR')+'%';
+  return key==='time'?percent(e.timeRecoveryPercent):key==='gold'?percent(e.goldChance*100):'+'+percent(e.shopBonusPercent);
+}
 function renderUpgrades(){
   updateWallet();
-  const descriptions={gold:config.goldInterval+'초마다 등장 추첨 · 한 웨이브 최대 '+config.goldLimit+'마리 처치',reward:'일반 유령의 종류별 기본 보상에 추가 지급',shop:'웨이브 기본 보상과 황금 현상금이 함께 증가'};
+  const descriptions={time:'클리어 순간 남은 시간 회복 · 한 판 최대 '+config.recoveryLimit+'초',gold:config.goldInterval+'초마다 등장 추첨 · 한 웨이브 최대 '+config.goldLimit+'마리 처치',shop:'웨이브 기본 보상과 황금 현상금이 함께 증가'};
   ui['upgrade-cards'].innerHTML=Object.entries(UPGRADES).map(([key,definition])=>{
     const level=economy.levels[key],cost=upgradeCost(level),max=cost===null,next={...economy.levels,[key]:level+1};
     return '<article class="upgrade-card"><div class="upgrade-card-head"><h3>'+definition.name+'</h3><b>'+(max?'MAX':'Lv. '+level+' / '+BALANCE.maxLevel)+'</b></div><p>'+descriptions[key]+'</p><div class="upgrade-bottom"><div class="upgrade-effect"><strong>'+effectLabel(key,economy.levels)+'</strong>'+(max?'<span>최대 강화</span>':'<span>→</span><b>'+effectLabel(key,next)+'</b>')+'</div><button type="button" class="upgrade-buy" data-upgrade="'+key+'" '+(max||economy.upgradeCoins<cost?'disabled':'')+'>'+(max?'최대 레벨':coinPixel('ghost')+number(cost)+' · 강화')+'</button></div><div class="upgrade-track"><i style="transform:scaleX('+level/BALANCE.maxLevel+')"></i></div></article>';
@@ -234,7 +238,7 @@ function frame(now){
 }
 for(const node of document.querySelectorAll('[data-coin]'))node.innerHTML=coinPixel(node.dataset.coin);
 ui['wanted-art'].innerHTML=ghostPixel('gold');ui['brief-art'].innerHTML=ghostPixel('gold');
-if(loaded.refundedReloadCoins>0)save();
+if(loaded.refundedReloadCoins>0||loaded.refundedRewardCoins>0)save();
 updateSound();ready();requestAnimationFrame(frame);
 function updateSound(){ui.sound.textContent=soundOn?'♪':'♪̸';ui.sound.setAttribute('aria-label',soundOn?'사운드 켜짐':'사운드 꺼짐');ui.sound.setAttribute('aria-pressed',String(soundOn));if(mutedGain)mutedGain.gain.value=soundOn?.2:0;}
 function sound(kind){

@@ -41,14 +41,14 @@ test('misses are deducted before the recovery calculation; timeout and quit neve
 test('the recovery rate and budget are configurable, validated, and may be disabled',()=>{
   const h=playing({waveRecoveryPercent:20,recoveryLimit:50});h.tick(40);clear(h);near(h.remaining,60);
   for(const config of [{waveRecoveryPercent:0},{recoveryLimit:0}]){const off=playing(config);clear(off);assert.equal(off.remaining,90);assert.equal(off.recoveredTime,0);}
-  assert.equal(settings({waveRecoveryPercent:99}).waveRecoveryPercent,50);
+  assert.equal(settings({waveRecoveryPercent:99}).waveRecoveryPercent,30);
   assert.equal(settings({recoveryLimit:-1}).recoveryLimit,0);
   assert.equal(settings({recoveryLimit:NaN}).recoveryLimit,30);
 });
-test('old default duration migrates once while custom timing, coins, upgrades and owned badges survive',()=>{
+test('old default duration migrates once while custom timing, active upgrades and owned badges survive with retired coins refunded',()=>{
   const economy={upgradeCoins:123,eventCoins:77,levels:{gold:2,reward:3,shop:1},claimedRuns:[]};
   const load=(version,duration)=>readProgress(k=>k===STORAGE_KEY?JSON.stringify({progressVersion:version,config:{duration,spawn:.31},economy,bestWave:7,eventState:{tickets:3,owned:['badge']}}):null);
-  const migrated=load(4,60);assert.equal(migrated.config.duration,90);assert.equal(migrated.config.spawn,.31);assert.deepEqual(migrated.economy,economy);assert.equal(migrated.bestWave,7);assert.deepEqual(migrated.eventState.owned,['badge']);
+  const migrated=load(4,60);assert.equal(migrated.config.duration,90);assert.equal(migrated.config.spawn,.31);assert.deepEqual(migrated.economy,{...economy,upgradeCoins:213,levels:{time:0,gold:2,shop:1}});assert.equal(migrated.bestWave,7);assert.deepEqual(migrated.eventState.owned,['badge']);
   assert.equal(load(4,90).config.duration,90);assert.equal(load(4,75).config.duration,75);
   assert.equal(load(PROGRESS_VERSION,60).config.duration,60);
 });
