@@ -1,9 +1,11 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-art2';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-art2';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-art2';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-art2';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-art2';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-art2';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-hit3';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-hit3';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-hit3';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-hit3';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-hit3';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-hit3';
+
+import {ShotEffects} from './shot-effects.mjs?v=20261011-hit3';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -14,12 +16,14 @@ let eventData=eventState(loaded.eventState);
 let engine=new Hunt({config,upgrades:economy.levels}),size={width:400,height:440,scale:1,left:0,top:0},currentRunId=null;
 let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,soundContext=null,mutedGain=null,shotNoise=null;
 let reelRows=[],lastReelStep=-1,lastReelSoundAt=-Infinity,infoAction=null;
-const entities=new Map(),impacts=[];
+const entities=new Map();
+const shots=new ShotEffects(ui['effect-layer'],{reducedMotion:()=>reducedMotion.matches});
+let feedbackUntil=0,recoil=null,clockPulse=null;
 const number=n=>Math.round(n).toLocaleString('ko-KR');
 function setText(node,text){if(node.textContent!==String(text))node.textContent=String(text);}
 function save(){try{localStorage.setItem(KEY,JSON.stringify({progressVersion:PROGRESS_VERSION,best,bestWave,soundOn,config,lastResult,economy,eventState:eventData}));return true;}catch{setText(ui['storage-note'],'이 브라우저에서는 기록을 저장할 수 없어요. 브라우저 저장 설정을 확인해 주세요.');return false;}}
 function showScreen(id){for(const name of ['lobby','hunt-screen','closed-screen'])ui[name].hidden=name!==id;}
-function measure(){const r=ui.arena.getBoundingClientRect();if(r.width>0)size={width:400,height:Math.max(180,r.height/r.width*400),scale:r.width/400,left:r.left,top:r.top};}
+function measure(){const r=ui.arena.getBoundingClientRect();if(r.width>0)size={width:400,height:Math.max(180,r.height/r.width*400),scale:r.width/400,left:r.left,top:r.top};if(r.width>0)shots.resize(r.width,r.height);}
 new ResizeObserver(measure).observe(ui.arena);window.addEventListener('resize',measure,{passive:true});window.addEventListener('scroll',measure,{passive:true});
 function updateWallet(){
   for(const id of ['wallet-upgrade','upgrade-balance'])setText(ui[id],number(economy.upgradeCoins));
@@ -36,7 +40,7 @@ function renderUpgrades(){
   const descriptions={gold:config.goldInterval+'초마다 등장 추첨 · 한 웨이브 최대 '+config.goldLimit+'마리 처치',reward:'일반 유령의 종류별 기본 보상에 추가 지급',shop:'웨이브 기본 보상과 황금 현상금이 함께 증가'};
   ui['upgrade-cards'].innerHTML=Object.entries(UPGRADES).map(([key,definition])=>{
     const level=economy.levels[key],cost=upgradeCost(level),max=cost===null,next={...economy.levels,[key]:level+1};
-    return '<article class="upgrade-card"><div class="upgrade-card-head"><h3>'+definition.name+'</h3><b>'+(max?'MAX':'Lv. '+level+' / '+BALANCE.maxLevel)+'</b></div><p>'+descriptions[key]+'</p><div class="upgrade-effect"><strong>'+effectLabel(key,economy.levels)+'</strong>'+(max?'<span>최대 강화</span>':'<span>→</span><b>'+effectLabel(key,next)+'</b>')+'</div><div class="upgrade-track"><i style="transform:scaleX('+level/BALANCE.maxLevel+')"></i></div><button type="button" class="upgrade-buy" data-upgrade="'+key+'" '+(max||economy.upgradeCoins<cost?'disabled':'')+'>'+(max?'최대 레벨':coinPixel('ghost')+number(cost)+' · 강화하기')+'</button></article>';
+    return '<article class="upgrade-card"><div class="upgrade-card-head"><h3>'+definition.name+'</h3><b>'+(max?'MAX':'Lv. '+level+' / '+BALANCE.maxLevel)+'</b></div><p>'+descriptions[key]+'</p><div class="upgrade-bottom"><div class="upgrade-effect"><strong>'+effectLabel(key,economy.levels)+'</strong>'+(max?'<span>최대 강화</span>':'<span>→</span><b>'+effectLabel(key,next)+'</b>')+'</div><button type="button" class="upgrade-buy" data-upgrade="'+key+'" '+(max||economy.upgradeCoins<cost?'disabled':'')+'>'+(max?'최대 레벨':coinPixel('ghost')+number(cost)+' · 강화')+'</button></div><div class="upgrade-track"><i style="transform:scaleX('+level/BALANCE.maxLevel+')"></i></div></article>';
   }).join('');
   ui['upgrade-start'].disabled=eventData.tickets===0;
   ui['upgrade-start'].innerHTML=eventData.tickets?'사냥 시작 <span>기회 1개 사용 · '+config.duration+'초</span>':'플레이 기회를 충전해 주세요';
@@ -85,17 +89,21 @@ function renderGhosts(){
     node.style.opacity=p.alpha;node.style.pointerEvents=p.alpha<.3||engine.state!=='playing'?'none':'auto';node.disabled=engine.state!=='playing'||p.alpha<.3;node.firstElementChild.style.transform='scaleX('+p.facing+')';
   }
 }
-function hitEffect(hit,x,y){
-  const node=document.createElement('div');node.className='shot-effect'+(hit.kind==='miss'?' miss':'');node.style.left=x+'px';node.style.top=y+'px';
-  node.style.setProperty('--hit',hit.kind==='gold'?'#ffca59':hit.kind==='miss'?'#f18f75':'#fff6d7');
-  const shotX=size.width*size.scale*.5-x,shotY=size.height*size.scale+16-y;
-  const label=hit.kind==='miss'?'−'+hit.penalty+'초':hit.kind==='gold'?'호박 +'+hit.bonusCoins:'+'+hit.upgradeCoins;
-  node.innerHTML='<i class="shot-tracer" style="--length:'+Math.hypot(shotX,shotY)+'px;--rotation:'+Math.atan2(shotY,shotX)*180/Math.PI+'deg"></i><i class="shot-flash"></i><i class="shot-ring"></i><span class="shot-text"><small>'+(hit.kind==='gold'?'클리어하면 지급':hit.kind==='miss'?'헛발!':'강화 코인')+'</small>'+label+'</span>';
-  ui['effect-layer'].append(node);impacts.push({node,until:performance.now()+650});while(impacts.length>12)impacts.shift().node.remove();
+function hitEffect(hit,x,y,ghostBox){
+  const now=performance.now(),miss=hit.kind==='miss',gold=hit.kind==='gold';shots.shoot(hit,x,y,ghostBox,now);
+  ui['shot-feedback'].dataset.kind=miss?'miss':gold?'gold':'hit';ui['shot-feedback'].classList.add('visible');
+  setText(ui['shot-feedback-title'],miss?'빗나감':gold?'황금 명중!':'명중!');
+  setText(ui['shot-feedback-detail'],miss?'−'+hit.penalty+'초':gold?'클리어 시 호박 +'+hit.bonusCoins:'강화 코인 +'+hit.upgradeCoins);feedbackUntil=now+650;
+  if(reducedMotion.matches)return;
+  if(miss){clockPulse?.cancel();clockPulse=ui['time-label'].animate([{color:'#ff8c80',transform:'scale(1.16)'},{color:'#e1c191',transform:'scale(1)'}],{duration:220});}
+  else{recoil?.cancel();recoil=document.querySelector('.arena-scenery').animate([{transform:'translate(0,0)'},{transform:'translate(0,2px)',offset:.2},{transform:'translate(1px,-1px)',offset:.5},{transform:'translate(0,0)'}],{duration:130});}
 }
-function clearVisuals(){for(const x of impacts)x.node.remove();impacts.length=0;for(const node of entities.values())node.remove();entities.clear();toastUntil=0;ui['field-toast'].classList.remove('visible');setText(ui['field-toast'],'');ui.ending.hidden=true;}
+function clearVisuals({keepShots=false}={}){
+  if(!keepShots){shots.clear();feedbackUntil=0;ui['shot-feedback'].classList.remove('visible');recoil?.cancel();clockPulse?.cancel();}
+  for(const node of entities.values())node.remove();entities.clear();toastUntil=0;ui['field-toast'].classList.remove('visible');setText(ui['field-toast'],'');ui.ending.hidden=true;
+}
 function flushEvents(){for(const event of engine.drain()){
-  if(event.kind==='wave'){clearVisuals();prepareBountyReel();updateHud();sound('reel-tick');}
+  if(event.kind==='wave'){clearVisuals({keepShots:true});prepareBountyReel();updateHud();sound('reel-tick');}
   if(event.kind==='bounty-reveal'){sound(event.multiplier>=8?'gold':'bounty-stop');updateHud();}
   if(event.kind==='wave-start')sound('wave');
   if(event.kind==='gold-limit')toast('황금 사냥 완료! 다음 웨이브를 열어보세요.',1700);
@@ -108,8 +116,8 @@ function fire(event){
   event.preventDefault();const target=event.target.closest('[data-ghost]'),id=target?Number(target.dataset.ghost):null;
   const g=id===null?null:engine.ghosts.find(g=>g.id===id),p=g?pose(g,size.width,size.height):null;
   const x=event.type==='click'&&p?p.x*size.scale:event.clientX-size.left,y=event.type==='click'&&p?p.y*size.scale:event.clientY-size.top;
-  const hit=engine.shoot(id);if(!hit)return;hitEffect(hit,x,y);sound('shot');if(hit.kind==='gold')sound('gold');
-  if(hit.kind==='miss')toast('헛발! 남은 시간 −'+hit.penalty+'초',650);
+  const ghostBox=g&&p?{x:p.x*size.scale,y:p.y*size.scale,width:TYPES[g.type].width*size.scale*p.sx,height:TYPES[g.type].height*size.scale*p.sy}:null;
+  const hit=engine.shoot(id);if(!hit)return;hitEffect(hit,x,y,ghostBox);sound('shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit');
   renderGhosts();flushEvents();updateHud();
 }
 if(pointerInput)ui.arena.addEventListener('pointerdown',fire);ui.arena.addEventListener('click',fire);
@@ -180,7 +188,8 @@ ui['demo-credit'].addEventListener('click',()=>{const previous=economy;economy={
 function frame(now){
   const dt=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
   if(['playing','briefing'].includes(engine.state)){engine.tick(dt);flushEvents();renderGhosts();renderBountyReel(now);}
-  while(impacts.length&&impacts[0].until<=now)impacts.shift().node.remove();
+  shots.render(now);
+  if(feedbackUntil&&now>feedbackUntil){feedbackUntil=0;ui['shot-feedback'].classList.remove('visible');}
   if(toastUntil&&now>toastUntil){ui['field-toast'].classList.remove('visible');toastUntil=0;}
   if(now-hudAt>80){updateHud();hudAt=now;}requestAnimationFrame(frame);
 }
@@ -203,7 +212,7 @@ function sound(kind){
       noise.buffer=shotNoise;gain.gain.setValueAtTime(1.3,at);gain.gain.exponentialRampToValueAtTime(.001,at+.085);
       noise.connect(gain);gain.connect(mutedGain);noise.onended=()=>{noise.disconnect();gain.disconnect();};noise.start(at);noise.stop(at+.085);
     }
-    const sounds={'reel-tick':[[900,620,.028,0,'sine']],'bounty-stop':[[523,784,.12,0,'triangle'],[784,1046,.24,.09,'sine']],shot:[[145,38,.12,0,'sine'],[920,140,.035,0,'sawtooth']],miss:[[130,50,.08,0,'triangle']],hit:[[650,400,.1,0,'sine']],gold:[[784,990,.15,0,'triangle'],[988,1320,.18,.08,'triangle'],[1318,1760,.25,.16,'sine']],wave:[[440,660,.12,0,'triangle'],[660,880,.16,.1,'sine']],timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]};
+    const sounds={'reel-tick':[[900,620,.028,0,'sine']],'bounty-stop':[[523,784,.12,0,'triangle'],[784,1046,.24,.09,'sine']],shot:[[145,38,.12,0,'sine'],[920,140,.035,0,'sawtooth']],miss:[[130,50,.08,0,'triangle']],hit:[[320,120,.08,.025,'triangle'],[1100,700,.035,.03,'sine']],gold:[[784,990,.15,0,'triangle'],[988,1320,.18,.08,'triangle'],[1318,1760,.25,.16,'sine']],wave:[[440,660,.12,0,'triangle'],[660,880,.16,.1,'sine']],timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]};
     for(const [from,to,duration,delay,wave] of sounds[kind]??sounds.hit){const at=soundContext.currentTime+delay,osc=soundContext.createOscillator(),gain=soundContext.createGain();osc.type=wave;osc.frequency.setValueAtTime(from,at);osc.frequency.exponentialRampToValueAtTime(to,at+duration);gain.gain.setValueAtTime(.32,at);gain.gain.exponentialRampToValueAtTime(.001,at+duration);osc.connect(gain);gain.connect(mutedGain);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(at);osc.stop(at+duration);}
   }catch{}
 }

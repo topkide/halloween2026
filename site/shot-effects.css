@@ -1,0 +1,8 @@
+#effect-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:14}
+#shot-feedback{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:20px;background:#20142edb;border:1px solid #ffedb16b;box-shadow:0 2px 12px #120a2344;color:#fff3d0;z-index:15;pointer-events:none;white-space:nowrap;opacity:0;transition:opacity .1s}
+#shot-feedback.visible{opacity:1}#shot-feedback strong{font-size:13px;font-weight:800}#shot-feedback strong::before{content:'✦';margin-right:5px;color:#fff1bb}#shot-feedback span{font-size:10px;color:#dbc9dd}
+#shot-feedback[data-kind=miss]{border-color:#ef9c8766;color:#ffb6a6;background:#34202edb}#shot-feedback[data-kind=miss] strong::before{content:'◌';color:#ffb6a6}
+#shot-feedback[data-kind=gold]{border-color:#ffd169a1;color:#ffe39b;background:#463123e8}#shot-feedback[data-kind=gold] span{color:#ffdb96}
+.arena:has(#shot-feedback.visible) .arena-hint{visibility:hidden}
+@container field (max-height:250px){#shot-feedback{bottom:7px;padding:5px 10px;gap:6px}#shot-feedback strong{font-size:11px}#shot-feedback span{font-size:9px}}
+@media(prefers-reduced-motion:reduce){#shot-feedback{transition:none}}

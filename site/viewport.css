@@ -1,0 +1,64 @@
+/* The game occupies the usable viewport, including browser-toolbar and safe-area changes. */
+html{width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
+body{width:100%;height:100svh;height:100dvh;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top)) max(0px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(0px,env(safe-area-inset-left));background-size:auto;overscroll-behavior:none}
+.app{width:min(460px,100%,66dvh);height:100%;max-height:940px;min-height:0;flex:none;margin:0;container-type:size;container-name:game}
+.screen{height:100%;min-height:0;max-height:100%}
+.lobby{grid-template-rows:clamp(105px,17cqh,145px) minmax(0,1fr) clamp(78px,12cqh,100px) clamp(64px,10cqh,80px)}
+.lobby-scene,.chance-panel,.lobby-actions{min-height:0}
+.event-settings{position:absolute;top:12px;left:12px;width:30px;height:30px;border-radius:50%;font-size:19px}
+.event-kicker{margin-top:clamp(9px,1.5cqh,14px)}
+.event-header h1{font-size:clamp(23px,3.7cqh,32px);margin:clamp(4px,1cqh,8px) 0;line-height:1.03}
+.event-header h1 em{font-size:clamp(28px,4.7cqh,40px)}
+.event-period{font-size:clamp(9px,1.3cqh,11px);margin-top:clamp(4px,.9cqh,8px)}
+.title-stars{top:45%;left:11%}.title-stars span{left:280px}
+.lobby-actions{padding:clamp(8px,1.4cqh,12px) 12px;align-items:stretch}
+.lobby-actions button{min-height:0}.start-button i{top:50%;transform:translateY(-50%)}
+.distance-panel{padding:8px 11px}.distance-panel p{margin-bottom:5px}.ad-button{margin:8px 10px 8px 0}
+#storage-note{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:99;background:#2e1f34;color:#ffc0a3;padding:9px;border-radius:10px;font-size:11px;margin:0;pointer-events:none}#storage-note:empty{display:none}
+.hunt-screen>header,.hunt-screen>.timer,.hunt-wallet,.wanted-bar,.hunt-footer{flex-shrink:0}
+.arena{flex:1 1 0;min-height:0;container-type:size;container-name:field}
+.arena-scenery{inset:-3px}
+.hunt-footer{padding:12px 15px}.hunt-footer p{flex-wrap:wrap;row-gap:1px}.hunt-footer>small{display:block}
+.upgrade-bottom{display:flex;justify-content:space-between;align-items:center;gap:7px}.upgrade-bottom .upgrade-buy{width:auto;min-width:100px;margin:0;flex:none;font-size:10px;padding:6px 8px}
+.upgrade-bottom .upgrade-effect{font-size:12px}.upgrade-effect span{padding:0 5px}
+dialog{max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(12px,env(safe-area-inset-bottom)));overscroll-behavior:contain}
+#upgrade-dialog{padding:20px}.dialog-heading h2{margin-bottom:10px}#upgrade-dialog .dialog-intro{margin:10px 0;font-size:11px!important}#upgrade-dialog .status{margin:10px 0}#upgrade-dialog .primary{margin-top:10px}
+@container game (max-height:720px){
+  .hunt-header{padding:9px 13px 5px}.hunt-header strong{font-size:20px;line-height:1.5}.hunt-header small{font-size:8px}
+  .timer{padding:0 13px 8px;gap:8px}.timer strong{font-size:13px}
+  .hunt-wallet{margin:0 10px 7px;gap:7px}.hunt-wallet>div{padding:6px 8px;column-gap:6px}.hunt-wallet small{font-size:8px}.hunt-wallet b{font-size:16px;line-height:19px}.hunt-wallet>div>span{width:26px;height:28px}
+  .wanted-bar{padding:5px 12px;min-height:49px;gap:8px}.wanted-art{width:33px;height:39px}.wanted-bar strong{font-size:12px}.wanted-bar>b{font-size:25px}
+  .hunt-footer{padding:9px 13px}.hunt-footer strong{font-size:17px}.hunt-footer span{font-size:10px}.hunt-footer p{margin:7px 0 5px;font-size:10px}.hunt-footer>small{font-size:9px}.wave-track{margin-top:7px}
+  .scene-caption{padding:8px 9px;bottom:10px}.owned-decor{bottom:54px}
+}
+@container game (max-height:520px){
+  .lobby{grid-template-rows:80px minmax(0,1fr) 65px 57px}.event-kicker{display:none}.event-header h1{font-size:21px;margin:9px 0 4px}.event-header h1 em{font-size:25px}.event-period{font-size:8px;margin:0}.event-settings,.close-event{width:27px;height:27px;top:9px}.title-stars{display:none}
+  .lobby-wallet{width:119px;gap:4px;top:8px;right:8px}.currency{height:36px;padding:3px 7px;gap:6px;border-radius:10px}.currency>span{width:24px;height:26px}.currency small{font-size:7px;line-height:10px}.currency strong{font-size:16px;line-height:17px}
+  .package-button{top:8px;left:8px;width:57px;font-size:10px;padding:6px 3px}.package-icon{width:22px;height:22px;margin-bottom:2px}.package-button small{display:none}.scene-caption{padding:6px;left:8px;right:8px;bottom:7px;font-size:8px}.scene-caption small{font-size:7px}.owned-decor{display:none}
+  .chance-panel{grid-template-columns:1fr 68px}.distance-panel{padding:6px 8px}.distance-panel p{font-size:8px;line-height:1.4;margin-bottom:4px}.distance-panel p span{font-size:7px}.distance-track{height:15px}.distance-track strong{line-height:13px;font-size:9px}.ad-button{margin:6px 7px 6px 0;gap:0}.ad-button b{font-size:10px}.ad-button small{font-size:7px}.play-icon{font-size:17px;height:19px;line-height:18px}
+  .lobby-actions{padding:7px 8px;gap:7px}.lobby-actions button{font-size:11px;border-radius:10px}.shop-button{gap:5px}.shop-button>span{width:21px;height:23px}.start-button>span{font-size:10px;margin-top:2px}.start-button i{right:10px}
+  .hunt-header{padding:6px 10px 3px}.hunt-header small{display:none}.hunt-header strong{font-size:17px;line-height:1.5}.hunt-controls .icon-button{width:28px;height:28px;font-size:20px}
+  .timer{padding:0 10px 5px}.timer strong{font-size:11px}.timer>div{height:5px}
+  .hunt-wallet{margin:0 8px 5px;gap:6px}.hunt-wallet>div{padding:4px 6px;grid-template-columns:22px 1fr;column-gap:5px}.hunt-wallet>div>span{width:22px;height:24px}.hunt-wallet small{font-size:7px;white-space:nowrap;letter-spacing:-.25px}.hunt-wallet b{font-size:14px;line-height:17px}
+  .wanted-bar{min-height:39px;padding:3px 9px;gap:6px}.wanted-art{height:31px;width:28px}.wanted-bar small{font-size:7px}.wanted-bar strong{font-size:10px}.wanted-bar>b{font-size:21px}.wanted-bar>small{font-size:9px}
+  .hunt-footer{padding:6px 10px}.hunt-footer span{font-size:9px}.hunt-footer strong{font-size:14px}.wave-track{height:4px;margin-top:4px}.hunt-footer p{font-size:9px;margin:5px 0 3px;gap:5px}.hunt-footer p>span[data-coin]{height:14px;width:13px}.hunt-footer p>span:last-child{font-size:8px}.hunt-footer>small{font-size:8px}.arena-hint{font-size:8px;bottom:8px}
+}
+@container field (max-height:340px){
+  .wave-intro{padding:8px}.wave-intro h2{font-size:20px;margin:5px 0 7px}.wave-intro>small{font-size:9px}
+  .bounty-card{padding:8px 18px;min-width:180px;border-radius:13px}.wanted-label{font-size:10px;letter-spacing:3px}#brief-art{height:43px;width:40px;margin:5px auto}.bounty-card>strong{font-size:12px}.bounty-formula{margin:4px 0}.bounty-formula>b{font-size:17px}#brief-status{font-size:9px;line-height:1.3;margin:3px 0}#brief-reward{font-size:20px}.bounty-card>small{font-size:8px;margin-top:4px}.wave-intro>p{font-size:11px;margin:8px 0 5px}
+}
+@container field (max-height:255px){
+  .wave-intro h2{font-size:17px;margin:3px 0 5px}.wave-intro>small{font-size:8px}.bounty-card{display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;column-gap:8px;max-width:245px;min-width:195px;padding:7px 12px}.wanted-label{display:none}#brief-art{grid-row:1/5;grid-column:1;width:40px;height:48px;margin:0}.bounty-card>strong,.bounty-formula,#brief-status{grid-column:2}.bounty-card>strong{font-size:10px}.bounty-formula{margin:1px 0;gap:5px}.bounty-formula>span{width:17px;height:18px}.bounty-formula>b{font-size:16px}.bounty-reel{width:57px}#brief-multiplier{font-size:24px}#brief-reward{font-size:17px}#brief-status{font-size:8px;margin:1px 0}.bounty-card>small{grid-column:1/3;font-size:7px;margin-top:4px}.wave-intro>p{font-size:10px;margin:5px 0 3px}
+}
+@container field (max-height:185px){.wave-intro>small{display:none}.bounty-card>small{display:none}.wave-intro h2{font-size:15px;margin:0 0 3px}.wave-intro>p{margin:4px 0 0;font-size:9px}.bounty-card{padding:4px 10px}.bounty-reel{height:31px}.bounty-reel span{height:31px;font-size:24px}#brief-multiplier{font-size:22px}#brief-art{height:40px;width:34px}}
+@media(max-width:500px){body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}.app{border:0;border-radius:0}}
+@media(max-height:700px){
+  #upgrade-dialog{padding:14px 16px}.dialog-heading h2{font-size:21px;margin:4px 0 8px}.dialog-heading small{font-size:8px}.dialog-heading .icon-button{width:29px;height:29px}
+  .dialog-wallet{padding:7px 10px}.dialog-wallet>span{width:23px;height:25px}.dialog-wallet>b{font-size:18px}#upgrade-dialog .dialog-intro{margin:8px 0;font-size:10px!important;line-height:1.5!important}
+  #upgrade-cards{gap:7px}.upgrade-card{padding:10px}.upgrade-card h3{font-size:12px}.upgrade-card p{font-size:9px;margin:4px 0 6px}.upgrade-card-head>b{font-size:9px}.upgrade-bottom .upgrade-effect{font-size:11px}.upgrade-bottom .upgrade-buy{font-size:9px;min-width:94px;min-height:30px;padding:5px}.upgrade-track{margin-top:7px;height:3px}
+  #upgrade-dialog .status{font-size:10px!important;margin:8px 0;min-height:14px}#upgrade-start{margin-top:7px!important;padding:10px;min-height:45px;font-size:13px}#upgrade-start span{font-size:10px;margin-top:3px}#upgrade-dialog .fine-print{margin-top:9px!important;font-size:9px!important}
+}
+@media(max-height:590px){#upgrade-dialog .dialog-intro,#upgrade-dialog .fine-print{display:none}#upgrade-cards{margin-top:9px}.upgrade-card{padding:8px}.upgrade-card p{font-size:8px;margin:3px 0 5px}.upgrade-bottom .upgrade-effect{font-size:10px}.upgrade-bottom .upgrade-buy{min-height:28px}.upgrade-track{margin-top:5px}.dialog-heading small{display:none}}
+@media(orientation:landscape) and (max-height:500px){
+  #upgrade-dialog{width:min(740px,calc(100vw - 24px));padding:12px 16px}#upgrade-dialog .dialog-heading{float:left;width:45%}#upgrade-dialog .dialog-wallet{margin-left:48%;min-height:37px}#upgrade-cards{clear:both;grid-template-columns:repeat(3,minmax(0,1fr));padding-top:9px;margin:0;gap:8px}.upgrade-card-head{display:block}.upgrade-card h3{font-size:11px}.upgrade-card-head>b{display:block;margin-top:4px}.upgrade-card p{font-size:8px;min-height:25px}.upgrade-bottom{flex-direction:column;align-items:stretch}.upgrade-bottom .upgrade-buy{margin-top:5px}.upgrade-bottom .upgrade-effect{text-align:center}#upgrade-dialog .status{margin:5px 0}#upgrade-start{margin:4px auto 0!important;width:65%;min-height:36px;padding:6px}#upgrade-start span{display:inline;margin-left:10px}
+}

@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-art2';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-hit3';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},

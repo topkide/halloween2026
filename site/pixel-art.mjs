@@ -1,5 +1,6 @@
 // Detailed pixel illustration atlas; viewboxes isolate each transparent character.
 const frames={wisp:[104,8,307,499],pudge:[516,41,483,465],skitter:[1024,163,492,331],stilt:[102,513,308,494],grasp:[557,516,427,480],gold:[1097,512,369,489]};
+export const ghostFrame=type=>(frames[type]??frames.wisp).slice();
 export function ghostPixel(type='wisp'){
   const [x,y,width,height]=frames[type]??frames.wisp;
   return `<svg class="character-art" viewBox="${x} ${y} ${width} ${height}" aria-hidden="true" focusable="false"><image href="assets/refined-ghost-atlas.webp" x="0" y="0" width="1536" height="1024"/></svg>`;
