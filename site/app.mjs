@@ -1,7 +1,7 @@
 import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261012-ghost-coins';
 import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261012-ghost-coins';
 import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261012-ghost-coins';
-import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261012-ghost-coins';
+import {UPGRADES,cleanEconomy,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261012-ghost-coins';
 import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-common-defaults';
 import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-common-defaults';
 
@@ -270,9 +270,21 @@ function fillSettings(){
   for(const [id,key] of [['setting-duration','duration'],['setting-miss-penalty','missPenalty'],['setting-recovery-percent','waveRecoveryPercent'],['setting-recovery-limit','recoveryLimit'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit']])ui[id].value=config[key];
   for(const type of Object.keys(DEFAULTS.ghostCoins))ui['setting-coins-'+type].value=config.ghostCoins[type];
 }
+function resetProgress(){
+  if(engine.state!=='ready')return;
+  const previous={best,bestWave,lastResult,economy,eventData,missionData};
+  best=bestWave=0;lastResult=null;economy=cleanEconomy();eventData=eventState({distance:0});missionData=missionState();
+  if(!save()){
+    ({best,bestWave,lastResult,economy,eventData,missionData}=previous);
+    setText(ui['settings-status'],'저장하지 못해 초기화하지 않았어요. 기존 데이터는 유지돼요.');return;
+  }
+  currentRunId=null;ready();
+  setText(ui['settings-status'],'플레이 데이터를 초기화했어요. 프로토타입 설정과 사운드는 유지돼요.');
+}
 ui['settings-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;fillSettings();setText(ui['settings-status'],'');ui['settings-dialog'].showModal();});
 ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({...config,duration:Number(ui['setting-duration'].value),missPenalty:Number(ui['setting-miss-penalty'].value),waveRecoveryPercent:Number(ui['setting-recovery-percent'].value),recoveryLimit:Number(ui['setting-recovery-limit'].value),spawn:Number(ui['setting-spawn'].value),goldInterval:Number(ui['setting-gold-interval'].value),goldLimit:Number(ui['setting-gold-limit'].value),ghostCoins:Object.fromEntries(Object.keys(DEFAULTS.ghostCoins).map(type=>[type,Number(ui['setting-coins-'+type].value)]))});save();ui['settings-dialog'].close();ready();});
 ui['reset-records'].addEventListener('click',()=>info('최고 기록을 초기화할까요?','최고 웨이브 기록만 0으로 돌아가요. 보유 코인, 강화, 교환한 장식과 플레이 기회는 유지돼요.','최고 기록 초기화',()=>{const previous=bestWave;bestWave=0;if(!save())bestWave=previous;updateWallet();setText(ui['settings-status'],'최고 웨이브 기록을 초기화했어요.');}));
+ui['reset-progress'].addEventListener('click',()=>info('플레이 데이터를 초기화할까요?','최고 기록, 최근 결과, 보유 코인, 강화 레벨, 미션·보상 수령 기록, 교환한 장식과 광고 보너스를 초기화해요. 플레이 기회는 5회, 누적 거리는 0m로 돌아가요. 프로토타입 설정값과 사운드 설정은 유지돼요. 초기화한 데이터는 되돌릴 수 없어요.','플레이 데이터 초기화',resetProgress));
 ui.defaults.addEventListener('click',()=>{config={...DEFAULTS};fillSettings();save();setText(ui['settings-status'],'기본값을 복원했어요.');});
 ui['demo-credit'].addEventListener('click',()=>{const previous=economy;economy={...economy,upgradeCoins:economy.upgradeCoins+100,eventCoins:Math.min(1e9,economy.eventCoins+100)};if(!save()){economy=previous;return;}updateWallet();setText(ui['settings-status'],'체험용 강화 코인과 호박 코인을 각각 100개 받았어요.');});
 function frame(now){

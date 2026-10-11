@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {Hunt,TYPES,DEFAULTS,settings,pose,BOUNTY_TIMING} from '../hunt-core.mjs';
 import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from '../progress.mjs';
 import {createBountyReel,reelOffset} from '../bounty-reel.mjs';
-import {BALANCE,UPGRADES,GHOST_COINS,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from '../upgrades.mjs';
+import {BALANCE,UPGRADES,GHOST_COINS,cleanEconomy,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from '../upgrades.mjs';
 import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from '../event-core.mjs';
 import {ghostPixel,coinPixel} from '../pixel-art.mjs';
 import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from '../ghost-aim.mjs';
@@ -25,7 +25,7 @@ function application(audio=null,saved=null,{storageFails=false,reducedMotion=fal
       animate:()=>({cancel(){}}),reportValidity:()=>true,addEventListener(type,callback){handlers.set(type,callback);},
       click(){if(!this.disabled)handlers.get('click')?.({target:this});},
       dispatch(type,event){handlers.get(type)?.(event);},
-      cancel(){handlers.get('cancel')?.({preventDefault(){}});}
+      cancel(){let prevented=false;handlers.get('cancel')?.({preventDefault(){prevented=true;}});if(!prevented)this.open=false;}
     };
   }
   for(const match of html.matchAll(/\bid="([^"]+)"/g))nodes.set(match[1],node(match[1]));
@@ -46,13 +46,13 @@ function application(audio=null,saved=null,{storageFails=false,reducedMotion=fal
   const storage=new Map();
   if(saved)storage.set(KEY,JSON.stringify(saved));
   globalThis.window=window;globalThis.document=document;globalThis.Image=class{complete=false;naturalWidth=0;};
-  const context=vm.createContext({Hunt,TYPES,DEFAULTS,settings,pose,KEY,PROGRESS_VERSION,readProgress,createBountyReel,reelOffset,BALANCE,UPGRADES,GHOST_COINS,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward,EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2,ghostPixel,coinPixel,GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN,ShotEffects,CombatAudio:Combat,missionState,addMissionCaptures,missionSummary,claimMissionReward,document,window,
+  const context=vm.createContext({Hunt,TYPES,DEFAULTS,settings,pose,KEY,PROGRESS_VERSION,readProgress,createBountyReel,reelOffset,BALANCE,UPGRADES,GHOST_COINS,cleanEconomy,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward,EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2,ghostPixel,coinPixel,GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN,ShotEffects,CombatAudio:Combat,missionState,addMissionCaptures,missionSummary,claimMissionReward,document,window,
     performance:{now:()=>1000},crypto:{randomUUID:()=>String(++serial)},ResizeObserver:class{observe(){}},requestAnimationFrame(){},
     localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(storageFails)throw new Error('Unavailable');storage.set(key,value);}},
     setTimeout:callback=>{const id=++serial;timers.set(id,callback);return id;},clearTimeout:id=>timers.delete(id),
   });
   const source=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8').replace(/^import .* from .*;\r?\n/gm,'');
-  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},get missions(){return missionData;},hitEffect,renderGhosts,renderBountyReel,flushEvents,fire,updateHud};',context);
+  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},get missions(){return missionData;},get progress(){return {best,bestWave,lastResult,config,soundOn,economy,eventState:eventData,missions:missionData};},hitEffect,renderGhosts,renderBountyReel,flushEvents,fire,updateHud};',context);
   const flow=context.flow;
   const start=()=>{nodes.get('upgrade-open').click();nodes.get('upgrade-start').click();};
   const advance=()=>{flow.hunt.tick(BOUNTY_TIMING.spin);flow.hunt.tick(BOUNTY_TIMING.hold);flow.hunt.ghosts=[];flow.flushEvents();};
@@ -135,6 +135,57 @@ test('miss penalty settings, including zero, affect actual empty taps and surviv
       assert.equal(current.flow.hunt.state,'playing');
     }
   }
+});
+
+const resetFixture=()=>({
+  progressVersion:PROGRESS_VERSION,best:25000,bestWave:12,soundOn:false,
+  config:settings({duration:123.5,spawn:.081,missPenalty:-.25,waveRecoveryPercent:125.5,recoveryLimit:222.25,goldInterval:.3,goldLimit:20.5,ghostCoins:{pudge:2.25,wisp:12.5,stilt:0,grasp:-2.5,skitter:100.25}}),
+  economy:cleanEconomy({upgradeCoins:456.75,eventCoins:333,levels:{time:12,gold:7,shop:3},claimedRuns:['old-run'],doubledRuns:['old-run']}),
+  eventState:eventState({tickets:18,distance:275,owned:['badge','friend'],shotgunReady:true,ghostsX2Ready:true}),
+  missions:missionState({kills:{pudge:400,wisp:500,stilt:350,grasp:250,skitter:100,gold:90},rewardClaimed:true}),
+  lastResult:{runId:'old-run',earnedUpgradeCoins:18.25,earnedEventCoins:120,clearedWaves:7}
+});
+
+test('confirmed play-data reset preserves settings and sound, survives reload and cannot repay the previous run',()=>{
+  const app=application(null,resetFixture());app.start();app.advance();
+  for(let i=0;i<8;i++)app.catchOne();
+  app.nodes.get('pause').click();app.nodes.get('quit').click();app.nodes.get('result-home').click();
+  app.nodes.get('upgrade-open').click();app.nodes.get('shotgun-ad').click();app.nodes.get('ghosts-x2-ad').click();app.nodes.get('upgrade-dialog').close();
+  app.nodes.get('settings-open').click();
+  const before=app.stored(),live=()=>JSON.parse(JSON.stringify(app.flow.progress)),previousLive=live(),previousEngine=app.flow.hunt;
+  assert.ok(app.flow.runId);app.nodes.get('reset-progress').click();
+  assert.equal(app.nodes.get('info-dialog').open,true);assert.deepEqual(app.stored(),before);assert.deepEqual(live(),previousLive);
+  app.nodes.get('info-dialog').cancel();
+  assert.equal(app.nodes.get('info-dialog').open,false);assert.deepEqual(app.stored(),before);assert.deepEqual(live(),previousLive);
+  app.nodes.get('reset-progress').click();app.nodes.get('info-action').click();
+  const saved=app.stored();
+  assert.equal(saved.best,0);assert.equal(saved.bestWave,0);assert.equal(saved.lastResult,null);
+  assert.deepEqual(saved.economy,cleanEconomy());assert.deepEqual(saved.missions,missionState());assert.deepEqual(saved.eventState,eventState({distance:0}));
+  assert.deepEqual(saved.config,before.config);assert.equal(saved.soundOn,false);
+  const {progressVersion,...savedLive}=saved;assert.deepEqual(live(),savedLive);
+  assert.equal(app.flow.runId,null);assert.notEqual(app.flow.hunt,previousEngine);assert.equal(app.flow.hunt.state,'ready');
+  assert.match(app.nodes.get('settings-status').textContent,/초기화/);
+  for(const [id,key] of settingFields)assert.equal(app.nodes.get(id).value,before.config[key]);
+  for(const [id,type] of coinSettingFields)assert.equal(app.nodes.get(id).value,before.config.ghostCoins[type]);
+  // Stale result controls must not revive the cleared result or its ad bonus.
+  app.nodes.get('result-dialog').showModal();app.nodes.get('result-double').disabled=false;
+  app.nodes.get('result-double').click();app.nodes.get('continue-back').click();app.finishTimers();
+  assert.deepEqual(app.stored(),saved);assert.deepEqual(app.flow.coins,cleanEconomy());
+  const reloaded=application(null,saved);assert.deepEqual(JSON.parse(JSON.stringify(reloaded.flow.progress)),savedLive);
+  reloaded.start();
+  assert.deepEqual(reloaded.flow.hunt.config,before.config);assert.deepEqual(reloaded.flow.hunt.upgrades,{time:0,gold:0,shop:0});
+  assert.equal(reloaded.flow.hunt.weapon,'standard');assert.equal(reloaded.flow.hunt.spawnMultiplier,1);assert.equal(reloaded.flow.tickets,4);
+});
+
+test('failed play-data reset restores live progress and leaves saved settings and rewards intact',()=>{
+  const saved=resetFixture(),app=application(null,saved,{storageFails:true});app.nodes.get('settings-open').click();
+  const before=JSON.parse(JSON.stringify(app.flow.progress)),engine=app.flow.hunt,runId=app.flow.runId;
+  app.nodes.get('reset-progress').click();app.nodes.get('info-action').click();
+  assert.deepEqual(app.stored(),saved);assert.deepEqual(JSON.parse(JSON.stringify(app.flow.progress)),before);
+  assert.equal(app.flow.hunt,engine);assert.equal(app.flow.runId,runId);
+  assert.match(app.nodes.get('settings-status').textContent,/실패|못|없/);
+  assert.equal(app.nodes.get('wallet-upgrade').textContent,'456.75');assert.equal(app.nodes.get('wallet-event').textContent,'333');
+  assert.equal(app.flow.tickets,18);assert.equal(app.flow.missions.rewardClaimed,true);
 });
 
 test('custom positive, zero and negative ghost coins match tap labels, HUD, final rewards and the reloaded wallet',()=>{
