@@ -1,20 +1,193 @@
-import {Hunt,SPECIES,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-freefire1';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-freefire1';
-import {ghostSVG} from './ghost-art.mjs?v=20261011-freefire1';
-import {createBountyReel,reelOffset,visibleBounty} from './bounty-reel.mjs?v=20261011-freefire1';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-freefire1';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-pixel1';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-pixel1';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-pixel1';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-pixel1';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-pixel1';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-pixel1';
 
-const $=id=>document.getElementById(id);
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
-let {config,best,soundOn,lastResult,economy,refundedReloadCoins}=readProgress(key=>localStorage.getItem(key));
+const loaded=readProgress(key=>localStorage.getItem(key));
+let {config,best,bestWave,soundOn,lastResult,economy}=loaded;
+let eventData=eventState(loaded.eventState);
 let engine=new Hunt({config,upgrades:economy.levels}),size={width:400,height:440,scale:1,left:0,top:0},currentRunId=null;
-let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,lastBounty='',soundContext=null,mutedGain=null,shotNoise=null;
+let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,soundContext=null,mutedGain=null,shotNoise=null;
+let reelRows=[],lastReelStep=-1,lastReelSoundAt=-Infinity,infoAction=null;
 const entities=new Map(),impacts=[];
-let reelRows=[],lastReelStep=-1,lastReelSoundAt=-Infinity;
 const number=n=>Math.round(n).toLocaleString('ko-KR');
-function save(){try{localStorage.setItem(KEY,JSON.stringify({progressVersion:PROGRESS_VERSION,best,soundOn,config,lastResult,economy}));return true;}catch{$('storage-note').textContent='이 브라우저에서는 기록을 저장할 수 없어요.';return false;}}
+function setText(node,text){if(node.textContent!==String(text))node.textContent=String(text);}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({progressVersion:PROGRESS_VERSION,best,bestWave,soundOn,config,lastResult,economy,eventState:eventData}));return true;}catch{setText(ui['storage-note'],'이 브라우저에서는 기록을 저장할 수 없어요. 브라우저 저장 설정을 확인해 주세요.');return false;}}
+function showScreen(id){for(const name of ['lobby','hunt-screen','closed-screen'])ui[name].hidden=name!==id;}
+function measure(){const r=ui.arena.getBoundingClientRect();if(r.width>0)size={width:400,height:Math.max(180,r.height/r.width*400),scale:r.width/400,left:r.left,top:r.top};}
+new ResizeObserver(measure).observe(ui.arena);window.addEventListener('resize',measure,{passive:true});window.addEventListener('scroll',measure,{passive:true});
+function updateWallet(){
+  for(const id of ['wallet-upgrade','upgrade-balance'])setText(ui[id],number(economy.upgradeCoins));
+  for(const id of ['wallet-event','upgrade-event-balance','shop-balance'])setText(ui[id],number(economy.eventCoins));
+  setText(ui['ticket-count'],eventData.tickets+' / '+EVENT.maxTickets);
+  setText(ui['distance-count'],eventData.distance+' / '+EVENT.distancePerTicket+'m');
+  ui['distance-fill'].style.transform='scaleX('+eventData.distance/EVENT.distancePerTicket+')';
+  setText(ui['best-wave'],bestWave);
+  ui['owned-decor'].innerHTML=eventData.owned.map(id=>id==='badge'?'<span class="owned-badge">✦ 호박 사냥꾼</span>':id==='friend'?'<span class="owned-friend">'+ghostPixel('wisp')+'</span>':'<span class="owned-lantern">'+coinPixel('pumpkin')+'</span>').join('');
+}
+function effectLabel(key,levels){const e=upgradeEffects(levels);return key==='gold'?Math.round(e.goldChance*100)+'%':key==='shop'?'+'+e.shopBonusPercent+'%':'+'+e.extraCoinsPerGhost+'개 / 마리';}
+function renderUpgrades(){
+  updateWallet();
+  const descriptions={gold:config.goldInterval+'초마다 등장 추첨 · 한 웨이브 최대 '+config.goldLimit+'마리 처치',reward:'일반 유령의 종류별 기본 보상에 추가 지급',shop:'웨이브 기본 보상과 황금 현상금이 함께 증가'};
+  ui['upgrade-cards'].innerHTML=Object.entries(UPGRADES).map(([key,definition])=>{
+    const level=economy.levels[key],cost=upgradeCost(level),max=cost===null,next={...economy.levels,[key]:level+1};
+    return '<article class="upgrade-card"><div class="upgrade-card-head"><h3>'+definition.name+'</h3><b>'+(max?'MAX':'Lv. '+level+' / '+BALANCE.maxLevel)+'</b></div><p>'+descriptions[key]+'</p><div class="upgrade-effect"><strong>'+effectLabel(key,economy.levels)+'</strong>'+(max?'<span>최대 강화</span>':'<span>→</span><b>'+effectLabel(key,next)+'</b>')+'</div><div class="upgrade-track"><i style="transform:scaleX('+level/BALANCE.maxLevel+')"></i></div><button type="button" class="upgrade-buy" data-upgrade="'+key+'" '+(max||economy.upgradeCoins<cost?'disabled':'')+'>'+(max?'최대 레벨':coinPixel('ghost')+number(cost)+' · 강화하기')+'</button></article>';
+  }).join('');
+  ui['upgrade-start'].disabled=eventData.tickets===0;
+  ui['upgrade-start'].innerHTML=eventData.tickets?'사냥 시작 <span>기회 1개 사용 · '+config.duration+'초</span>':'플레이 기회를 충전해 주세요';
+  setText(ui['upgrade-status'],economy.upgradeCoins<20?'일반 유령을 잡아 강화 코인을 모아보세요.':'원하는 강화를 골라 사냥을 준비하세요.');
+}
+function openUpgrades(){if(engine.state!=='ready')return;renderUpgrades();ui['upgrade-dialog'].showModal();}
+function toast(text,ms=1700){setText(ui['field-toast'],text);ui['field-toast'].classList.add('visible');toastUntil=performance.now()+ms;}
+function prepareBountyReel(){reelRows=createBountyReel(engine.bounty.multiplier,engine.wave);lastReelStep=-1;lastReelSoundAt=-Infinity;ui['brief-strip'].innerHTML=reelRows.map(value=>'<span>×'+value+'</span>').join('');ui['brief-strip'].style.transform='translate3d(0,0,0)';}
+function renderBountyReel(now){
+  if(engine.state!=='briefing'||engine.bountyRevealed||!reelRows.length)return;
+  const offset=reelOffset(config.briefingDuration-engine.briefingLeft,reelRows.length-1),step=Math.floor(offset);
+  if(!reducedMotion.matches)ui['brief-strip'].style.transform='translate3d(0,'+(-offset/reelRows.length*100)+'%,0)';
+  if(step!==lastReelStep){lastReelStep=step;if(now-lastReelSoundAt>=65){sound('reel-tick');lastReelSoundAt=now;}}
+}
+function updateHud(){
+  const ready=engine.state==='ready',briefing=engine.state==='briefing'||engine.state==='paused'&&engine.pausedFrom==='briefing';
+  ui['hunt-screen'].dataset.state=engine.state;
+  const remaining=engine.remaining??config.duration;
+  setText(ui['time-label'],Math.ceil(remaining)+'s');ui['time-fill'].style.transform='scaleX('+Math.max(0,remaining/config.duration)+')';
+  ui['hunt-screen'].dataset.urgent=String(remaining<=10&&!ready);
+  setText(ui['wave-number'],engine.wave??1);setText(ui['wave-count'],engine.waveKills??0);setText(ui['wave-goal'],engine.waveGoal??config.baseGoal);
+  ui['wave-fill'].style.transform='scaleX('+((engine.waveKills??0)/(engine.waveGoal??config.baseGoal))+')';
+  setText(ui['run-upgrade'],number(engine.earnedUpgradeCoins??0));setText(ui['run-event'],number(engine.earnedEventCoins??0));
+  setText(ui['wave-reward'],engine.waveBaseReward??10);setText(ui['pending-bonus'],engine.wavePendingBonus?' + 황금 '+number(engine.wavePendingBonus):'');
+  setText(ui['miss-cost'],config.missPenalty);setText(ui['wanted-limit'],(engine.waveGold??0)+' / '+config.goldLimit);
+  const revealed=engine.bountyRevealed;
+  setText(ui['wanted-reward'],revealed?'호박 +'+number(engine.bounty.coins):'배수 추첨 중');setText(ui.multiplier,revealed?'×'+engine.bounty.multiplier:'×?');
+  ui.pause.disabled=!['playing','briefing'].includes(engine.state);ui['settings-open'].disabled=!ready;ui['wave-intro'].hidden=!briefing;
+  if(briefing){
+    ui['wave-intro'].dataset.reveal=revealed?'revealed':'rolling';
+    ui['brief-reel'].hidden=revealed||reducedMotion.matches;ui['brief-multiplier'].hidden=!revealed&&!reducedMotion.matches;
+    setText(ui['brief-status'],revealed?(engine.bounty.multiplier>=8?'대박! 현상금 확정':'이번 웨이브 현상금 확정'):'이번 현상금은 몇 배일까요?');
+    const last=engine.waveRewards.at(-1);
+    setText(ui['brief-cleared'],last?'WAVE '+last.wave+' 완료 · 호박 +'+last.total:'오늘 밤의 첫 사냥');
+    setText(ui['brief-wave'],'WAVE '+engine.wave);setText(ui['brief-base'],engine.waveBaseReward);
+    setText(ui['brief-multiplier'],revealed?'×'+engine.bounty.multiplier:'×?');setText(ui['brief-reward'],revealed?'+'+number(engine.bounty.coins):'?');setText(ui['brief-goal'],engine.waveGoal);
+  }
+}
+function renderGhosts(){
+  const alive=new Set(engine.ghosts.map(g=>g.id));for(const [id,node] of entities)if(!alive.has(id)){node.remove();entities.delete(id);}
+  for(const ghost of engine.ghosts){
+    const def=TYPES[ghost.type],p=pose(ghost,size.width,size.height);let node=entities.get(ghost.id);
+    if(!node){node=document.createElement('button');node.type='button';node.className='ghost-target type-'+ghost.type;node.dataset.ghost=String(ghost.id);node.setAttribute('aria-label',def.name+' 사격');node.innerHTML=ghostPixel(ghost.type);entities.set(ghost.id,node);ui['ghost-layer'].append(node);}
+    const w=def.width*size.scale,h=def.height*size.scale;
+    node.style.width=w+'px';node.style.height=h+'px';node.style.transform=`translate(${p.x*size.scale-w/2}px,${p.y*size.scale-h/2}px) scale(${p.sx},${p.sy})`;
+    node.style.opacity=p.alpha;node.style.pointerEvents=p.alpha<.3||engine.state!=='playing'?'none':'auto';node.disabled=engine.state!=='playing'||p.alpha<.3;node.firstElementChild.style.transform='scaleX('+p.facing+')';
+  }
+}
+function hitEffect(hit,x,y){
+  const node=document.createElement('div');node.className='shot-effect'+(hit.kind==='miss'?' miss':'');node.style.left=x+'px';node.style.top=y+'px';
+  node.style.setProperty('--hit',hit.kind==='gold'?'#ffca59':hit.kind==='miss'?'#f18f75':'#fff6d7');
+  const shotX=size.width*size.scale*.5-x,shotY=size.height*size.scale+16-y;
+  const label=hit.kind==='miss'?'−'+hit.penalty+'초':hit.kind==='gold'?'호박 +'+hit.bonusCoins:'+'+hit.upgradeCoins;
+  node.innerHTML='<i class="shot-tracer" style="--length:'+Math.hypot(shotX,shotY)+'px;--rotation:'+Math.atan2(shotY,shotX)*180/Math.PI+'deg"></i><i class="shot-flash"></i><i class="shot-ring"></i><span class="shot-text"><small>'+(hit.kind==='gold'?'클리어하면 지급':hit.kind==='miss'?'헛발!':'강화 코인')+'</small>'+label+'</span>';
+  ui['effect-layer'].append(node);impacts.push({node,until:performance.now()+650});while(impacts.length>12)impacts.shift().node.remove();
+}
+function clearVisuals(){for(const x of impacts)x.node.remove();impacts.length=0;for(const node of entities.values())node.remove();entities.clear();toastUntil=0;ui['field-toast'].classList.remove('visible');setText(ui['field-toast'],'');ui.ending.hidden=true;}
+function flushEvents(){for(const event of engine.drain()){
+  if(event.kind==='wave'){clearVisuals();prepareBountyReel();updateHud();sound('reel-tick');}
+  if(event.kind==='bounty-reveal'){sound(event.multiplier>=8?'gold':'bounty-stop');updateHud();}
+  if(event.kind==='wave-start')sound('wave');
+  if(event.kind==='gold-limit')toast('황금 사냥 완료! 다음 웨이브를 열어보세요.',1700);
+  if(event.kind==='end')finish(event.reason,event.cause);
+}}
+function fire(event){
+  if(engine.state!=='playing'||event.target.closest('#wave-intro, #ending'))return;
+  if(event.type==='pointerdown'&&(event.button!==0||event.isPrimary===false))return;
+  if(event.type==='click'&&pointerInput&&(event.detail>0||event.pointerType))return;
+  event.preventDefault();const target=event.target.closest('[data-ghost]'),id=target?Number(target.dataset.ghost):null;
+  const g=id===null?null:engine.ghosts.find(g=>g.id===id),p=g?pose(g,size.width,size.height):null;
+  const x=event.type==='click'&&p?p.x*size.scale:event.clientX-size.left,y=event.type==='click'&&p?p.y*size.scale:event.clientY-size.top;
+  const hit=engine.shoot(id);if(!hit)return;hitEffect(hit,x,y);sound('shot');if(hit.kind==='gold')sound('gold');
+  if(hit.kind==='miss')toast('헛발! 남은 시간 −'+hit.penalty+'초',650);
+  renderGhosts();flushEvents();updateHud();
+}
+if(pointerInput)ui.arena.addEventListener('pointerdown',fire);ui.arena.addEventListener('click',fire);
+function start(){
+  if(engine.state!=='ready')return;const entry=useTicket(eventData);if(!entry.ok)return;
+  const previous=eventData;eventData=entry.state;if(!save()){eventData=previous;return;}
+  ui['upgrade-dialog'].close();clearVisuals();showScreen('hunt-screen');
+  currentRunId=crypto.randomUUID();engine=new Hunt({config,upgrades:economy.levels});engine.start();lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();
+}
+function ready(){
+  clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();ui['pause-dialog'].close();clearVisuals();
+  engine=new Hunt({config,upgrades:economy.levels});showScreen('lobby');updateWallet();updateHud();
+}
+function finish(reason,cause){
+  if(endingTimer||lastResult?.runId===currentRunId)return;ui['pause-dialog'].close();ui.ending.hidden=false;
+  setText(ui['ending-title'],reason==='quit'?'사냥 종료':'시간 초과!');setText(ui['ending-copy'],reason==='quit'?'오늘 밤의 보상을 정리하고 있어요.':cause==='miss'?'헛발로 남은 시간을 모두 썼어요.':'남은 시간이 모두 줄어들었어요.');if(reason==='timeout')sound('timeout');
+  const isBest=engine.clearedWaves>bestWave;bestWave=Math.max(bestWave,engine.clearedWaves);
+  lastResult={runId:currentRunId,clearedWaves:engine.clearedWaves,kills:engine.kills,gold:engine.gold,earnedUpgradeCoins:engine.earnedUpgradeCoins,earnedEventCoins:engine.earnedEventCoins,waveRewards:engine.waveRewards,reason};
+  const settled=settleRun(economy,lastResult,engine.upgrades);economy=settled.economy;lastResult.rewards=settled.rewards;save();updateWallet();
+  setText(ui['result-upgrade-coins'],'+'+number(settled.rewards.upgradeCoins));setText(ui['result-event-coins'],'+'+number(settled.rewards.eventCoins));
+  setText(ui['result-waves'],engine.clearedWaves);setText(ui['result-kills'],engine.kills);setText(ui['result-gold'],engine.gold);ui['new-best'].hidden=!isBest;
+  const base=engine.waveRewards.reduce((n,r)=>n+r.base,0),bonus=engine.waveRewards.reduce((n,r)=>n+r.bonus,0);
+  setText(ui['result-detail'],'웨이브 보상 '+base+' + 황금 보너스 '+bonus+' 호박 코인'+(engine.wavePendingBonus?' · 미완료 웨이브의 황금 보너스 '+engine.wavePendingBonus+'개는 지급되지 않았어요.':'.'));
+  setText(ui['result-reason'],reason==='timeout'?"TIME’S UP":'HUNT COMPLETE');
+  endingTimer=setTimeout(()=>{endingTimer=null;ui.ending.hidden=true;ui['result-dialog'].showModal();},1200);
+}
+function pause(){if(engine.pause()){ui['pause-dialog'].showModal();updateHud();}}
+function resume(){ui['pause-dialog'].close();engine.resume();lastFrame=performance.now();updateHud();}
+ui.pause.addEventListener('click',pause);ui.resume.addEventListener('click',resume);
+ui.quit.addEventListener('click',()=>{resume();engine.end('quit');flushEvents();updateHud();});
+ui['result-home'].addEventListener('click',ready);ui['upgrade-open'].addEventListener('click',openUpgrades);ui['upgrade-start'].addEventListener('click',start);
+ui['upgrade-cards'].addEventListener('click',event=>{
+  const button=event.target.closest('[data-upgrade]');if(!button||button.disabled||engine.state!=='ready')return;
+  const key=button.dataset.upgrade,purchase=buyUpgrade(economy,key);if(!purchase.ok)return;
+  const previous=economy;economy=purchase.economy;if(!save()){economy=previous;return;}
+  renderUpgrades();sound('bounty-stop');setText(ui['upgrade-status'],UPGRADES[key].name+' Lv. '+economy.levels[key]+' 강화 완료');
+});
+function renderShop(){
+  updateWallet();ui['shop-items'].innerHTML=GOODS.map(item=>{
+    const owned=eventData.owned.includes(item.id);
+    return '<article class="shop-item"><div class="shop-item-art">'+(item.icon==='ghost'?ghostPixel('wisp'):coinPixel('pumpkin'))+'</div><div><h3>'+item.name+'</h3><p>'+item.copy+'</p><button data-good="'+item.id+'" '+(owned||economy.eventCoins<item.price?'disabled':'')+'>'+(owned?'교환 완료':coinPixel('pumpkin')+item.price+' · 교환')+'</button></div></article>';
+  }).join('');
+}
+ui['shop-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;renderShop();setText(ui['shop-status'],'');ui['shop-dialog'].showModal();});
+ui['shop-items'].addEventListener('click',event=>{
+  const button=event.target.closest('[data-good]');if(!button||button.disabled)return;const purchase=exchange(eventData,economy,button.dataset.good);if(!purchase.ok)return;
+  const prevEconomy=economy,prevEvent=eventData;economy=purchase.economy;eventData=purchase.state;if(!save()){economy=prevEconomy;eventData=prevEvent;return;}
+  renderShop();setText(ui['shop-status'],'교환 완료! 메인화면에서 장식을 확인하세요.');sound('gold');
+});
+function info(title,copy,label,action){setText(ui['info-title'],title);setText(ui['info-copy'],copy);ui['info-action'].hidden=!action;setText(ui['info-action'],label??'');infoAction=action;ui['info-dialog'].showModal();}
+ui['info-action'].addEventListener('click',()=>{const action=infoAction;infoAction=null;if(action)action();ui['info-dialog'].close();});
+function changeTickets(next){const previous=eventData;eventData=next;if(!save())eventData=previous;updateWallet();}
+ui['package-open'].addEventListener('click',()=>info('특별 패키지','할로윈 특별 패키지 구성은 준비 중이에요. 현재 프로토타입에서는 결제하지 않아요.'));
+ui['ad-open'].addEventListener('click',()=>info('플레이 기회 +3',eventData.tickets>=30?'플레이 기회가 가득 찼어요. 사냥을 시작해 보세요.':'실제 광고가 연결되기 전의 체험 기능이에요. 버튼을 누르면 플레이 기회 3개를 받아요. 최대 30개까지 보유할 수 있어요.','기회 +3 체험',eventData.tickets>=30?null:()=>changeTickets(addTickets(eventData,3))));
+ui['distance-open'].addEventListener('click',()=>info('일반게임에서 기회 모으기','일반게임에서 누적 300m마다 플레이 기회 1개를 얻어요. 지금은 연동 전이므로 300m 달성을 체험할 수 있어요. 최대 30개일 때는 추가 적립되지 않아요.','일반게임 +300m 체험',()=>changeTickets(addDistance(eventData,300))));
+ui['close-event'].addEventListener('click',()=>showScreen('closed-screen'));ui.reopen.addEventListener('click',()=>showScreen('lobby'));
+for(const button of document.querySelectorAll('[data-close]'))button.addEventListener('click',()=>ui[button.dataset.close].close());
+ui['pause-dialog'].addEventListener('cancel',event=>{event.preventDefault();resume();});ui['result-dialog'].addEventListener('cancel',event=>{event.preventDefault();ready();});
+ui.sound.addEventListener('click',()=>{soundOn=!soundOn;updateSound();save();});
+document.addEventListener('keydown',event=>{if(!event.repeat&&event.key==='Escape'&&['playing','briefing'].includes(engine.state)){event.preventDefault();pause();}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing','briefing'].includes(engine.state))pause();lastFrame=performance.now();});
+function fillSettings(){for(const [id,key] of [['setting-duration','duration'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit']])ui[id].value=config[key];}
+ui['settings-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;fillSettings();setText(ui['settings-status'],'');ui['settings-dialog'].showModal();});
+ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({...config,duration:Number(ui['setting-duration'].value),spawn:Number(ui['setting-spawn'].value),goldInterval:Number(ui['setting-gold-interval'].value),goldLimit:Number(ui['setting-gold-limit'].value)});save();ui['settings-dialog'].close();ready();});
+ui['reset-records'].addEventListener('click',()=>info('최고 기록을 초기화할까요?','최고 웨이브 기록만 0으로 돌아가요. 보유 코인, 강화, 교환한 장식과 플레이 기회는 유지돼요.','최고 기록 초기화',()=>{const previous=bestWave;bestWave=0;if(!save())bestWave=previous;updateWallet();setText(ui['settings-status'],'최고 웨이브 기록을 초기화했어요.');}));
+ui.defaults.addEventListener('click',()=>{config={...DEFAULTS};fillSettings();save();setText(ui['settings-status'],'기본값을 복원했어요.');});
+ui['demo-credit'].addEventListener('click',()=>{const previous=economy;economy={...economy,upgradeCoins:Math.min(1e9,economy.upgradeCoins+100),eventCoins:Math.min(1e9,economy.eventCoins+100)};if(!save()){economy=previous;return;}updateWallet();setText(ui['settings-status'],'체험용 강화 코인과 호박 코인을 각각 100개 받았어요.');});
+function frame(now){
+  const dt=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
+  if(['playing','briefing'].includes(engine.state)){engine.tick(dt);flushEvents();renderGhosts();renderBountyReel(now);}
+  while(impacts.length&&impacts[0].until<=now)impacts.shift().node.remove();
+  if(toastUntil&&now>toastUntil){ui['field-toast'].classList.remove('visible');toastUntil=0;}
+  if(now-hudAt>80){updateHud();hudAt=now;}requestAnimationFrame(frame);
+}
+for(const node of document.querySelectorAll('[data-coin]'))node.innerHTML=coinPixel(node.dataset.coin);
+ui['wanted-art'].innerHTML=ghostPixel('gold');ui['brief-art'].innerHTML=ghostPixel('gold');
+if(loaded.refundedReloadCoins>0)save();
+updateSound();ready();requestAnimationFrame(frame);
 function updateSound(){ui.sound.textContent=soundOn?'♪':'♪̸';ui.sound.setAttribute('aria-label',soundOn?'사운드 켜짐':'사운드 꺼짐');ui.sound.setAttribute('aria-pressed',String(soundOn));if(mutedGain)mutedGain.gain.value=soundOn?.2:0;}
 function sound(kind){
   if(!soundOn)return;
@@ -34,173 +207,3 @@ function sound(kind){
     for(const [from,to,duration,delay,wave] of sounds[kind]??sounds.hit){const at=soundContext.currentTime+delay,osc=soundContext.createOscillator(),gain=soundContext.createGain();osc.type=wave;osc.frequency.setValueAtTime(from,at);osc.frequency.exponentialRampToValueAtTime(to,at+duration);gain.gain.setValueAtTime(.32,at);gain.gain.exponentialRampToValueAtTime(.001,at+duration);osc.connect(gain);gain.connect(mutedGain);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(at);osc.stop(at+duration);}
   }catch{}
 }
-function measure(){const r=ui.arena.getBoundingClientRect();size={width:400,height:Math.max(180,r.height/r.width*400),scale:r.width/400,left:r.left,top:r.top};}
-new ResizeObserver(measure).observe(ui.arena);window.addEventListener('resize',measure,{passive:true});window.addEventListener('scroll',measure,{passive:true});
-function setText(node,text){if(node.textContent!==String(text))node.textContent=text;}
-function updateWallet(){
-  for(const id of ['wallet-upgrade','upgrade-balance'])setText(ui[id],number(economy.upgradeCoins));
-  for(const id of ['wallet-event','upgrade-event-balance'])setText(ui[id],number(economy.eventCoins));
-}
-function effectLabel(key,levels){
-  const effects=upgradeEffects(levels);
-  if(key==='gold')return Math.round(effects.goldChance*100)+'%';
-  return effects.coinsPerKill+'개 / 마리';
-}
-function renderUpgrades(){
-  updateWallet();
-  setText(ui['upgrade-guide'],'유령 1마리 = 강화 코인 '+upgradeEffects(economy.levels).coinsPerKill+'개 · 각 강화 최대 '+BALANCE.maxLevel+'레벨');
-  const descriptions={gold:config.goldInterval+'초마다 등장 추첨 · 웨이브당 '+config.goldLimit+'마리 처치',reward:'유령 한 마리마다 받는 강화 코인 증가'};
-  ui['upgrade-cards'].innerHTML=Object.entries(UPGRADES).map(([key,definition])=>{
-    const level=economy.levels[key],cost=upgradeCost(level),max=cost===null,next={...economy.levels,[key]:level+1};
-    return '<article class="upgrade-card"><div class="upgrade-card-head"><h3>'+definition.name+'</h3><b>'+(max?'MAX':'Lv. '+level+' / '+BALANCE.maxLevel)+'</b></div><p>'+descriptions[key]+'</p><div class="upgrade-effect"><strong>'+effectLabel(key,economy.levels)+'</strong>'+(max?'<span>최대 강화</span>':'<span>→</span><b>'+effectLabel(key,next)+'</b>')+'</div><div class="upgrade-track"><i style="transform:scaleX('+level/BALANCE.maxLevel+')"></i></div><button type="button" class="upgrade-buy" data-upgrade="'+key+'" aria-label="'+definition.name+' '+(max?'최대 강화':'강화 · '+cost+'코인')+'" '+(max||economy.upgradeCoins<cost?'disabled':'')+'>'+(max?'최대 레벨':number(cost)+' 강화 코인 · 강화하기')+'</button></article>';
-  }).join('');
-  setText(ui['upgrade-status'],economy.upgradeCoins<BALANCE.firstCost?'유령을 잡아 강화 코인을 모아보세요.':'강화는 다음 사냥부터 적용돼요.');
-}
-function openUpgrades(){if(engine.state!=='ready')return;renderUpgrades();ui['upgrade-dialog'].showModal();}
-function toast(text,ms=1700){setText(ui['field-toast'],text);ui['field-toast'].classList.add('visible');toastUntil=performance.now()+ms;}
-function updateContract(){
-  const bounty=visibleBounty(engine),multiplier=bounty.multiplier,key=(engine.wave??0)+':'+multiplier;if(key===lastBounty)return;lastBounty=key;
-  setText(ui['wanted-reward'],multiplier?'+'+number(bounty.points)+'점':engine.bounty?'배수 추첨 중':number(config.goldBase)+'점 × 배수');setText(ui.multiplier,multiplier?'×'+multiplier:'×?');
-  ui.wanted.classList.toggle('jackpot',multiplier>=8);
-}
-function prepareBountyReel(){
-  reelRows=createBountyReel(engine.bounty.multiplier,engine.wave);lastReelStep=-1;lastReelSoundAt=-Infinity;
-  ui['brief-strip'].innerHTML=reelRows.map(value=>'<span>×'+value+'</span>').join('');
-  ui['brief-strip'].style.transform='translate3d(0,0,0)';
-}
-function renderBountyReel(now){
-  if(engine.state!=='briefing'||engine.bountyRevealed||!reelRows.length)return;
-  const offset=reelOffset(config.briefingDuration-engine.briefingLeft,reelRows.length-1),step=Math.floor(offset);
-  if(!reducedMotion.matches)ui['brief-strip'].style.transform='translate3d(0,'+(-offset/reelRows.length*100)+'%,0)';
-  if(step!==lastReelStep){lastReelStep=step;if(now-lastReelSoundAt>=65){sound('reel-tick');lastReelSoundAt=now;}}
-}
-function updateHud(){
-  const ready=engine.state==='ready',briefing=engine.state==='briefing'||(engine.state==='paused'&&engine.pausedFrom==='briefing');
-  ui.game.dataset.state=engine.state;setText(ui.score,number(engine.score??0));setText(ui.best,number(best));
-  const remaining=engine.remaining??config.duration,time=Math.ceil(remaining);
-  if(ui['time-label'].dataset.value!==String(time)){ui['time-label'].innerHTML=time+'<span>s</span>';ui['time-label'].dataset.value=String(time);}
-  ui['time-fill'].style.transform='scaleX('+Math.max(0,remaining/config.duration)+')';ui.game.dataset.urgent=String(remaining<=10&&!ready);
-  setText(ui['wave-number'],engine.wave??1);setText(ui['wave-count'],engine.waveKills??0);setText(ui['wave-goal'],engine.waveGoal??config.baseGoal);
-  ui['wave-fill'].style.transform='scaleX('+((engine.waveKills??0)/(engine.waveGoal??config.baseGoal))+')';
-  setText(ui['miss-cost'],config.missPenalty);setText(ui['intro-time'],config.duration);setText(ui['intro-penalty'],config.missPenalty);
-  setText(ui['intro-gold-limit'],config.goldLimit);
-  const waveGold=engine.waveGold??0;
-  setText(ui['wanted-limit'],'황금 '+waveGold+'/'+config.goldLimit+(waveGold>=config.goldLimit?' · 완료':' 처치'));
-  ui.pause.disabled=!['playing','briefing'].includes(engine.state);ui['settings-open'].disabled=!ready;
-  ui['wave-intro'].hidden=!briefing;
-  if(briefing){
-    const revealed=engine.bountyRevealed,bounty=visibleBounty(engine);
-    ui['wave-intro'].dataset.reveal=revealed?'revealed':'rolling';ui['wave-intro'].classList.toggle('big-bounty',revealed&&bounty.multiplier>=8);
-    ui['brief-reel'].hidden=revealed||reducedMotion.matches;ui['brief-multiplier'].hidden=!revealed&&!reducedMotion.matches;
-    setText(ui['brief-status'],revealed?(bounty.multiplier>=8?'대박! 황금 현상금 확정':'이번 웨이브 현상금 확정'):'이번 현상금은 몇 배일까요?');
-    setText(ui['brief-cleared'],engine.clearedWaves?engine.clearedWaves+' WAVE CLEAR · 새로운 현상금':'오늘 밤의 첫 현상금');
-    setText(ui['brief-wave'],'WAVE '+engine.wave);setText(ui['brief-base'],config.goldBase);setText(ui['brief-multiplier'],revealed?'×'+bounty.multiplier:'×?');setText(ui['brief-reward'],revealed?number(bounty.points):'?');setText(ui['brief-goal'],engine.waveGoal);
-    setText(ui['brief-countdown'],revealed?'곧 사냥을 시작해요':'배수를 추첨하고 있어요');
-  }
-  updateContract();
-}
-function renderGhosts(){
-  const alive=new Set(engine.ghosts.map(g=>g.id));
-  for(const [id,node] of entities)if(!alive.has(id)){node.remove();entities.delete(id);}
-  for(const ghost of engine.ghosts){
-    const def=TYPES[ghost.type],p=pose(ghost,size.width,size.height);let node=entities.get(ghost.id);
-    if(!node){node=document.createElement('button');node.type='button';node.className='ghost-target type-'+ghost.type;node.dataset.ghost=String(ghost.id);node.style.setProperty('--phase',-ghost.seed+'s');node.setAttribute('aria-label',def.name+' 사격');node.innerHTML=ghostSVG(ghost.type,{color:def.color});entities.set(ghost.id,node);ui['ghost-layer'].append(node);}
-    const w=def.width*size.scale,h=def.height*size.scale;
-    node.style.width=w+'px';node.style.height=h+'px';node.style.transform=`translate(${p.x*size.scale-w/2}px,${p.y*size.scale-h/2}px) rotate(${p.angle}deg) scale(${p.sx},${p.sy})`;
-    node.style.opacity=p.alpha;node.style.pointerEvents=p.alpha<.3||engine.state!=='playing'?'none':'auto';node.disabled=engine.state!=='playing'||p.alpha<.3;
-    const art=node.firstElementChild;art.style.transform='scaleX('+p.facing+')';
-  }
-}
-function hitEffect(hit,x,y){
-  const effect=document.createElement('div');effect.className='shot-effect'+(hit.kind==='miss'?' miss':'');effect.style.left=x+'px';effect.style.top=y+'px';
-  const color=hit.kind==='gold'?'#ffe094':hit.kind==='miss'?'#f6aa96':'#dce8c7';effect.style.setProperty('--hit',color);
-  const art=hit.ghost?ghostSVG(hit.kind,{color:TYPES[hit.kind].color,staticPose:true}):'';
-  const small=hit.kind==='gold'?'황금 보너스':hit.kind==='miss'?'헛발!':'';
-  const text=hit.kind==='miss'?'-'+config.missPenalty+'초':'+'+number(hit.points)+'점';
-  const muzzleX=size.width*size.scale*.53,muzzleY=size.height*size.scale+16;
-  const shotX=muzzleX-x,shotY=muzzleY-y,length=Math.hypot(shotX,shotY),rotation=Math.atan2(shotY,shotX)*180/Math.PI;
-  const sparks=Array.from({length:3},(_,i)=>{const angle=i*Math.PI*2/3+.2;return '<i class="shot-spark" style="--dx:'+Math.cos(angle)*28+'px;--dy:'+Math.sin(angle)*28+'px;--angle:'+angle+'rad"></i>';}).join('');
-  effect.innerHTML='<i class="shot-tracer" style="--length:'+length+'px;--rotation:'+rotation+'deg"></i><i class="shot-flash"></i>'+sparks+'<i class="shot-hole"></i>'+art+'<i class="shot-ring"></i><span class="shot-text"><small>'+small+'</small>'+text+'</span>';
-  ui['effect-layer'].append(effect);impacts.push({node:effect,until:performance.now()+650});
-  const casing=document.createElement('i');casing.className='shell-casing';casing.style.left=muzzleX+'px';casing.style.top=(muzzleY-25)+'px';ui['effect-layer'].append(casing);impacts.push({node:casing,until:performance.now()+430});
-  while(impacts.length>12)impacts.shift().node.remove();
-}
-function flushEvents(){for(const event of engine.drain()){
-  if(event.kind==='wave'){clearVisuals();prepareBountyReel();updateContract();updateHud();sound('reel-tick');lastReelSoundAt=performance.now();}
-  if(event.kind==='bounty-reveal'){sound(event.multiplier>=8?'gold':'bounty-stop');updateContract();updateHud();}
-  if(event.kind==='wave-start')sound('wave');
-  if(event.kind==='gold-limit')toast('황금 사냥 완료! 일반 유령을 잡아 다음 웨이브로',2000);
-  if(event.kind==='end')finish(event.reason,event.cause);
-}}
-function fire(event){
-  if(engine.state!=='playing'||event.target.closest('#intro, #wave-intro, #ending'))return;
-  if(event.type==='pointerdown'&&(event.button!==0||event.isPrimary===false))return;
-  if(event.type==='click'&&pointerInput&&(event.detail>0||event.pointerType))return;
-  event.preventDefault();
-  const target=event.target.closest('[data-ghost]'),id=target?Number(target.dataset.ghost):null;
-  const g=id===null?null:engine.ghosts.find(g=>g.id===id),p=g?pose(g,size.width,size.height):null;
-  const x=event.type==='click'&&p?p.x*size.scale:event.clientX-size.left,y=event.type==='click'&&p?p.y*size.scale:event.clientY-size.top;
-  const result=engine.shoot(id);if(!result)return;
-  hitEffect(result,x,y);sound('shot');sound(['miss','gold'].includes(result.kind)?result.kind:'hit');
-  if(result.kind==='miss')toast('헛발! 남은 시간 -'+config.missPenalty+'초',650);
-  renderGhosts();flushEvents();updateHud();
-}
-if(pointerInput)ui.arena.addEventListener('pointerdown',fire);
-ui.arena.addEventListener('click',fire);
-function clearVisuals(){for(const x of impacts)x.node.remove();impacts.length=0;for(const node of entities.values())node.remove();entities.clear();toastUntil=0;ui['field-toast'].classList.remove('visible');setText(ui['field-toast'],'');ui.ending.hidden=true;}
-function start(){
-  clearTimeout(endingTimer);endingTimer=null;for(const id of ['result-dialog','pause-dialog','upgrade-dialog'])ui[id].close();clearVisuals();
-  currentRunId=crypto.randomUUID();engine=new Hunt({config,upgrades:economy.levels});engine.start();ui.intro.hidden=true;lastBounty='';lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();
-}
-function ready(){
-  clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();clearVisuals();engine=new Hunt({config,upgrades:economy.levels});ui.intro.hidden=false;lastBounty='';updateWallet();renderGhosts();updateHud();
-}
-function finish(reason,cause){
-  if(endingTimer||lastResult?.runId===currentRunId)return;ui['pause-dialog'].close();ui.ending.hidden=false;
-  const data=reason==='quit'?['☾','사냥 종료','오늘 밤은 여기까지.']:['◷','시간 초과!',cause==='miss'?'헛발 사격으로 남은 시간을 모두 썼어요.':'남은 시간이 모두 줄어들었어요.'];
-  setText(ui['ending-icon'],data[0]);setText(ui['ending-title'],data[1]);setText(ui['ending-copy'],data[2]);if(reason==='timeout')sound('timeout');
-  const isBest=engine.score>best;best=Math.max(best,engine.score);lastResult={runId:currentRunId,score:engine.score,normalScore:engine.normalScore,goldScore:engine.goldScore,wave:engine.wave,clearedWaves:engine.clearedWaves,kills:engine.kills,gold:engine.gold,shots:engine.shots,hits:engine.hits,misses:engine.misses,reason};
-  const settlement=settleRun(economy,lastResult,engine.upgrades);economy=settlement.economy;lastResult.rewards=settlement.rewards;save();updateWallet();
-  setText(ui['result-upgrade-coins'],'+'+number(settlement.rewards.upgradeCoins));setText(ui['result-event-coins'],'+'+number(settlement.rewards.eventCoins));
-  setText(ui['result-reward-detail'],'처치 '+engine.kills+'마리 × '+settlement.rewards.coinsPerKill+'개 = 강화 코인 '+settlement.rewards.upgradeCoins+'개 · '+number(engine.score)+'점 → 이벤트 코인 '+settlement.rewards.eventCoins+'개');
-  endingTimer=setTimeout(()=>{
-    endingTimer=null;ui.ending.hidden=true;setText(ui['result-reason'],reason==='timeout'?"TIME’S UP":'HUNT COMPLETE');setText(ui['result-score'],number(engine.score));setText(ui['result-normal-score'],number(engine.normalScore)+'점');setText(ui['result-gold-score'],number(engine.goldScore)+'점');setText(ui['result-kills'],engine.kills);setText(ui['result-waves'],engine.clearedWaves);setText(ui['result-gold'],engine.gold);setText(ui['result-accuracy'],engine.shots?Math.round(engine.hits/engine.shots*100)+'%':'0%');ui['new-best'].hidden=!isBest;ui['result-dialog'].showModal();
-  },1200);
-}
-function pause(){if(engine.pause()){ui['pause-dialog'].showModal();updateHud();}}
-function resume(){ui['pause-dialog'].close();engine.resume();lastFrame=performance.now();updateHud();}
-ui.start.addEventListener('click',start);ui.retry.addEventListener('click',start);ui.home.addEventListener('click',ready);ui.pause.addEventListener('click',pause);ui.resume.addEventListener('click',resume);
-ui['upgrade-open'].addEventListener('click',openUpgrades);ui['upgrade-close'].addEventListener('click',()=>ui['upgrade-dialog'].close());ui['upgrade-start'].addEventListener('click',start);
-ui['result-upgrade'].addEventListener('click',()=>{ready();openUpgrades();});
-ui['upgrade-cards'].addEventListener('click',event=>{
-  const button=event.target.closest('[data-upgrade]');if(!button||button.disabled||engine.state!=='ready')return;
-  const key=button.dataset.upgrade,purchase=buyUpgrade(economy,key);if(!purchase.ok)return;
-  const previous=economy;economy=purchase.economy;
-  if(!save()){economy=previous;setText(ui['upgrade-status'],'저장할 수 없어 강화하지 않았어요.');return;}
-  engine=new Hunt({config,upgrades:economy.levels});renderUpgrades();updateHud();sound('bounty-stop');
-  setText(ui['upgrade-status'],UPGRADES[key].name+' Lv. '+economy.levels[key]+' 강화 완료');
-});
-ui.quit.addEventListener('click',()=>{resume();engine.end('quit');flushEvents();updateHud();});
-ui['pause-dialog'].addEventListener('cancel',event=>{event.preventDefault();resume();});ui['result-dialog'].addEventListener('cancel',event=>{event.preventDefault();ready();});
-ui.sound.addEventListener('click',()=>{soundOn=!soundOn;updateSound();save();});
-document.addEventListener('keydown',event=>{if(event.repeat||event.target.matches('input'))return;if(event.key==='Escape'&&['playing','briefing'].includes(engine.state)){event.preventDefault();pause();}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing','briefing'].includes(engine.state))pause();lastFrame=performance.now();});
-function fillSettings(){ui['setting-duration'].value=config.duration;ui['setting-penalty'].value=config.missPenalty;ui['setting-goal'].value=config.baseGoal;ui['setting-spawn'].value=config.spawn;ui['setting-gold-limit'].value=config.goldLimit;ui['setting-gold-interval'].value=config.goldInterval;}
-ui['settings-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;fillSettings();setText(ui['settings-status'],'');ui['settings-dialog'].showModal();});
-ui['settings-close'].addEventListener('click',()=>ui['settings-dialog'].close());
-ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({duration:Number(ui['setting-duration'].value),missPenalty:Number(ui['setting-penalty'].value),baseGoal:Number(ui['setting-goal'].value),spawn:Number(ui['setting-spawn'].value),goldLimit:Number(ui['setting-gold-limit'].value),goldInterval:Number(ui['setting-gold-interval'].value)});save();ui['settings-dialog'].close();ready();});
-ui.defaults.addEventListener('click',()=>{config={...DEFAULTS};fillSettings();save();ready();setText(ui['settings-status'],'기본값을 복원했어요.');});
-ui['reset-open'].addEventListener('click',()=>{if(ui['settings-dialog'].open)ui['reset-dialog'].showModal();});ui['reset-cancel'].addEventListener('click',()=>ui['reset-dialog'].close());
-ui['reset-confirm'].addEventListener('click',()=>{if(!ui['reset-dialog'].open||engine.state!=='ready')return;best=0;lastResult=null;save();ui['reset-dialog'].close();updateHud();setText(ui['settings-status'],'사냥 기록을 초기화했어요.');});
-function frame(now){
-  const dt=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
-  if(['playing','briefing'].includes(engine.state)){engine.tick(dt);flushEvents();renderGhosts();renderBountyReel(now);}
-  while(impacts.length&&impacts[0].until<=now)impacts.shift().node.remove();
-  if(toastUntil&&now>toastUntil){ui['field-toast'].classList.remove('visible');toastUntil=0;}
-  if(now-hudAt>80){updateHud();hudAt=now;}
-  requestAnimationFrame(frame);
-}
-ui.cast.innerHTML=[...SPECIES].sort((a,b)=>a.points-b.points).map(s=>'<div title="'+s.habit+' · '+s.points+'점">'+ghostSVG(s.id,{color:s.color})+'<small>'+s.name+'</small><strong>'+s.points+'점</strong></div>').join('');
-ui['wanted-art'].innerHTML=ghostSVG('gold',{color:TYPES.gold.color,staticPose:true});ui['brief-art'].innerHTML=ghostSVG('gold',{color:TYPES.gold.color,staticPose:true});
-if(refundedReloadCoins>0){ui['upgrade-refund'].hidden=false;setText(ui['upgrade-refund'],'재장전 강화가 종료되어 사용한 '+refundedReloadCoins+'코인을 돌려드렸어요.');save();}
-measure();updateSound();ready();requestAnimationFrame(frame);

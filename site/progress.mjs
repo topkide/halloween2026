@@ -1,8 +1,8 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-freefire1';
-import {cleanEconomy} from './upgrades.mjs?v=20261011-freefire1';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-pixel1';
+import {cleanEconomy} from './upgrades.mjs?v=20261011-pixel1';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
-export const PROGRESS_VERSION=3;
+export const PROGRESS_VERSION=4;
 
 export function readProgress(getItem){
   const read=key=>{
@@ -22,9 +22,10 @@ export function readProgress(getItem){
       lastResult:current.lastResult??null,
       soundOn:current.soundOn!==false,
       economy,refundedReloadCoins,
+      bestWave:Number.isSafeInteger(current.bestWave)&&current.bestWave>=0?current.bestWave:0,eventState:current.eventState,
     };
   }
   const previous=read('catjump-wave-hunt-v1')??read('catjump-bounty-hunt-v1')??{};
   // Retain preferences, apply the new spawn rate, and keep old coin records separate.
-  return {config:settings({...previous.config,spawn:DEFAULTS.spawn,goldInterval:DEFAULTS.goldInterval}),best:0,lastResult:null,soundOn:previous.soundOn!==false,economy:cleanEconomy(),refundedReloadCoins:0};
+  return {config:settings({...previous.config,spawn:DEFAULTS.spawn,goldInterval:DEFAULTS.goldInterval}),best:0,lastResult:null,soundOn:previous.soundOn!==false,economy:cleanEconomy(),refundedReloadCoins:0,bestWave:0,eventState:null};
 }

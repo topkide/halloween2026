@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects} from './upgrades.mjs?v=20261011-freefire1';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-pixel1';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -74,12 +74,14 @@ export class Hunt {
   }
   start(){
     Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,goldSpawnLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
-    this.firstGoldSpawned=false;this.prepareWave();
+    this.firstGoldSpawned=false;this.earnedUpgradeCoins=0;this.earnedEventCoins=0;this.waveRewards=[];this.prepareWave();
   }
   prepareWave(){
     this.wave++;this.waveKills=0;this.waveGold=0;this.waveGoal=Math.min(this.config.maxGoal,this.config.baseGoal+(this.wave-1)*this.config.goalStep);
+    this.waveBaseReward=waveReward(this.wave,this.upgrades);this.wavePendingBonus=0;
     this.bounty={type:'gold',multiplier:rollMultiplier(this.random,this.bounty?.multiplier)};
     this.bounty.points=this.config.goldBase*this.bounty.multiplier;
+    this.bounty.coins=this.waveBaseReward*this.bounty.multiplier;
     this.state='briefing';this.briefingLeft=this.config.briefingDuration;this.bountyRevealed=false;this.ghosts=[];
     this.events.push({kind:'wave',wave:this.wave,target:this.waveGoal,multiplier:this.bounty.multiplier,points:this.bounty.points});
   }
@@ -163,9 +165,14 @@ export class Hunt {
       this.gold++;this.waveGold++;this.goldScore+=points;
       if(this.waveGold===this.config.goldLimit)this.events.push({kind:'gold-limit',wave:this.wave});
     }else this.normalScore+=points;
-    const hit={kind:ghost.type,ghost,points,penalty:0};
+    const upgradeCoins=ghost.type==='gold'?0:GHOST_COINS[ghost.type]+this.effects.extraCoinsPerGhost;
+    const bonusCoins=ghost.type==='gold'?this.bounty.coins:0;
+    this.earnedUpgradeCoins+=upgradeCoins;this.wavePendingBonus+=bonusCoins;
+    const hit={kind:ghost.type,ghost,points,upgradeCoins,bonusCoins,penalty:0};
     if(this.waveKills>=this.waveGoal){
-      this.clearedWaves++;this.events.push({kind:'wave-clear',wave:this.wave});this.prepareWave();
+      const reward={wave:this.wave,base:this.waveBaseReward,bonus:this.wavePendingBonus,total:this.waveBaseReward+this.wavePendingBonus};
+      this.earnedEventCoins+=reward.total;this.waveRewards.push(reward);
+      this.clearedWaves++;this.events.push({kind:'wave-clear',...reward});this.prepareWave();
     }
     return hit;
   }

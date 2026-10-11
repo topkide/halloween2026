@@ -43,18 +43,16 @@ test('upgrades have a cap, charge only upgrade coins and reject insufficient fun
   assert.equal(buyUpgrade(economy,'__proto__').reason,'unknown');assert.equal(buyUpgrade(economy,'reward').economy.eventCoins,123);
 });
 
-test('reward upgrades grant integer coins per kill, leave event coins alone and settle each run once',()=>{
-  const result={runId:'run-1',score:1250,kills:9};
-  assert.deepEqual(runRewards(result,{}),{coinsPerKill:1,upgradeCoins:9,eventCoins:12});
-  assert.deepEqual(runRewards(result,{reward:1}),{coinsPerKill:2,upgradeCoins:18,eventCoins:12});
-  assert.deepEqual(runRewards(result,{reward:10}),{coinsPerKill:11,upgradeCoins:99,eventCoins:12});
-  assert.equal(runRewards({score:0,kills:1},{reward:10}).upgradeCoins,11);
-  const first=settleRun({},result,{reward:10});assert.equal(first.awarded,true);assert.equal(first.economy.upgradeCoins,99);assert.equal(first.economy.eventCoins,12);
-  const reloaded=cleanEconomy(JSON.parse(JSON.stringify(first.economy))),again=settleRun(reloaded,result,{reward:10});
+test('settlement credits already-earned coins once without score conversion or applying upgrades again',()=>{
+  const result={runId:'run-1',score:999999,kills:9,earnedUpgradeCoins:27,earnedEventCoins:60};
+  assert.deepEqual(runRewards(result,{}),{upgradeCoins:27,eventCoins:60});
+  assert.deepEqual(runRewards(result,{reward:10,shop:10}),{upgradeCoins:27,eventCoins:60});
+  const first=settleRun({},result,{reward:10});assert.equal(first.awarded,true);assert.equal(first.economy.upgradeCoins,27);assert.equal(first.economy.eventCoins,60);
+  const reloaded=cleanEconomy(JSON.parse(JSON.stringify(first.economy))),again=settleRun(reloaded,result,{});
   assert.equal(again.awarded,false);assert.deepEqual(again.economy,reloaded);
-  const second=settleRun(reloaded,{...result,runId:'run-2'},{});assert.equal(second.economy.upgradeCoins,108);assert.equal(second.economy.eventCoins,24);
+  const second=settleRun(reloaded,{...result,runId:'run-2'},{});assert.equal(second.economy.upgradeCoins,54);assert.equal(second.economy.eventCoins,120);
   assert.equal(settleRun(second.economy,result,{}).awarded,false);
-  assert.equal(runRewards({score:99,kills:0},{reward:10}).eventCoins,0);assert.equal(runRewards({score:0,kills:0},{reward:10}).upgradeCoins,0);
+  assert.deepEqual(runRewards({score:999999,kills:99}),{upgradeCoins:0,eventCoins:0});
 });
 
 const load=value=>readProgress(key=>key===STORAGE_KEY?JSON.stringify(value):null);
@@ -66,7 +64,7 @@ test('runs snapshot rewards and migrations retain score, paid runs and custom in
   for(const progressVersion of [2,PROGRESS_VERSION])assert.equal(load({...old,progressVersion}).config.goldInterval,4);
   const economy=cleanEconomy({upgradeCoins:42,eventCoins:78,levels:{gold:2,reward:1},claimedRuns:['paid-run']});
   assert.deepEqual(load({...old,progressVersion:PROGRESS_VERSION,economy}).economy,economy);
-  assert.deepEqual(cleanEconomy({upgradeCoins:-1,eventCoins:Infinity,levels:{reload:500,gold:NaN,reward:-1}}).levels,{gold:0,reward:0});
+  assert.deepEqual(cleanEconomy({upgradeCoins:-1,eventCoins:Infinity,levels:{reload:500,gold:NaN,reward:-1}}).levels,{gold:0,reward:0,shop:0});
 });
 
 test('retired reload costs are refunded once and the other upgrade levels and currencies survive',()=>{
@@ -74,7 +72,7 @@ test('retired reload costs are refunded once and the other upgrade levels and cu
     const old={progressVersion:2,config:{goldInterval:4},best:14000,economy:{upgradeCoins:2,eventCoins:140,levels:{reload:level,gold:2,reward:3},claimedRuns:['paid-run']}};
     const migrated=load(old);
     assert.equal(migrated.refundedReloadCoins,refund);assert.equal(migrated.economy.upgradeCoins,2+refund);
-    assert.equal(migrated.economy.eventCoins,140);assert.deepEqual(migrated.economy.levels,{gold:2,reward:3});
+    assert.equal(migrated.economy.eventCoins,140);assert.deepEqual(migrated.economy.levels,{gold:2,reward:3,shop:0});
     assert.equal(buyUpgrade(migrated.economy,'reload').reason,'unknown');
     const reloaded=load({...migrated,progressVersion:PROGRESS_VERSION});
     assert.equal(reloaded.refundedReloadCoins,0);assert.deepEqual(reloaded.economy,migrated.economy);
