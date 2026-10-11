@@ -1,4 +1,4 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-common-defaults';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261012-roaming-groups';
 import {cleanEconomy} from './upgrades.mjs?v=20261011-common-defaults';
 import {missionState} from './missions.mjs?v=20261011-common-defaults';
 

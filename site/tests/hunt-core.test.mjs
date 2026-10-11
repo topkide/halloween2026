@@ -143,7 +143,7 @@ test('inflate swells once to 1.4x, shrinks to normal, and never changes position
  assert.deepEqual(phases.map(p=>p.sx),[1,1.4,1.4,1,1]);
  phases.forEach(p=>{assert.equal(p.x,phases[0].x);assert.equal(p.y,phases[0].y);});
 });
-test('return paths stop in the middle for about one second and leave by the same edge',()=>{
+test('return paths pause at their destination and leave by the same edge',()=>{
  for(const motion of ['returnX','returnY'])for(const direction of [-1,1]){
   const axis=motion==='returnX'?'x':'y',fixed=motion==='returnX'?'y':'x';
   const start=sample(motion,0,direction),incoming=sample(motion,.15,direction),stop=sample(motion,.31,direction),held=sample(motion,.61,direction),outgoing=sample(motion,.81,direction),end=sample(motion,1,direction);
