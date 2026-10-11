@@ -1,5 +1,5 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-lobby-clean';
-import {cleanEconomy} from './upgrades.mjs?v=20261011-lobby-clean';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-mobile-buttons';
+import {cleanEconomy} from './upgrades.mjs?v=20261011-mobile-buttons';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
 export const PROGRESS_VERSION=6;

@@ -100,3 +100,10 @@ python3 site/tests/check-ui.py
 
 - 메인 배경 위에 표시하던 구매 유령·호박 코인 장식을 제거했습니다.
 - 상품 교환소는 기존 버튼 모습으로 표시하며 클릭해도 창이나 안내가 열리지 않습니다. 교환 UI와 버튼 동작 연결을 제거했습니다.
+
+### 모바일 버튼 색상과 뒤로가기 버튼
+
+- 메인의 광고 버튼은 녹색, 게임 시작은 주황색 단색 배경과 대비가 높은 글자색을 직접 지정합니다. 모바일 기본 버튼 외형을 해제하고 활성 버튼에만 정상 불투명도를 적용합니다. 실제 기회 상한에 따른 비활성 상태는 유지합니다.
+- 광고·시작·이어하기 버튼에는 color-scheme: only light를 적용해 브라우저 자동 색상 변경에 대응합니다. Android WebView의 작성자 테마 인식을 위해 color-scheme 메타 태그도 제공합니다.
+- 강화창의 뒤로가기 버튼은 제목과 같은 행에서 같은 높이로 배치하고, 사각 테두리 안에 채워진 주황색 화살표를 표시합니다.
+- 참고: https://developer.chrome.com/blog/auto-dark-theme/ · https://developer.android.com/develop/ui/views/layout/webapps/dark-theme

@@ -1,13 +1,13 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-lobby-clean';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-lobby-clean';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-lobby-clean';
-import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-lobby-clean';
-import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-lobby-clean';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-lobby-clean';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-mobile-buttons';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-mobile-buttons';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-mobile-buttons';
+import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-mobile-buttons';
+import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-mobile-buttons';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-mobile-buttons';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-lobby-clean';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-lobby-clean';
-import {CombatAudio} from './combat-audio.mjs?v=20261011-lobby-clean';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-mobile-buttons';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-mobile-buttons';
+import {CombatAudio} from './combat-audio.mjs?v=20261011-mobile-buttons';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';

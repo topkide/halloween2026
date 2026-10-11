@@ -70,3 +70,10 @@ dialog{max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(12px,en
 .lobby .owned-decor{bottom:18px}
 .lobby-actions .shop-button[aria-disabled=true]{cursor:default}
 .lobby-actions .shop-button[aria-disabled=true]:active{transform:none}
+
+/* Preserve authored action colors in mobile native controls and auto-dark themes. */
+.ad-button,.start-button,.event-back,.reward-ad,.event-action{-webkit-appearance:none;appearance:none;color-scheme:only light;-webkit-text-fill-color:currentColor}
+.lobby #ad-open{background:#a8cc80;color:#243a23;border:1px solid #deedbe;box-shadow:inset 0 1px #e8f4d0,0 3px 9px #101a1730}
+.lobby #upgrade-open{background:#f5b773!important;border-color:#ffdaa6!important;color:#472b2c;box-shadow:inset 0 1px #ffe2b6,0 3px 8px #140c212b}
+.lobby #upgrade-open>span{color:#5d352e}
+.lobby #ad-open:not(:disabled),.lobby #upgrade-open:not(:disabled){opacity:1;filter:none}
