@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-bounty-copy';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-impact-continue';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -76,7 +76,7 @@ export class Hunt {
   }
   start(){
     Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,goldSpawnLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
-    this.firstGoldSpawned=false;this.earnedUpgradeCoins=0;this.earnedEventCoins=0;this.waveRewards=[];this.recoveredTime=0;this.lastTimeRecovery=0;this.prepareWave();
+    this.continueUsed=false;this.firstGoldSpawned=false;this.earnedUpgradeCoins=0;this.earnedEventCoins=0;this.waveRewards=[];this.recoveredTime=0;this.lastTimeRecovery=0;this.prepareWave();
   }
   prepareWave(){
     this.wave++;this.waveKills=0;this.waveGold=0;this.waveGoal=this.config.baseGoal+(this.wave-1)*this.config.goalStep;
@@ -194,6 +194,17 @@ export class Hunt {
   }
   pause(){if(['playing','briefing'].includes(this.state)){this.pausedFrom=this.state;this.state='paused';return true;}return false;}
   resume(){if(this.state==='paused'){this.state=this.pausedFrom;this.pausedFrom=null;}}
+  canContinue(){return this.state==='ended'&&this.continueUsed===false&&this.wave>0;}
+  continueRun(){
+    if(!this.canContinue())return false;
+    // Resume the same run and bounty; restart only the unfinished wave's progress.
+    this.continueUsed=true;this.remaining=this.config.duration;this.reason=null;this.endCause=null;this.pausedFrom=null;
+    this.weapon='shotgun';this.spawnMultiplier=2;this.spawnInterval=this.config.spawn/2;this.maxGhosts=this.config.maxGhosts*2;
+    this.waveKills=0;this.waveGold=0;this.wavePendingBonus=0;this.goldSpawnLeft=0;this.firstGoldSpawned=false;this.lastTimeRecovery=0;
+    this.state='briefing';this.briefingLeft=this.config.briefingDuration;this.bountyRevealed=false;this.ghosts=[];this.events=[];
+    this.events.push({kind:'wave',wave:this.wave,target:this.waveGoal,multiplier:this.bounty.multiplier,points:this.bounty.points});
+    return true;
+  }
   end(reason,cause=null){if(!['playing','briefing'].includes(this.state))return;this.state='ended';this.reason=reason;this.endCause=cause;this.events.push({kind:'end',reason,cause});}
   drain(){return this.events.splice(0);}
 }

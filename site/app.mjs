@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-bounty-copy';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-bounty-copy';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-bounty-copy';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-bounty-copy';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-bounty-copy';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-bounty-copy';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-impact-continue';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-impact-continue';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-impact-continue';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-impact-continue';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-impact-continue';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-impact-continue';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-bounty-copy';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-bounty-copy';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-impact-continue';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-impact-continue';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -15,14 +15,13 @@ const loaded=readProgress(key=>localStorage.getItem(key));
 let {config,best,bestWave,soundOn,lastResult,economy}=loaded;
 let eventData=eventState(loaded.eventState);
 let engine=new Hunt({config,upgrades:economy.levels}),size={width:400,height:440,scale:1,left:0,top:0},currentRunId=null;
-let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,soundContext=null,mutedGain=null,shotNoise=null;
+let lastFrame=performance.now(),hudAt=0,endingTimer=null,soundContext=null,mutedGain=null,shotNoise=null;
 let reelRows=[],lastReelStep=-1,lastReelSoundAt=-Infinity,infoAction=null;
 const entities=new Map();
 const aim=new GhostAim();
 const shots=new ShotEffects(ui['effect-layer'],{reducedMotion:()=>reducedMotion.matches});
-let feedbackUntil=0,recoil=null,clockPulse=null;
-const coinGains=new Set();
-let coinPulse=null,coinGainSerial=0;
+let recoil=null,clockPulse=null,coinPulse=null;
+const audioVoices=new Map();
 const number=n=>Math.round(n).toLocaleString('ko-KR');
 function setText(node,text){if(node.textContent!==String(text))node.textContent=String(text);}
 function save(){try{localStorage.setItem(KEY,JSON.stringify({progressVersion:PROGRESS_VERSION,best,bestWave,soundOn,config,lastResult,economy,eventState:eventData}));return true;}catch{setText(ui['storage-note'],'이 브라우저에서는 기록을 저장할 수 없어요. 브라우저 저장 설정을 확인해 주세요.');return false;}}
@@ -63,7 +62,6 @@ function renderUpgrades(){
   setText(ui['upgrade-status'],eventData.tickets===0?'메인화면에서 플레이 기회를 충전해 주세요.':buffs.length?'다음 한 판 · '+buffs.join(' + ')+' 적용':'강화는 다음 사냥에도 유지돼요.');
 }
 function openUpgrades(){if(engine.state!=='ready')return;renderUpgrades();ui['upgrade-dialog'].showModal();}
-function toast(text,ms=1700){setText(ui['field-toast'],text);ui['field-toast'].classList.add('visible');toastUntil=performance.now()+ms;}
 function prepareBountyReel(){reelRows=createBountyReel(engine.bounty.multiplier,engine.wave);lastReelStep=-1;lastReelSoundAt=-Infinity;ui['brief-strip'].innerHTML=reelRows.map(value=>'<span>X'+value+'</span>').join('');ui['brief-strip'].style.transform='translate3d(0,0,0)';}
 function renderBountyReel(now){
   if(engine.state!=='briefing'||engine.bountyRevealed||!reelRows.length)return;
@@ -105,24 +103,10 @@ function renderGhosts(){
     node.style.opacity=p.alpha;node.style.pointerEvents=p.alpha<.3||engine.state!=='playing'?'none':'auto';node.disabled=engine.state!=='playing'||p.alpha<.3;node.firstElementChild.style.transform='scaleX('+p.facing+')';
   }
 }
-function showCoinGain(amount){
+function updateHitWallet(amount){
   if(!(amount>0))return;
-  // The total updates on the same hit; short, bounded labels keep rapid catches readable.
   setText(ui['run-upgrade'],number(engine.earnedUpgradeCoins));
-  const label=document.createElement('span');label.className='coin-gain';label.textContent='+'+number(amount);
-  label.style.left=[50,26,74][coinGainSerial++%3]+'%';
-  ui['coin-gains'].append(label);coinGains.add(label);
-  if(coinGains.size>4){const oldest=coinGains.values().next().value;oldest.remove();coinGains.delete(oldest);}
   const motion=reducedMotion.matches;
-  const animation=label.animate(motion?[
-    {opacity:1},{opacity:1,offset:.7},{opacity:0}
-  ]:[
-    {opacity:0,transform:'translate(-50%, 5px) scale(.85)'},
-    {opacity:1,transform:'translate(-50%, 0) scale(1.08)',offset:.14},
-    {opacity:1,transform:'translate(-50%, -6px) scale(1)',offset:.65},
-    {opacity:0,transform:'translate(-50%, -13px) scale(1)'}
-  ],{duration:850,easing:'ease-out',fill:'forwards'});
-  animation.onfinish=()=>{label.remove();coinGains.delete(label);};
   coinPulse?.cancel();
   coinPulse=ui['run-upgrade'].animate(motion?[{color:'#e9ffbf'},{color:'#eee8ef'}]:[
     {color:'#e9ffbf',transform:'scale(1.13)'},{color:'#eee8ef',transform:'scale(1)'}
@@ -131,22 +115,27 @@ function showCoinGain(amount){
 function hitEffect(hit,x,y,ghostBox,boxes){
   const now=performance.now(),miss=hit.kind==='miss',gold=hit.kind==='gold',shotgun=engine.weapon==='shotgun';
   if(shotgun)shots.shotgun(hit,x,y,SHOTGUN.radius*size.scale,boxes,now);else shots.shoot(hit,x,y,ghostBox,now);
-  ui['shot-feedback'].dataset.kind=miss?'miss':gold?'gold':'hit';ui['shot-feedback'].classList.add('visible');
-  setText(ui['shot-feedback-title'],miss?'빗나감':shotgun?'샷건 '+hit.hitCount+'마리 명중!':gold?'황금 명중!':'명중!');
-  setText(ui['shot-feedback-detail'],miss?'−'+hit.penalty+'초':[hit.upgradeCoins?'강화 코인 +'+hit.upgradeCoins:'',hit.bonusCoins?'클리어 시 호박 +'+hit.bonusCoins:''].filter(Boolean).join(' · '));feedbackUntil=now+650;
   if(reducedMotion.matches)return;
   if(miss){clockPulse?.cancel();clockPulse=ui['time-label'].animate([{color:'#ff8c80',transform:'scale(1.16)'},{color:'#e1c191',transform:'scale(1)'}],{duration:220});}
-  else{recoil?.cancel();recoil=document.querySelector('.arena-scenery').animate([{transform:'translate(0,0)'},{transform:'translate(0,2px)',offset:.2},{transform:'translate(1px,-1px)',offset:.5},{transform:'translate(0,0)'}],{duration:130});}
+  else{
+    const kick=shotgun?5:gold?4:2.5;
+    recoil?.cancel();recoil=document.querySelector('.arena-scenery').animate([
+      {transform:'translate(0,0) scale(1)'},
+      {transform:'translate(0,'+kick+'px) scale(1.018)',offset:.08},
+      {transform:'translate('+(-kick*.45)+'px,'+(-kick*.5)+'px) scale(1.01)',offset:.28},
+      {transform:'translate('+(kick*.2)+'px,1px) scale(1.004)',offset:.55},
+      {transform:'translate(0,0) scale(1)'}
+    ],{duration:shotgun?170:130,easing:'cubic-bezier(.16,1,.3,1)'});
+  }
 }
 function clearVisuals({keepShots=false}={}){
-  if(!keepShots){shots.clear();feedbackUntil=0;ui['shot-feedback'].classList.remove('visible');recoil?.cancel();clockPulse?.cancel();coinPulse?.cancel();for(const label of coinGains){label.getAnimations().forEach(a=>a.cancel());label.remove();}coinGains.clear();coinGainSerial=0;}
-  for(const node of entities.values())node.remove();entities.clear();toastUntil=0;ui['field-toast'].classList.remove('visible');setText(ui['field-toast'],'');ui.ending.hidden=true;
+  if(!keepShots){shots.clear();recoil?.cancel();clockPulse?.cancel();coinPulse?.cancel();}
+  for(const node of entities.values())node.remove();entities.clear();ui.ending.hidden=true;
 }
 function flushEvents(){for(const event of engine.drain()){
   if(event.kind==='wave'){clearVisuals({keepShots:true});prepareBountyReel();updateHud();sound('reel-tick');}
   if(event.kind==='bounty-reveal'){sound(event.multiplier>=8?'gold':'bounty-stop');updateHud();}
   if(event.kind==='wave-start')sound('wave');
-  if(event.kind==='gold-limit')toast('황금 사냥 완료! 다음 웨이브를 열어보세요.',1700);
   if(event.kind==='end')finish(event.reason,event.cause);
 }}
 function fire(event){
@@ -174,8 +163,8 @@ function fire(event){
   const hit=shotgun?engine.shootShotgun(ids):engine.shoot(id);if(!hit)return;
   // Remove the consumed target before any optional visual or audio work.
   for(const target of hit.targets){entities.get(target.ghost.id)?.remove();entities.delete(target.ghost.id);}
-  showCoinGain(hit.upgradeCoins);
-  hitEffect(hit,x,y,ghostBox,boxes);sound(shotgun?'shotgun':'shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit');
+  updateHitWallet(hit.upgradeCoins);
+  hitEffect(hit,x,y,ghostBox,boxes);sound(shotgun?'shotgun':'shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit',Math.min(1.35,1+Math.max(0,hit.hitCount-1)*.03));
   renderGhosts();flushEvents();updateHud();
 }
 if(pointerInput)ui.arena.addEventListener('pointerdown',fire);ui.arena.addEventListener('click',fire);
@@ -186,17 +175,24 @@ function start(){
   currentRunId=crypto.randomUUID();engine=new Hunt({config,upgrades:economy.levels,weapon:entry.weapon,spawnMultiplier:entry.spawnMultiplier});engine.start();lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();
 }
 function ready(){
-  clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();ui['pause-dialog'].close();clearVisuals();
+  clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();ui['pause-dialog'].close();ui['continue-dialog'].close();clearVisuals();
   engine=new Hunt({config,upgrades:economy.levels});showScreen('lobby');updateWallet();updateHud();
 }
 function finish(reason,cause){
   if(endingTimer||lastResult?.runId===currentRunId)return;ui['pause-dialog'].close();ui.ending.hidden=false;
   setText(ui['ending-title'],reason==='quit'?'사냥 종료':'시간 초과!');setText(ui['ending-copy'],reason==='quit'?'오늘 밤의 보상을 정리하고 있어요.':cause==='miss'?'헛발로 남은 시간을 모두 썼어요.':'남은 시간이 모두 줄어들었어요.');if(reason==='timeout')sound('timeout');
+  endingTimer=setTimeout(()=>{
+    endingTimer=null;ui.ending.hidden=true;
+    if(engine.canContinue())ui['continue-dialog'].showModal();else showFinalResult();
+  },1200);
+}
+function showFinalResult(){
+  if(engine.state!=='ended'||lastResult?.runId===currentRunId)return;
+  ui['continue-dialog'].close();
   bestWave=Math.max(bestWave,engine.clearedWaves);
-  lastResult={runId:currentRunId,clearedWaves:engine.clearedWaves,kills:engine.kills,gold:engine.gold,earnedUpgradeCoins:engine.earnedUpgradeCoins,earnedEventCoins:engine.earnedEventCoins,waveRewards:engine.waveRewards,reason};
+  lastResult={runId:currentRunId,clearedWaves:engine.clearedWaves,kills:engine.kills,gold:engine.gold,earnedUpgradeCoins:engine.earnedUpgradeCoins,earnedEventCoins:engine.earnedEventCoins,waveRewards:engine.waveRewards,reason:engine.reason};
   const settled=settleRun(economy,lastResult,engine.upgrades);economy=settled.economy;lastResult.rewards=settled.rewards;save();updateWallet();
-  renderResult();
-  endingTimer=setTimeout(()=>{endingTimer=null;ui.ending.hidden=true;ui['result-dialog'].showModal();},1200);
+  renderResult();ui['result-dialog'].showModal();
 }
 function renderResult(){
   if(!lastResult)return;
@@ -215,6 +211,14 @@ function resume(){ui['pause-dialog'].close();engine.resume();lastFrame=performan
 ui.pause.addEventListener('click',pause);ui.resume.addEventListener('click',resume);
 ui.quit.addEventListener('click',()=>{resume();engine.end('quit');flushEvents();updateHud();});
 ui['result-home'].addEventListener('click',ready);
+ui['continue-back'].addEventListener('click',showFinalResult);
+ui['continue-ad'].addEventListener('click',()=>{
+  if(!ui['continue-dialog'].open||!engine.canContinue())return;
+  info('이어하기 · 한 판에 한 번','실제 광고 연결 전의 체험 기능이에요. 시간을 모두 회복하고 Wave '+engine.wave+'를 처음부터 다시 시작해요. 샷건과 유령 X2가 함께 적용되며 플레이 기회는 추가로 사용하지 않아요.','광고 보상 받고 이어하기',()=>{
+    if(!ui['continue-dialog'].open||!engine.continueRun())return;
+    ui['continue-dialog'].close();clearVisuals();showScreen('hunt-screen');lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();sound('bounty-stop');
+  });
+});
 ui['result-retry'].addEventListener('click',()=>{ready();openUpgrades();});ui['upgrade-open'].addEventListener('click',openUpgrades);ui['upgrade-start'].addEventListener('click',start);
 ui['upgrade-cards'].addEventListener('click',event=>{
   const button=event.target.closest('[data-upgrade]');if(!button||button.disabled||engine.state!=='ready')return;
@@ -269,6 +273,7 @@ ui['distance-open'].addEventListener('click',()=>info('일반게임에서 기회
 ui['close-event'].addEventListener('click',()=>showScreen('closed-screen'));ui.reopen.addEventListener('click',()=>showScreen('lobby'));
 for(const button of document.querySelectorAll('[data-close]'))button.addEventListener('click',()=>ui[button.dataset.close].close());
 ui['pause-dialog'].addEventListener('cancel',event=>{event.preventDefault();resume();});ui['result-dialog'].addEventListener('cancel',event=>{event.preventDefault();ready();});
+ui['continue-dialog'].addEventListener('cancel',event=>{event.preventDefault();showFinalResult();});
 ui.sound.addEventListener('click',()=>{soundOn=!soundOn;updateSound();save();});
 document.addEventListener('keydown',event=>{if(!event.repeat&&event.key==='Escape'&&['playing','briefing'].includes(engine.state)){event.preventDefault();pause();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing','briefing'].includes(engine.state))pause();lastFrame=performance.now();});
@@ -282,8 +287,6 @@ function frame(now){
   const dt=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
   if(['playing','briefing'].includes(engine.state)){engine.tick(dt);flushEvents();renderGhosts();renderBountyReel(now);}
   shots.render(now);
-  if(feedbackUntil&&now>feedbackUntil){feedbackUntil=0;ui['shot-feedback'].classList.remove('visible');}
-  if(toastUntil&&now>toastUntil){ui['field-toast'].classList.remove('visible');toastUntil=0;}
   if(now-hudAt>80){updateHud();hudAt=now;}requestAnimationFrame(frame);
 }
 for(const node of document.querySelectorAll('[data-coin]'))node.innerHTML=coinPixel(node.dataset.coin);
@@ -291,21 +294,49 @@ ui['wanted-art'].innerHTML=ghostPixel('gold');ui['brief-art'].innerHTML=ghostPix
 if(loaded.refundedReloadCoins>0||loaded.refundedRewardCoins>0)save();
 updateSound();ready();requestAnimationFrame(frame);
 function updateSound(){ui.sound.textContent=soundOn?'♪':'♪̸';ui.sound.setAttribute('aria-label',soundOn?'사운드 켜짐':'사운드 꺼짐');ui.sound.setAttribute('aria-pressed',String(soundOn));if(mutedGain)mutedGain.gain.value=soundOn?.2:0;}
-function sound(kind){
+function playAudioVoice(source,nodes,at,duration){
+  const release=()=>{for(const node of nodes)node.disconnect();audioVoices.delete(source);};
+  while(audioVoices.size>=32){const [old,cleanup]=audioVoices.entries().next().value;old.stop();cleanup();}
+  audioVoices.set(source,release);source.onended=release;source.start(at);source.stop(at+duration);
+}
+function sound(kind,power=1){
   if(!soundOn)return;
   try{
     const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
-    if(!soundContext){soundContext=new Audio();mutedGain=soundContext.createGain();mutedGain.gain.value=.2;mutedGain.connect(soundContext.destination);
-      shotNoise=soundContext.createBuffer(1,Math.ceil(soundContext.sampleRate*.085),soundContext.sampleRate);
-      const samples=shotNoise.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*(1-i/samples.length)**2;
+    if(!soundContext){
+      soundContext=new Audio();mutedGain=soundContext.createGain();mutedGain.gain.value=.2;
+      // A shared limiter keeps rapid shotgun hits full-bodied without clipping.
+      const limiter=soundContext.createDynamicsCompressor();
+      limiter.threshold.value=-16;limiter.knee.value=12;limiter.ratio.value=5;limiter.attack.value=.002;limiter.release.value=.08;
+      mutedGain.connect(limiter);limiter.connect(soundContext.destination);
+      shotNoise=soundContext.createBuffer(1,Math.ceil(soundContext.sampleRate*.16),soundContext.sampleRate);
+      const samples=shotNoise.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*(1-i/samples.length)**1.5;
     }
     if(soundContext.state==='suspended')soundContext.resume().catch(()=>{});
-    if(kind==='shot'||kind==='shotgun'){
-      const noise=soundContext.createBufferSource(),gain=soundContext.createGain(),at=soundContext.currentTime;
-      noise.buffer=shotNoise;gain.gain.setValueAtTime(kind==='shotgun'?1.7:1.3,at);gain.gain.exponentialRampToValueAtTime(.001,at+.085);
-      noise.connect(gain);gain.connect(mutedGain);noise.onended=()=>{noise.disconnect();gain.disconnect();};noise.start(at);noise.stop(at+.085);
+    const impact=['shot','shotgun','hit','gold'].includes(kind);
+    if(impact){
+      const at=soundContext.currentTime,noise=soundContext.createBufferSource(),filter=soundContext.createBiquadFilter(),gain=soundContext.createGain();
+      const duration=kind==='shotgun'?.145:kind==='shot'?.085:.075,level=kind==='shotgun'?1.55:kind==='shot'?1.05:.7;
+      noise.buffer=shotNoise;filter.type='lowpass';filter.frequency.setValueAtTime(kind==='shotgun'?2700:kind==='shot'?3400:1800,at);
+      gain.gain.setValueAtTime(.001,at);gain.gain.exponentialRampToValueAtTime(level*power,at+.002);gain.gain.exponentialRampToValueAtTime(.001,at+duration);
+      noise.connect(filter);filter.connect(gain);gain.connect(mutedGain);playAudioVoice(noise,[noise,filter,gain],at,duration);
     }
-    const sounds={'reel-tick':[[900,620,.028,0,'sine']],'bounty-stop':[[523,784,.12,0,'triangle'],[784,1046,.24,.09,'sine']],shotgun:[[100,28,.16,0,'sine'],[650,70,.05,0,'sawtooth']],shot:[[145,38,.12,0,'sine'],[920,140,.035,0,'sawtooth']],miss:[[130,50,.08,0,'triangle']],hit:[[320,120,.08,.025,'triangle'],[1100,700,.035,.03,'sine']],gold:[[784,990,.15,0,'triangle'],[988,1320,.18,.08,'triangle'],[1318,1760,.25,.16,'sine']],wave:[[440,660,.12,0,'triangle'],[660,880,.16,.1,'sine']],timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]};
-    for(const [from,to,duration,delay,wave] of sounds[kind]??sounds.hit){const at=soundContext.currentTime+delay,osc=soundContext.createOscillator(),gain=soundContext.createGain();osc.type=wave;osc.frequency.setValueAtTime(from,at);osc.frequency.exponentialRampToValueAtTime(to,at+duration);gain.gain.setValueAtTime(.32,at);gain.gain.exponentialRampToValueAtTime(.001,at+duration);osc.connect(gain);gain.connect(mutedGain);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(at);osc.stop(at+duration);}
+    const sounds={
+      'reel-tick':[[900,620,.028,0,'sine']],
+      'bounty-stop':[[523,784,.12,0,'triangle'],[784,1046,.24,.09,'sine']],
+      shot:[[155,45,.12,0,'sine',.9]],
+      shotgun:[[100,28,.16,0,'sine',1.15],[240,65,.07,0,'triangle',.15]],
+      hit:[[145,52,.10,.004,'sine',.55]],
+      gold:[[155,55,.12,0,'sine',.6],[1900,1350,.06,.012,'sine',.1],[2550,1700,.08,.035,'sine',.06]],
+      miss:[[130,50,.08,0,'triangle']],
+      wave:[[440,660,.12,0,'triangle'],[660,880,.16,.1,'sine']],
+      timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]
+    };
+    for(const [from,to,duration,delay,wave,level=.32] of sounds[kind]??[]){
+      const at=soundContext.currentTime+delay,osc=soundContext.createOscillator(),gain=soundContext.createGain();
+      osc.type=wave;osc.frequency.setValueAtTime(from,at);osc.frequency.exponentialRampToValueAtTime(to,at+duration);
+      gain.gain.setValueAtTime(.001,at);gain.gain.exponentialRampToValueAtTime(level*power,at+.003);gain.gain.exponentialRampToValueAtTime(.001,at+duration);
+      osc.connect(gain);gain.connect(mutedGain);playAudioVoice(osc,[osc,gain],at,duration);
+    }
   }catch{}
 }
