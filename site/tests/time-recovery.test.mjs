@@ -21,9 +21,19 @@ test('default starts at 90 seconds and only the final kill restores 10% of the c
   }
 });
 test('recovery respects the remaining run budget, including a partial last grant',()=>{
-  const h=playing({recoveryLimit:11});clear(h);near(h.remaining,99);near(h.recoveredTime,9);
-  advance(h);clear(h);near(h.remaining,101);near(h.lastTimeRecovery,2);near(h.recoveredTime,11);
-  advance(h);clear(h);near(h.remaining,101);assert.equal(h.lastTimeRecovery,0);near(h.recoveredTime,11);
+  const h=playing({recoveryLimit:11});h.tick(10);clear(h);near(h.remaining,88);near(h.recoveredTime,8);
+  advance(h);h.tick(8);clear(h);near(h.remaining,83);near(h.lastTimeRecovery,3);near(h.recoveredTime,11);
+  advance(h);clear(h);near(h.remaining,83);assert.equal(h.lastTimeRecovery,0);near(h.recoveredTime,11);
+});
+
+test('wave recovery cannot exceed the full clock and only actual healing consumes the budget',()=>{
+  for(const duration of [90,75]){
+    const h=new Hunt({config:{duration,recoveryLimit:30},upgrades:{time:30}});h.start();advance(h);
+    clear(h);assert.equal(h.remaining,duration);assert.equal(h.lastTimeRecovery,0);assert.equal(h.recoveredTime,0);
+    advance(h);h.tick(.25);clear(h);near(h.remaining,duration);near(h.lastTimeRecovery,.25);near(h.recoveredTime,.25);
+    for(let i=0;i<5;i++){advance(h);clear(h);near(h.remaining,duration);assert.equal(h.lastTimeRecovery,0);near(h.recoveredTime,.25);}
+    h.end('quit');assert.equal(h.continueRun(),true);assert.equal(h.remaining,duration);
+  }
 });
 test('briefings and pauses neither spend time nor repeat recovery, and a restart resets the budget',()=>{
   const h=playing();h.tick(20);clear(h);near(h.remaining,77);

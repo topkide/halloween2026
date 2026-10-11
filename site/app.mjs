@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-impact-continue';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-impact-continue';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-impact-continue';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-impact-continue';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-impact-continue';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-impact-continue';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-bounty-timer-v2';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-bounty-timer-v2';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-bounty-timer-v2';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-bounty-timer-v2';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-bounty-timer-v2';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-bounty-timer-v2';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-impact-continue';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-impact-continue';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-bounty-timer-v2';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-bounty-timer-v2';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -19,7 +19,7 @@ let lastFrame=performance.now(),hudAt=0,endingTimer=null,soundContext=null,muted
 let reelRows=[],lastReelStep=-1,lastReelSoundAt=-Infinity,infoAction=null;
 const entities=new Map();
 const aim=new GhostAim();
-const shots=new ShotEffects(ui['effect-layer'],{reducedMotion:()=>reducedMotion.matches});
+const shots=new ShotEffects(ui['effect-layer'],{reducedMotion:()=>reducedMotion.matches,enabled:()=>engine.state==='playing'});
 let recoil=null,clockPulse=null,coinPulse=null;
 const audioVoices=new Map();
 const number=n=>Math.round(n).toLocaleString('ko-KR');
@@ -72,6 +72,7 @@ function renderBountyReel(now){
 function updateHud(){
   const ready=engine.state==='ready',briefing=engine.state==='briefing'||engine.state==='paused'&&engine.pausedFrom==='briefing';
   ui['hunt-screen'].dataset.state=engine.state;
+  ui['effect-layer'].hidden=engine.state!=='playing';
   ui['shotgun-active'].hidden=engine.weapon!=='shotgun'||ready;
   ui['ghosts-x2-active'].hidden=engine.spawnMultiplier!==2||ready;
   const remaining=engine.remaining??config.duration;
@@ -82,10 +83,7 @@ function updateHud(){
   const revealed=engine.bountyRevealed;
   setText(ui.multiplier,revealed?'×'+engine.bounty.multiplier:'×?');
   ui.pause.disabled=!['playing','briefing'].includes(engine.state);ui['settings-open'].disabled=!ready;ui['wave-intro'].hidden=!briefing;
-  ui['time-recovery'].hidden=!briefing||!(engine.lastTimeRecovery>0);
   if(briefing){
-    const recovered=engine.lastTimeRecovery??0;
-    setText(ui['time-recovery'],recovered>0?'시간 +'+(recovered<.1?'0.1초 미만':Number(recovered.toFixed(1))+'초')+' 회복':'');
     ui['wave-intro'].dataset.reveal=revealed?'revealed':'rolling';
     ui['brief-reel'].hidden=revealed||reducedMotion.matches;ui['brief-multiplier'].hidden=!revealed&&!reducedMotion.matches;
     setText(ui['brief-coins'],revealed?'+'+number(engine.bounty.coins):'+?');
@@ -135,7 +133,7 @@ function clearVisuals(){
 function flushEvents(){for(const event of engine.drain()){
   if(event.kind==='wave'){clearVisuals();prepareBountyReel();updateHud();sound('reel-tick');}
   if(event.kind==='bounty-reveal'){sound(event.multiplier>=8?'gold':'bounty-stop');updateHud();}
-  if(event.kind==='wave-start')sound('wave');
+  if(event.kind==='wave-start'){updateHud();sound('wave');}
   if(event.kind==='end')finish(event.reason,event.cause);
 }}
 function fire(event){
@@ -286,7 +284,7 @@ ui['demo-credit'].addEventListener('click',()=>{const previous=economy;economy={
 function frame(now){
   const dt=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
   if(['playing','briefing'].includes(engine.state)){engine.tick(dt);flushEvents();renderGhosts();renderBountyReel(now);}
-  shots.render(now);
+  if(engine.state==='playing')shots.render(now);else shots.clear();
   if(now-hudAt>80){updateHud();hudAt=now;}requestAnimationFrame(frame);
 }
 for(const node of document.querySelectorAll('[data-coin]'))node.innerHTML=coinPixel(node.dataset.coin);

@@ -47,3 +47,14 @@ test('reduced motion leaves stationary numeric payouts without shards or particl
   for(const ms of [0,40,120,600,800])e.render(ms);
   assert.equal(e.labels.length,0);
 });
+
+test('disabled effects clear existing numbers and cannot enqueue or redraw delayed shot feedback',()=>{
+  let enabled=true;const c=canvas(),e=new ShotEffects(c,{enabled:()=>enabled});e.resize(400,440);
+  e.shoot(hit(),100,150,box(),0);assert.equal(e.labels.length,1);
+  const drawn=c.ctx.text.length;enabled=false;e.render(1);
+  assert.equal(e.labels.length,0);assert.equal(e.bursts.length,0);assert.equal(e.dirty,false);
+  e.shoot(hit(),100,150,box(),2);
+  e.shotgun({kind:'pudge',targets:[{...hit(),ghost:{id:1}}],hitCount:1},100,150,72,new Map([[1,box()]]),3);
+  e.render(4);assert.equal(c.ctx.text.length,drawn);assert.equal(e.labels.length,0);assert.equal(e.spreads.length,0);
+  enabled=true;e.shoot(hit(),100,150,box(),5);assert.equal(e.labels.length,1);
+});

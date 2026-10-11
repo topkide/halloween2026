@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-impact-continue';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-bounty-timer-v2';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -186,7 +186,7 @@ export class Hunt {
       const reward={wave:this.wave,base:this.waveBaseReward,bonus:this.wavePendingBonus,total:this.waveBaseReward+this.wavePendingBonus};
       this.earnedEventCoins+=reward.total;this.waveRewards.push(reward);
       // Recover from the clock at the final hit, once per clear, within the run budget.
-      this.lastTimeRecovery=Math.min(this.remaining*this.effects.timeRecoveryPercent/100,Math.max(0,this.config.recoveryLimit-this.recoveredTime));
+      this.lastTimeRecovery=Math.min(this.remaining*this.effects.timeRecoveryPercent/100,Math.max(0,this.config.recoveryLimit-this.recoveredTime),Math.max(0,this.config.duration-this.remaining));
       this.remaining+=this.lastTimeRecovery;this.recoveredTime+=this.lastTimeRecovery;
       this.clearedWaves++;this.events.push({kind:'wave-clear',...reward,timeRecovery:this.lastTimeRecovery});this.prepareWave();
     }

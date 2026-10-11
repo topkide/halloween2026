@@ -36,7 +36,7 @@ function application(){
     setTimeout:callback=>{const id=++serial;timers.set(id,callback);return id;},clearTimeout:id=>timers.delete(id),
   });
   const source=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8').replace(/^import .* from .*;\r?\n/gm,'');
-  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},renderGhosts,flushEvents};',context);
+  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},hitEffect,renderGhosts,flushEvents};',context);
   const flow=context.flow;
   const start=()=>{nodes.get('upgrade-open').click();nodes.get('upgrade-start').click();};
   const advance=()=>{flow.hunt.tick(BOUNTY_TIMING.spin);flow.hunt.tick(BOUNTY_TIMING.hold);flow.hunt.ghosts=[];flow.flushEvents();};
@@ -83,14 +83,19 @@ test('a new bounty briefing immediately clears old targets, impact fragments, sh
   for(let i=0;i<7;i++)app.catchOne();
   const h=app.flow.hunt,ghost=h.spawn('pudge');ghost.age=ghost.life*.3;
   app.flow.renderGhosts();assert.ok(app.flow.targets.size>0);
-  const hit=h.shoot(ghost.id),box={x:150,y:170,width:75,height:90,facing:1};
-  // The real firing path creates the final hit effects before draining the wave event.
-  app.flow.effects.shoot(hit,150,170,box,1000);
-  app.flow.effects.shotgun(hit,150,170,72,new Map([[ghost.id,box]]),1000);
+  const box={x:150,y:170,width:75,height:90,facing:1},earlier={kind:'pudge',upgradeCoins:1,bonusCoins:0,ghost};
+  app.flow.effects.shoot(earlier,150,170,box,1000);
+  app.flow.effects.shotgun({kind:'pudge',targets:[earlier],hitCount:1},150,170,72,new Map([[ghost.id,box]]),1000);
   assert.ok(app.flow.effects.bursts.length>0);assert.ok(app.flow.effects.spreads.length>0);assert.ok(app.flow.effects.labels.length>0);
+  const hit=h.shoot(ghost.id);
+  // Actual hit feedback can run after the engine has already changed to briefing.
+  app.flow.hitEffect(hit,150,170,box,new Map([[ghost.id,box]]));
   app.flow.flushEvents();
   assert.equal(h.state,'briefing');assert.equal(app.nodes.get('wave-intro').hidden,false);
+  assert.equal(app.nodes.get('effect-layer').hidden,true);
   assert.equal(app.flow.targets.size,0);assert.equal(app.flow.effects.bursts.length,0);assert.equal(app.flow.effects.spreads.length,0);assert.equal(app.flow.effects.labels.length,0);
   assert.equal(app.flow.effects.dirty,false);
   app.flow.effects.render(1001);assert.equal(app.flow.effects.dirty,false);
+  app.flow.effects.shoot(earlier,150,170,box,1002);assert.equal(app.flow.effects.labels.length,0);
+  app.advance();assert.equal(app.nodes.get('effect-layer').hidden,false);
 });

@@ -1,4 +1,4 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-impact-continue';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-bounty-timer-v2';
 
 // All effects share the gameplay RAF and a fixed budget, including a full 16-target blast.
 export const SHOT_LIMITS=Object.freeze({bursts:24,particles:16,lifetime:560,pixelRatio:2,labels:32,labelLifetime:760,spreads:4,spreadLifetime:220});
@@ -6,8 +6,8 @@ const colors={wisp:'#c7acff',pudge:'#c7e798',skitter:'#ff987a',stilt:'#9bf0ec',g
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const easeOut=t=>1-(1-clamp(t,0,1))**3;
 export class ShotEffects {
-  constructor(canvas,{reducedMotion=()=>false}={}){
-    this.canvas=canvas;this.ctx=canvas.getContext('2d');this.reducedMotion=reducedMotion;
+  constructor(canvas,{reducedMotion=()=>false,enabled=()=>true}={}){
+    this.canvas=canvas;this.ctx=canvas.getContext('2d');this.reducedMotion=reducedMotion;this.enabled=enabled;
     this.bursts=[];this.spreads=[];this.labels=[];this.width=1;this.height=1;this.dirty=false;this.silhouettes=new Map();
     this.atlas=new Image();this.atlas.src='assets/refined-ghost-atlas.webp';
   }
@@ -25,6 +25,7 @@ export class ShotEffects {
     ctx.globalCompositeOperation='source-in';ctx.fillStyle='#fffbe9';ctx.fillRect(0,0,canvas.width,canvas.height);this.silhouettes.set(type,canvas);return canvas;
   }
   shoot(hit,x,y,ghostBox,now=performance.now(),{impactOnly=false,renderNow=true}={}){
+    if(!this.enabled()){this.clear();return;}
     const miss=hit.kind==='miss',gold=hit.kind==='gold',still=this.reducedMotion();
     // The explosion and payout belong to the captured ghost, including edge taps.
     if(!miss&&ghostBox){x=ghostBox.x;y=ghostBox.y;}
@@ -47,6 +48,7 @@ export class ShotEffects {
     if(renderNow)this.render(now);
   }
   shotgun(hit,x,y,radius,boxes,now=performance.now()){
+    if(!this.enabled()){this.clear();return;}
     for(const target of hit.targets){
       const box=boxes.get(target.ghost.id);
       if(box)this.shoot(target,box.x,box.y,box,now,{impactOnly:true,renderNow:false});
@@ -147,6 +149,7 @@ export class ShotEffects {
     }
   }
   render(now){
+    if(!this.enabled()){this.clear();return;}
     this.bursts=this.bursts.filter(b=>now-b.born<SHOT_LIMITS.lifetime);
     this.spreads=this.spreads.filter(b=>now-b.born<SHOT_LIMITS.spreadLifetime);
     this.labels=this.labels.filter(b=>now-b.born<SHOT_LIMITS.labelLifetime);

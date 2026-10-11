@@ -64,9 +64,9 @@ test('bounty remains fixed throughout a wave instead of changing on an eight-sec
  const h=playing(),before={...h.bounty};h.tick(9);assert.deepEqual(h.bounty,before);assert.equal(h.wave,1);assert.equal(h.remaining,51);
 });
 test('clearing a wave opens the next briefing, increases the goal, preserves score, and recovers remaining time',()=>{
- const h=playing();h.tick(3);h.shoot();const remaining=h.remaining,previous=h.bounty.multiplier,payout=h.bounty.points;
- finishWave(h,'gold');assert.equal(h.state,'briefing');assert.equal(h.clearedWaves,1);assert.equal(h.wave,2);assert.equal(h.waveGoal,10);assert.equal(h.waveKills,0);assert.equal(h.kills,8);assert.equal(h.score,7*200+payout);assert.equal(h.normalScore,7*200);assert.equal(h.goldScore,payout);assert.ok(Math.abs(h.remaining-remaining*1.1)<1e-8);assert.notEqual(h.bounty.multiplier,previous);assert.equal(h.ghosts.length,0);
- assert.equal(h.drain().filter(e=>e.kind==='wave-clear').length,1);assert.equal(h.shoot(),null);advanceBriefing(h);assert.equal(h.state,'playing');assert.ok(Math.abs(h.remaining-remaining*1.1)<1e-8);
+ const h=playing();h.tick(3);h.shoot();const remaining=h.remaining,previous=h.bounty.multiplier,payout=h.bounty.points,expected=Math.min(h.config.duration,remaining*1.1);
+ finishWave(h,'gold');assert.equal(h.state,'briefing');assert.equal(h.clearedWaves,1);assert.equal(h.wave,2);assert.equal(h.waveGoal,10);assert.equal(h.waveKills,0);assert.equal(h.kills,8);assert.equal(h.score,7*200+payout);assert.equal(h.normalScore,7*200);assert.equal(h.goldScore,payout);assert.ok(Math.abs(h.remaining-expected)<1e-8);assert.notEqual(h.bounty.multiplier,previous);assert.equal(h.ghosts.length,0);
+ assert.equal(h.drain().filter(e=>e.kind==='wave-clear').length,1);assert.equal(h.shoot(),null);advanceBriefing(h);assert.equal(h.state,'playing');assert.ok(Math.abs(h.remaining-expected)<1e-8);
 });
 test('ammunition remains unlimited across waves',()=>{
  const h=playing();for(let i=0;i<65;i++){if(h.state==='briefing')advanceBriefing(h);assert.notEqual(h.shoot(target(h).id),null);}
