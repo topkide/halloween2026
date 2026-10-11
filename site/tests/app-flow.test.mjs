@@ -206,6 +206,25 @@ test('custom positive, zero and negative ghost coins match tap labels, HUD, fina
   assert.equal(reloaded.flow.coins.upgradeCoins,111.75);assert.equal(reloaded.nodes.get('wallet-upgrade').textContent,'111.75');
 });
 
+for(const reducedMotion of [false,true])for(const shotgun of [false,true])test(`capture bursts survive reduced motion ${reducedMotion} with shotgun ${shotgun}`,()=>{
+  const app=application(null,{progressVersion:PROGRESS_VERSION,config:{ghostCoins:{pudge:0}},eventState:{shotgunReady:shotgun}},{reducedMotion});
+  app.start();app.advance();
+  const ghosts=(shotgun?['pudge','gold','wisp']:['pudge']).map(type=>{
+    const ghost=app.flow.hunt.spawn(type);Object.assign(ghost,{age:type==='gold'?0:ghost.life*.3,anchor:.5,lane:.5});return ghost;
+  });
+  app.flow.renderGhosts();
+  app.flow.fire({type:'click',detail:0,clientX:200,clientY:200,preventDefault(){},target:{closest:selector=>selector==='[data-ghost]'?{dataset:{ghost:String(ghosts[0].id)}}:null}});
+  assert.equal(app.flow.hunt.kills,ghosts.length);assert.equal(app.flow.hunt.shots,1);
+  assert.equal(app.nodes.get('effect-layer').hidden,false);
+  assert.equal(app.flow.effects.bursts.length,ghosts.length);
+  for(const burst of app.flow.effects.bursts){
+    assert.equal(burst.still,false);assert.ok(burst.particles.length>0);assert.equal(burst.shards.length,6);
+  }
+  if(shotgun){assert.equal(app.flow.effects.spreads.length,1);assert.equal(app.flow.effects.spreads[0].still,false);}
+  app.flow.effects.render(1800);
+  assert.equal(app.flow.effects.bursts.length,0);assert.equal(app.flow.effects.labels.length,0);assert.equal(app.flow.effects.spreads.length,0);
+});
+
 test('one shotgun tap sums each custom species payout, including duplicates and a zero payout',()=>{
   const app=application(null,{progressVersion:PROGRESS_VERSION,config:{ghostCoins:{pudge:0,wisp:12.5,skitter:100.25}},eventState:{shotgunReady:true}});
   app.start();app.advance();

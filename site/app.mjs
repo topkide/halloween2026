@@ -22,7 +22,8 @@ let lastFrame=performance.now(),hudAt=0,endingTimer=null,soundContext=null,muted
 let reelRows=[],lastReelStep=-1,lastReelSoundAt=-Infinity,infoAction=null;
 const entities=new Map();
 const aim=new GhostAim();
-const shots=new ShotEffects(ui['effect-layer'],{reducedMotion:()=>reducedMotion.matches,enabled:()=>engine.state==='playing'});
+// Capture bursts are essential hit feedback, even when decorative motion is reduced.
+const shots=new ShotEffects(ui['effect-layer'],{enabled:()=>engine.state==='playing'});
 let clockPulse=null,coinPulse=null;
 const audioVoices=new Map();
 const number=n=>n.toLocaleString('ko-KR',{maximumSignificantDigits:21});
