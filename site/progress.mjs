@@ -1,5 +1,5 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-ui-clean';
-import {cleanEconomy} from './upgrades.mjs?v=20261011-ui-clean';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-gun-audio';
+import {cleanEconomy} from './upgrades.mjs?v=20261011-gun-audio';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
 export const PROGRESS_VERSION=6;

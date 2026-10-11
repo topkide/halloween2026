@@ -10,9 +10,10 @@ import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantSh
 import {ghostPixel,coinPixel} from '../pixel-art.mjs';
 import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from '../ghost-aim.mjs';
 import {ShotEffects} from '../shot-effects.mjs';
+import {CombatAudio} from '../combat-audio.mjs';
 
 // Exercise actual button handlers and settlement timing without opening a browser.
-function application(){
+function application(audio=null){
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),nodes=new Map(),timers=new Map();let serial=0;
   const drawing=new Proxy({measureText:text=>({width:text.length*10}),createRadialGradient:()=>({addColorStop(){}})},{get:(target,key)=>key in target?target[key]:()=>{}});
   function node(id=''){
@@ -28,15 +29,27 @@ function application(){
   for(const match of html.matchAll(/\bid="([^"]+)"/g))nodes.set(match[1],node(match[1]));
   const document={hidden:false,querySelectorAll:selector=>selector==='[id]'?[...nodes.values()]:[],querySelector:()=>node(),createElement:()=>node(),addEventListener(){}};
   const window={devicePixelRatio:1,matchMedia:()=>({matches:false}),addEventListener(){}};
+  let Combat=CombatAudio;
+  if(audio){
+    const param=()=>({value:0,setValueAtTime(){},exponentialRampToValueAtTime(){}});
+    const voice=()=>({connect(){},disconnect(){},start(){},stop(){},frequency:param()});
+    window.AudioContext=class{
+      currentTime=0;state='running';destination={};
+      createGain(){const gain={...voice(),gain:param()};audio.gains.push(gain);return gain;}
+      createDynamicsCompressor(){return {...voice(),threshold:param(),knee:param(),ratio:param(),attack:param(),release:param()};}
+      createOscillator(){return voice();}
+    };
+    Combat=class{play(kind){if(!['shot','shotgun','hit','gold-hit'].includes(kind))return false;audio.plays.push(kind);return true;}};
+  }
   const storage=new Map();
   globalThis.window=window;globalThis.document=document;globalThis.Image=class{complete=false;naturalWidth=0;};
-  const context=vm.createContext({Hunt,TYPES,DEFAULTS,settings,pose,KEY,PROGRESS_VERSION,readProgress,createBountyReel,reelOffset,BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward,EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2,ghostPixel,coinPixel,GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN,ShotEffects,document,window,
+  const context=vm.createContext({Hunt,TYPES,DEFAULTS,settings,pose,KEY,PROGRESS_VERSION,readProgress,createBountyReel,reelOffset,BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward,EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2,ghostPixel,coinPixel,GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN,ShotEffects,CombatAudio:Combat,document,window,
     performance:{now:()=>1000},crypto:{randomUUID:()=>String(++serial)},ResizeObserver:class{observe(){}},requestAnimationFrame(){},
     localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)},
     setTimeout:callback=>{const id=++serial;timers.set(id,callback);return id;},clearTimeout:id=>timers.delete(id),
   });
   const source=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8').replace(/^import .* from .*;\r?\n/gm,'');
-  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},hitEffect,renderGhosts,flushEvents};',context);
+  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},hitEffect,renderGhosts,flushEvents,fire};',context);
   const flow=context.flow;
   const start=()=>{nodes.get('upgrade-open').click();nodes.get('upgrade-start').click();};
   const advance=()=>{flow.hunt.tick(BOUNTY_TIMING.spin);flow.hunt.tick(BOUNTY_TIMING.hold);flow.hunt.ghosts=[];flow.flushEvents();};
@@ -117,4 +130,22 @@ test('ticket ad grants immediately without a popup and stops at the existing 30-
   const app=application();app.nodes.get('ad-open').click();assert.equal(app.flow.tickets,8);assert.equal(app.nodes.get('info-dialog').open,false);
   for(let i=0;i<10;i++)app.nodes.get('ad-open').click();
   assert.equal(app.flow.tickets,30);assert.equal(app.nodes.get('ad-open').disabled,true);assert.equal(app.nodes.get('info-dialog').open,false);
+});
+
+test('actual firing selects the equipped gun, adds impact only on hits, and respects the sound button',()=>{
+  const audio={plays:[],gains:[]},app=application(audio);app.start();app.advance();
+  const shoot=(type=null)=>{
+    const ghost=type?app.flow.hunt.spawn(type):null;
+    if(ghost){ghost.age=ghost.life*.3;app.flow.renderGhosts();}
+    app.flow.fire({type:'click',detail:0,clientX:200,clientY:200,preventDefault(){},target:{closest:selector=>selector==='[data-ghost]'&&ghost?{dataset:{ghost:String(ghost.id)}}:null}});
+  };
+  shoot('pudge');assert.deepEqual(audio.plays,['shot','hit']);
+  audio.plays=[];shoot();assert.deepEqual(audio.plays,['shot']);
+  app.nodes.get('sound').click();assert.equal(audio.gains[0].gain.value,0);
+  audio.plays=[];shoot('pudge');assert.deepEqual(audio.plays,[]);
+  app.nodes.get('sound').click();assert.equal(audio.gains[0].gain.value,.2);
+  shoot('gold');assert.deepEqual(audio.plays,['shot','gold-hit']);
+  app.flow.hunt.weapon='shotgun';audio.plays=[];shoot('pudge');
+  assert.equal(audio.plays[0],'shotgun');assert.equal(audio.plays.filter(kind=>kind==='shotgun').length,1);
+  assert.equal(audio.plays[1],'hit');
 });

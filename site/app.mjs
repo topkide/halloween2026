@@ -1,12 +1,13 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-ui-clean';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-ui-clean';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-ui-clean';
-import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-ui-clean';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-ui-clean';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-ui-clean';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-gun-audio';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-gun-audio';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-gun-audio';
+import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-gun-audio';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-gun-audio';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-gun-audio';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-ui-clean';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-ui-clean';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-gun-audio';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-gun-audio';
+import {CombatAudio} from './combat-audio.mjs?v=20261011-gun-audio';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -15,7 +16,7 @@ const loaded=readProgress(key=>localStorage.getItem(key));
 let {config,best,bestWave,soundOn,lastResult,economy}=loaded;
 let eventData=eventState(loaded.eventState);
 let engine=new Hunt({config,upgrades:economy.levels}),size={width:400,height:440,scale:1,left:0,top:0},currentRunId=null;
-let lastFrame=performance.now(),hudAt=0,endingTimer=null,soundContext=null,mutedGain=null,shotNoise=null;
+let lastFrame=performance.now(),hudAt=0,endingTimer=null,soundContext=null,mutedGain=null,combatAudio=null;
 let reelRows=[],lastReelStep=-1,lastReelSoundAt=-Infinity,infoAction=null;
 const entities=new Map();
 const aim=new GhostAim();
@@ -150,7 +151,7 @@ function fire(event){
   // Remove the consumed target before any optional visual or audio work.
   for(const target of hit.targets){entities.get(target.ghost.id)?.remove();entities.delete(target.ghost.id);}
   updateHitWallet(hit.upgradeCoins);
-  hitEffect(hit,x,y,ghostBox,boxes);sound(shotgun?'shotgun':'shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit',Math.min(1.35,1+Math.max(0,hit.hitCount-1)*.03));
+  hitEffect(hit,x,y,ghostBox,boxes);sound(shotgun?'shotgun':'shot');if(hit.kind!=='miss')sound(hit.kind==='gold'?'gold-hit':'hit',Math.min(1.25,1+Math.max(0,hit.hitCount-1)*.03));
   renderGhosts();flushEvents();updateHud();
 }
 if(pointerInput)ui.arena.addEventListener('pointerdown',fire);ui.arena.addEventListener('click',fire);
@@ -277,30 +278,18 @@ function sound(kind,power=1){
     const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
     if(!soundContext){
       soundContext=new Audio();mutedGain=soundContext.createGain();mutedGain.gain.value=.2;
-      // A shared limiter keeps rapid shotgun hits full-bodied without clipping.
+      // One shared compressor controls the gunshot and hit mix during rapid fire.
       const limiter=soundContext.createDynamicsCompressor();
       limiter.threshold.value=-16;limiter.knee.value=12;limiter.ratio.value=5;limiter.attack.value=.002;limiter.release.value=.08;
       mutedGain.connect(limiter);limiter.connect(soundContext.destination);
-      shotNoise=soundContext.createBuffer(1,Math.ceil(soundContext.sampleRate*.16),soundContext.sampleRate);
-      const samples=shotNoise.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*(1-i/samples.length)**1.5;
+      combatAudio=new CombatAudio(soundContext,mutedGain);
     }
     if(soundContext.state==='suspended')soundContext.resume().catch(()=>{});
-    const impact=['shot','shotgun','hit','gold'].includes(kind);
-    if(impact){
-      const at=soundContext.currentTime,noise=soundContext.createBufferSource(),filter=soundContext.createBiquadFilter(),gain=soundContext.createGain();
-      const duration=kind==='shotgun'?.145:kind==='shot'?.085:.075,level=kind==='shotgun'?1.55:kind==='shot'?1.05:.7;
-      noise.buffer=shotNoise;filter.type='lowpass';filter.frequency.setValueAtTime(kind==='shotgun'?2700:kind==='shot'?3400:1800,at);
-      gain.gain.setValueAtTime(.001,at);gain.gain.exponentialRampToValueAtTime(level*power,at+.002);gain.gain.exponentialRampToValueAtTime(.001,at+duration);
-      noise.connect(filter);filter.connect(gain);gain.connect(mutedGain);playAudioVoice(noise,[noise,filter,gain],at,duration);
-    }
+    if(combatAudio.play(kind,power))return;
     const sounds={
       'reel-tick':[[900,620,.028,0,'sine']],
       'bounty-stop':[[523,784,.12,0,'triangle'],[784,1046,.24,.09,'sine']],
-      shot:[[155,45,.12,0,'sine',.9]],
-      shotgun:[[100,28,.16,0,'sine',1.15],[240,65,.07,0,'triangle',.15]],
-      hit:[[145,52,.10,.004,'sine',.55]],
-      gold:[[155,55,.12,0,'sine',.6],[1900,1350,.06,.012,'sine',.1],[2550,1700,.08,.035,'sine',.06]],
-      miss:[[130,50,.08,0,'triangle']],
+      gold:[[1046,1568,.12,0,'sine',.23],[1568,2093,.16,.07,'sine',.16]],
       wave:[[440,660,.12,0,'triangle'],[660,880,.16,.1,'sine']],
       timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]
     };

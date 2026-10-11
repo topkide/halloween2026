@@ -1,4 +1,4 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-ui-clean';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-gun-audio';
 
 // Radius in the arena's 400-unit coordinate space; scales with the viewport.
 export const SHOTGUN=Object.freeze({radius:72});
