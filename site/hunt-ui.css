@@ -48,3 +48,9 @@
 @container field (max-height:300px){
   .hunt-screen .wave-intro{padding:8px 15px;gap:7px}.hunt-screen .wave-intro h2{font-size:18px}.hunt-screen .bounty-card{padding:8px 14px;width:min(100%,220px);max-height:calc(100% - 29px)}.hunt-screen .wanted-label{font-size:26px}.wanted-subtitle{font-size:8px;margin:3px 0 7px;letter-spacing:1px}.poster-portrait{height:70px;margin:1px 0 8px}.hunt-screen .bounty-formula{height:32px}.hunt-screen .bounty-reel,.hunt-screen .bounty-reel span{height:30px;font-size:24px}.hunt-screen #brief-multiplier{font-size:24px}.hunt-screen #brief-status{font-size:8px;margin:4px 0 0}
 }
+
+/* Each silver payout floats beside the live balance, with at most four labels. */
+.run-wallet{position:relative}
+#coin-gains{position:absolute;inset:0;pointer-events:none;z-index:3}
+.coin-gain{position:absolute;bottom:-15px;transform:translateX(-50%);white-space:nowrap;padding:2px 7px;border-radius:8px;background:#253224ed;border:1px solid #cde69b70;color:#e7ffb9;font-size:13px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #102010;box-shadow:0 2px 7px #100b2344}
+@container game (max-height:520px){.coin-gain{font-size:11px;padding:2px 5px;bottom:-13px}}

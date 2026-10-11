@@ -21,6 +21,8 @@ const entities=new Map();
 const aim=new GhostAim();
 const shots=new ShotEffects(ui['effect-layer'],{reducedMotion:()=>reducedMotion.matches});
 let feedbackUntil=0,recoil=null,clockPulse=null;
+const coinGains=new Set();
+let coinPulse=null,coinGainSerial=0;
 const number=n=>Math.round(n).toLocaleString('ko-KR');
 function setText(node,text){if(node.textContent!==String(text))node.textContent=String(text);}
 function save(){try{localStorage.setItem(KEY,JSON.stringify({progressVersion:PROGRESS_VERSION,best,bestWave,soundOn,config,lastResult,economy,eventState:eventData}));return true;}catch{setText(ui['storage-note'],'이 브라우저에서는 기록을 저장할 수 없어요. 브라우저 저장 설정을 확인해 주세요.');return false;}}
@@ -86,6 +88,29 @@ function renderGhosts(){
     node.style.opacity=p.alpha;node.style.pointerEvents=p.alpha<.3||engine.state!=='playing'?'none':'auto';node.disabled=engine.state!=='playing'||p.alpha<.3;node.firstElementChild.style.transform='scaleX('+p.facing+')';
   }
 }
+function showCoinGain(amount){
+  if(!(amount>0))return;
+  // The total updates on the same hit; short, bounded labels keep rapid catches readable.
+  setText(ui['run-upgrade'],number(engine.earnedUpgradeCoins));
+  const label=document.createElement('span');label.className='coin-gain';label.textContent='+'+number(amount);
+  label.style.left=[50,26,74][coinGainSerial++%3]+'%';
+  ui['coin-gains'].append(label);coinGains.add(label);
+  if(coinGains.size>4){const oldest=coinGains.values().next().value;oldest.remove();coinGains.delete(oldest);}
+  const motion=reducedMotion.matches;
+  const animation=label.animate(motion?[
+    {opacity:1},{opacity:1,offset:.7},{opacity:0}
+  ]:[
+    {opacity:0,transform:'translate(-50%, 5px) scale(.85)'},
+    {opacity:1,transform:'translate(-50%, 0) scale(1.08)',offset:.14},
+    {opacity:1,transform:'translate(-50%, -6px) scale(1)',offset:.65},
+    {opacity:0,transform:'translate(-50%, -13px) scale(1)'}
+  ],{duration:850,easing:'ease-out',fill:'forwards'});
+  animation.onfinish=()=>{label.remove();coinGains.delete(label);};
+  coinPulse?.cancel();
+  coinPulse=ui['run-upgrade'].animate(motion?[{color:'#e9ffbf'},{color:'#eee8ef'}]:[
+    {color:'#e9ffbf',transform:'scale(1.13)'},{color:'#eee8ef',transform:'scale(1)'}
+  ],{duration:220,easing:'ease-out'});
+}
 function hitEffect(hit,x,y,ghostBox){
   const now=performance.now(),miss=hit.kind==='miss',gold=hit.kind==='gold';shots.shoot(hit,x,y,ghostBox,now);
   ui['shot-feedback'].dataset.kind=miss?'miss':gold?'gold':'hit';ui['shot-feedback'].classList.add('visible');
@@ -96,7 +121,7 @@ function hitEffect(hit,x,y,ghostBox){
   else{recoil?.cancel();recoil=document.querySelector('.arena-scenery').animate([{transform:'translate(0,0)'},{transform:'translate(0,2px)',offset:.2},{transform:'translate(1px,-1px)',offset:.5},{transform:'translate(0,0)'}],{duration:130});}
 }
 function clearVisuals({keepShots=false}={}){
-  if(!keepShots){shots.clear();feedbackUntil=0;ui['shot-feedback'].classList.remove('visible');recoil?.cancel();clockPulse?.cancel();}
+  if(!keepShots){shots.clear();feedbackUntil=0;ui['shot-feedback'].classList.remove('visible');recoil?.cancel();clockPulse?.cancel();coinPulse?.cancel();for(const label of coinGains){label.getAnimations().forEach(a=>a.cancel());label.remove();}coinGains.clear();coinGainSerial=0;}
   for(const node of entities.values())node.remove();entities.clear();toastUntil=0;ui['field-toast'].classList.remove('visible');setText(ui['field-toast'],'');ui.ending.hidden=true;
 }
 function flushEvents(){for(const event of engine.drain()){
@@ -128,6 +153,7 @@ function fire(event){
   const hit=engine.shoot(id);if(!hit)return;
   // Remove the consumed target before any optional visual or audio work.
   if(hit.ghost){entities.get(hit.ghost.id)?.remove();entities.delete(hit.ghost.id);}
+  showCoinGain(hit.upgradeCoins);
   hitEffect(hit,x,y,ghostBox);sound('shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit');
   renderGhosts();flushEvents();updateHud();
 }
