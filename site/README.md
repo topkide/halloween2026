@@ -1,4 +1,6 @@
-# 유령 소탕 대작전! · 픽셀 이벤트 프로토타입
+# 유령 소탕 대작전! · 할로윈 이벤트 프로토타입
+
+배경과 유령에 섬세한 픽셀 아트를 사용하고, UI는 일반 글꼴·둥근 버튼·얇은 테두리·일러스트 코인으로 구성합니다. 저해상도 도트 격자와 강제 픽셀 확대는 사용하지 않습니다.
 
 메인 → 사냥 준비(강화 3종) → 웨이브 사냥 → 보상 → 메인 흐름입니다.
 보내주신 세로형 시안에 맞춰 특별 패키지, 우측의 은색/호박 코인, 300m 기회 진행, 기회 +3, 교환소와 시작 버튼을 배치했습니다.
@@ -30,9 +32,9 @@
 
 | 파일 | 역할 |
 | --- | --- |
-| index.html / style.css | 세로형 픽셀 메인, 강화/교환/게임/결과 UI |
+| index.html / style.css | 세로형 메인, 강화/교환/게임/결과 UI |
 | app.mjs | 화면 전환, 입력, 오디오, 보상 정산, 저장 연결 |
-| pixel-art.mjs / assets/haunted-lobby.webp | 픽셀 유령·코인 SVG와 저택 배경 |
+| pixel-art.mjs / assets/refined-ghost-atlas.webp / assets/haunted-lobby.webp | 세밀한 픽셀 유령 아틀라스·일러스트 코인 SVG·저택 배경 |
 | hunt-core.mjs / bounty-reel.mjs | 사냥 상태/등장/웨이브와 현상금 회전 |
 | upgrades.mjs / event-core.mjs / progress.mjs | 강화, 재화, 기회, 교환 및 저장 마이그레이션 |
 

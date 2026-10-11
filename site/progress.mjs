@@ -1,5 +1,5 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-pixel1';
-import {cleanEconomy} from './upgrades.mjs?v=20261011-pixel1';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-art2';
+import {cleanEconomy} from './upgrades.mjs?v=20261011-art2';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
 export const PROGRESS_VERSION=4;

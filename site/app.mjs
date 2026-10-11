@@ -1,9 +1,9 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-pixel1';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-pixel1';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-pixel1';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-pixel1';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-pixel1';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-pixel1';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-art2';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-art2';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-art2';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-art2';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-art2';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-art2';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
