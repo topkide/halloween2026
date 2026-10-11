@@ -68,3 +68,5 @@ dialog{max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(12px,en
 .lobby .event-header h1{margin:0}
 .lobby .event-period{margin-top:9px}
 .lobby .owned-decor{bottom:18px}
+.lobby-actions .shop-button[aria-disabled=true]{cursor:default}
+.lobby-actions .shop-button[aria-disabled=true]:active{transform:none}

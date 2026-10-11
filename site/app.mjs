@@ -1,13 +1,13 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-game-over';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-game-over';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-game-over';
-import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-game-over';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-game-over';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-game-over';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-lobby-clean';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-lobby-clean';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-lobby-clean';
+import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-lobby-clean';
+import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-lobby-clean';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-lobby-clean';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-game-over';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-game-over';
-import {CombatAudio} from './combat-audio.mjs?v=20261011-game-over';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-lobby-clean';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-lobby-clean';
+import {CombatAudio} from './combat-audio.mjs?v=20261011-lobby-clean';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -31,12 +31,11 @@ function measure(){const r=ui.arena.getBoundingClientRect();if(r.width>0)size={w
 new ResizeObserver(measure).observe(ui.arena);window.addEventListener('resize',measure,{passive:true});window.addEventListener('scroll',measure,{passive:true});
 function updateWallet(){
   for(const id of ['wallet-upgrade','upgrade-balance'])setText(ui[id],number(economy.upgradeCoins));
-  for(const id of ['wallet-event','shop-balance'])setText(ui[id],number(economy.eventCoins));
+  setText(ui['wallet-event'],number(economy.eventCoins));
   setText(ui['ticket-count'],eventData.tickets+' / '+EVENT.maxTickets);
   ui['ad-open'].disabled=eventData.tickets>=EVENT.maxTickets;
   setText(ui['distance-count'],eventData.distance+' / '+EVENT.distancePerTicket+'m');
   ui['distance-fill'].style.transform='scaleX('+eventData.distance/EVENT.distancePerTicket+')';
-  ui['owned-decor'].innerHTML=eventData.owned.filter(id=>id!=='badge').map(id=>id==='friend'?'<span class="owned-friend">'+ghostPixel('wisp')+'</span>':'<span class="owned-lantern">'+coinPixel('pumpkin')+'</span>').join('');
 }
 function effectLabel(key,levels){
   const e=upgradeEffects(levels,{recoveryBasePercent:config.waveRecoveryPercent});
@@ -210,18 +209,6 @@ ui['upgrade-cards'].addEventListener('click',event=>{
   const key=button.dataset.upgrade,purchase=buyUpgrade(economy,key);if(!purchase.ok)return;
   const previous=economy;economy=purchase.economy;if(!save()){economy=previous;return;}
   renderUpgrades();sound('bounty-stop');
-});
-function renderShop(){
-  updateWallet();ui['shop-items'].innerHTML=GOODS.map(item=>{
-    const owned=eventData.owned.includes(item.id);
-    return '<article class="shop-item"><div class="shop-item-art">'+(item.icon==='ghost'?ghostPixel('wisp'):coinPixel('pumpkin'))+'</div><div><h3>'+item.name+'</h3><p>'+item.copy+'</p><button data-good="'+item.id+'" '+(owned||economy.eventCoins<item.price?'disabled':'')+'>'+(owned?'교환 완료':coinPixel('pumpkin')+item.price+' · 교환')+'</button></div></article>';
-  }).join('');
-}
-ui['shop-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;renderShop();setText(ui['shop-status'],'');ui['shop-dialog'].showModal();});
-ui['shop-items'].addEventListener('click',event=>{
-  const button=event.target.closest('[data-good]');if(!button||button.disabled)return;const purchase=exchange(eventData,economy,button.dataset.good);if(!purchase.ok)return;
-  const prevEconomy=economy,prevEvent=eventData;economy=purchase.economy;eventData=purchase.state;if(!save()){economy=prevEconomy;eventData=prevEvent;return;}
-  renderShop();setText(ui['shop-status'],'교환 완료! 메인화면에서 장식을 확인하세요.');sound('gold');
 });
 function info(title,copy,label,action){setText(ui['info-title'],title);setText(ui['info-copy'],copy);ui['info-action'].hidden=!action;setText(ui['info-action'],label??'');infoAction=action;ui['info-dialog'].showModal();}
 ui['info-action'].addEventListener('click',()=>{const action=infoAction;infoAction=null;if(action)action();ui['info-dialog'].close();});
