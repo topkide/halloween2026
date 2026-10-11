@@ -1,13 +1,14 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-mobile-buttons';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-mobile-buttons';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-mobile-buttons';
-import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-mobile-buttons';
-import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-mobile-buttons';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-mobile-buttons';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-missions';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-missions';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-missions';
+import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-missions';
+import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-missions';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-missions';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-mobile-buttons';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-mobile-buttons';
-import {CombatAudio} from './combat-audio.mjs?v=20261011-mobile-buttons';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-missions';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-missions';
+import {CombatAudio} from './combat-audio.mjs?v=20261011-missions';
+import {missionState,addMissionCaptures,missionSummary,claimMissionReward} from './missions.mjs?v=20261011-missions';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -15,6 +16,7 @@ const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
 const loaded=readProgress(key=>localStorage.getItem(key));
 let {config,best,bestWave,soundOn,lastResult,economy}=loaded;
 let eventData=eventState(loaded.eventState);
+let missionData=missionState(loaded.missions);
 let engine=new Hunt({config,upgrades:economy.levels}),size={width:400,height:440,scale:1,left:0,top:0},currentRunId=null;
 let lastFrame=performance.now(),hudAt=0,endingTimer=null,soundContext=null,mutedGain=null,combatAudio=null;
 let reelRows=[],lastReelStep=-1,lastReelSoundAt=-Infinity,infoAction=null;
@@ -25,7 +27,7 @@ let clockPulse=null,coinPulse=null;
 const audioVoices=new Map();
 const number=n=>Math.round(n).toLocaleString('ko-KR');
 function setText(node,text){if(node.textContent!==String(text))node.textContent=String(text);}
-function save(){try{localStorage.setItem(KEY,JSON.stringify({progressVersion:PROGRESS_VERSION,best,bestWave,soundOn,config,lastResult,economy,eventState:eventData}));return true;}catch{setText(ui['storage-note'],'이 브라우저에서는 기록을 저장할 수 없어요. 브라우저 저장 설정을 확인해 주세요.');return false;}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({progressVersion:PROGRESS_VERSION,best,bestWave,soundOn,config,lastResult,economy,eventState:eventData,missions:missionData}));return true;}catch{setText(ui['storage-note'],'이 브라우저에서는 기록을 저장할 수 없어요. 브라우저 저장 설정을 확인해 주세요.');return false;}}
 function showScreen(id){for(const name of ['lobby','hunt-screen','closed-screen'])ui[name].hidden=name!==id;}
 function measure(){const r=ui.arena.getBoundingClientRect();if(r.width>0)size={width:400,height:Math.max(180,r.height/r.width*400),scale:r.width/400,left:r.left,top:r.top};if(r.width>0)shots.resize(r.width,r.height);}
 new ResizeObserver(measure).observe(ui.arena);window.addEventListener('resize',measure,{passive:true});window.addEventListener('scroll',measure,{passive:true});
@@ -63,6 +65,28 @@ function renderUpgrades(){
   ui['ghosts-x2-ad'].setAttribute('aria-label',eventData.ghostsX2Ready?'유령 X2 적용 중':'광고 보상으로 유령 X2 적용');
 }
 function openUpgrades(){if(engine.state!=='ready')return;renderUpgrades();ui['upgrade-dialog'].showModal();}
+function renderMissions(){
+  const summary=missionSummary(missionData,economy.levels);
+  ui['mission-list'].innerHTML=summary.rows.map(row=>{
+    const art=row.kind==='capture'?ghostPixel(row.id):'<img src="assets/upgrade-'+(row.key??row.id)+'.png" alt="" width="80" height="80">';
+    return '<article class="mission-card" data-complete="'+row.complete+'"><div class="mission-art">'+art+'</div><div class="mission-copy"><h3>'+row.title+'</h3><div class="mission-track" role="progressbar" aria-label="'+row.title+'" aria-valuemin="0" aria-valuemax="'+row.goal+'" aria-valuenow="'+row.current+'"><i style="transform:scaleX('+row.ratio+')"></i><span>'+row.current+' / '+row.goal+'</span></div></div><span class="mission-status">'+(row.complete?'완료':'진행 중')+'</span></article>';
+  }).join('');
+  setText(ui['mission-total-count'],summary.completed+' / '+summary.total);
+  ui['mission-total-fill'].style.transform='scaleX('+summary.completed/summary.total+')';
+  ui['mission-total-track'].setAttribute('aria-valuenow',String(summary.completed));
+  ui['mission-claim'].disabled=!summary.canClaim;
+  ui['mission-claim'].dataset.claimed=String(summary.rewardClaimed);
+  setText(ui['mission-claim'],summary.rewardClaimed?'획득 완료':'받기');
+}
+ui['mission-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;renderMissions();ui['mission-dialog'].showModal();});
+ui['mission-back'].addEventListener('click',()=>ui['mission-dialog'].close());
+ui['mission-dialog'].addEventListener('cancel',event=>{event.preventDefault();ui['mission-dialog'].close();});
+ui['mission-claim'].addEventListener('click',()=>{
+  if(!ui['mission-dialog'].open||engine.state!=='ready')return;
+  const reward=claimMissionReward(missionData,economy.levels);if(!reward.awarded)return;
+  const previous=missionData;missionData=reward.state;if(!save()){missionData=previous;return;}
+  renderMissions();sound('gold');
+});
 function prepareBountyReel(){reelRows=createBountyReel(engine.bounty.multiplier,engine.wave);lastReelStep=-1;lastReelSoundAt=-Infinity;ui['brief-strip'].innerHTML=reelRows.map(value=>'<span>X'+value+'</span>').join('');ui['brief-strip'].style.transform='translate3d(0,0,0)';}
 function renderBountyReel(now){
   if(engine.state!=='briefing'||engine.bountyRevealed||!reelRows.length)return;
@@ -148,6 +172,7 @@ function fire(event){
   if(shotgun)for(const ghost of engine.ghosts){const q=pose(ghost,size.width,size.height);boxes.set(ghost.id,{x:q.x*size.scale,y:q.y*size.scale,width:TYPES[ghost.type].width*size.scale*q.sx,height:TYPES[ghost.type].height*size.scale*q.sy,facing:q.facing});}
   const ids=shotgun?pickShotgunGhosts(candidates,x+size.left,y+size.top,SHOTGUN.radius*size.scale,aim.masks):null;
   const hit=shotgun?engine.shootShotgun(ids):engine.shoot(id);if(!hit)return;
+  if(hit.targets.length){missionData=addMissionCaptures(missionData,hit.targets);save();}
   // Remove the consumed target before any optional visual or audio work.
   for(const target of hit.targets){entities.get(target.ghost.id)?.remove();entities.delete(target.ghost.id);}
   updateHitWallet(hit.upgradeCoins);
@@ -162,7 +187,7 @@ function start(){
   currentRunId=crypto.randomUUID();engine=new Hunt({config,upgrades:economy.levels,weapon:entry.weapon,spawnMultiplier:entry.spawnMultiplier});engine.start();lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();
 }
 function ready(){
-  clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();ui['pause-dialog'].close();ui['continue-dialog'].close();clearVisuals();
+  clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();ui['pause-dialog'].close();ui['continue-dialog'].close();ui['mission-dialog'].close();clearVisuals();
   engine=new Hunt({config,upgrades:economy.levels});showScreen('lobby');updateWallet();updateHud();
 }
 function finish(reason){

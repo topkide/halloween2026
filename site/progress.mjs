@@ -1,8 +1,9 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-mobile-buttons';
-import {cleanEconomy} from './upgrades.mjs?v=20261011-mobile-buttons';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261011-missions';
+import {cleanEconomy} from './upgrades.mjs?v=20261011-missions';
+import {missionState} from './missions.mjs?v=20261011-missions';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
-export const PROGRESS_VERSION=6;
+export const PROGRESS_VERSION=7;
 
 export function readProgress(getItem){
   const read=key=>{
@@ -25,10 +26,10 @@ export function readProgress(getItem){
       lastResult:current.lastResult??null,
       soundOn:current.soundOn!==false,
       economy,refundedReloadCoins,refundedRewardCoins,
-      bestWave:Number.isSafeInteger(current.bestWave)&&current.bestWave>=0?current.bestWave:0,eventState:current.eventState,
+      bestWave:Number.isSafeInteger(current.bestWave)&&current.bestWave>=0?current.bestWave:0,eventState:current.eventState,missions:missionState(current.missions),
     };
   }
   const previous=read('catjump-wave-hunt-v1')??read('catjump-bounty-hunt-v1')??{};
   // Retain preferences, apply the new spawn rate, and keep old coin records separate.
-  return {config:settings({...previous.config,...(previous.config?.duration===60?{duration:DEFAULTS.duration}:{}),spawn:DEFAULTS.spawn,goldInterval:DEFAULTS.goldInterval}),best:0,lastResult:null,soundOn:previous.soundOn!==false,economy:cleanEconomy(),refundedReloadCoins:0,bestWave:0,eventState:null};
+  return {config:settings({...previous.config,...(previous.config?.duration===60?{duration:DEFAULTS.duration}:{}),spawn:DEFAULTS.spawn,goldInterval:DEFAULTS.goldInterval}),best:0,lastResult:null,soundOn:previous.soundOn!==false,economy:cleanEconomy(),refundedReloadCoins:0,bestWave:0,eventState:null,missions:missionState()};
 }

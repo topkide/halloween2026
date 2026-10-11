@@ -11,9 +11,10 @@ import {ghostPixel,coinPixel} from '../pixel-art.mjs';
 import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from '../ghost-aim.mjs';
 import {ShotEffects} from '../shot-effects.mjs';
 import {CombatAudio} from '../combat-audio.mjs';
+import {missionState,addMissionCaptures,missionSummary,claimMissionReward} from '../missions.mjs';
 
 // Exercise actual button handlers and settlement timing without opening a browser.
-function application(audio=null){
+function application(audio=null,saved=null,{storageFails=false}={}){
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),nodes=new Map(),timers=new Map();let serial=0;
   const drawing=new Proxy({measureText:text=>({width:text.length*10}),createRadialGradient:()=>({addColorStop(){}})},{get:(target,key)=>key in target?target[key]:()=>{}});
   function node(id=''){
@@ -23,6 +24,7 @@ function application(audio=null){
       getContext:()=>drawing,append(){},remove(){},showModal(){this.open=true;},close(){this.open=false;},
       animate:()=>({cancel(){}}),addEventListener(type,callback){handlers.set(type,callback);},
       click(){if(!this.disabled)handlers.get('click')?.({target:this});},
+      dispatch(type,event){handlers.get(type)?.(event);},
       cancel(){handlers.get('cancel')?.({preventDefault(){}});}
     };
   }
@@ -42,21 +44,22 @@ function application(audio=null){
     Combat=class{play(kind){if(!['shot','shotgun','hit','gold-hit'].includes(kind))return false;audio.plays.push(kind);return true;}};
   }
   const storage=new Map();
+  if(saved)storage.set(KEY,JSON.stringify(saved));
   globalThis.window=window;globalThis.document=document;globalThis.Image=class{complete=false;naturalWidth=0;};
-  const context=vm.createContext({Hunt,TYPES,DEFAULTS,settings,pose,KEY,PROGRESS_VERSION,readProgress,createBountyReel,reelOffset,BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward,EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2,ghostPixel,coinPixel,GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN,ShotEffects,CombatAudio:Combat,document,window,
+  const context=vm.createContext({Hunt,TYPES,DEFAULTS,settings,pose,KEY,PROGRESS_VERSION,readProgress,createBountyReel,reelOffset,BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward,EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2,ghostPixel,coinPixel,GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN,ShotEffects,CombatAudio:Combat,missionState,addMissionCaptures,missionSummary,claimMissionReward,document,window,
     performance:{now:()=>1000},crypto:{randomUUID:()=>String(++serial)},ResizeObserver:class{observe(){}},requestAnimationFrame(){},
-    localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)},
+    localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(storageFails)throw new Error('Unavailable');storage.set(key,value);}},
     setTimeout:callback=>{const id=++serial;timers.set(id,callback);return id;},clearTimeout:id=>timers.delete(id),
   });
   const source=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8').replace(/^import .* from .*;\r?\n/gm,'');
-  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},hitEffect,renderGhosts,flushEvents,fire,updateHud};',context);
+  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},get missions(){return missionData;},hitEffect,renderGhosts,flushEvents,fire,updateHud};',context);
   const flow=context.flow;
   const start=()=>{nodes.get('upgrade-open').click();nodes.get('upgrade-start').click();};
   const advance=()=>{flow.hunt.tick(BOUNTY_TIMING.spin);flow.hunt.tick(BOUNTY_TIMING.hold);flow.hunt.ghosts=[];flow.flushEvents();};
   const finishTimers=()=>{for(const [id,callback] of [...timers]){timers.delete(id);callback();}};
   const end=()=>{flow.hunt.end('quit');flow.flushEvents();finishTimers();};
   const catchOne=()=>{const ghost=flow.hunt.spawn('pudge');ghost.age=ghost.life*.3;flow.hunt.shoot(ghost.id);flow.flushEvents();};
-  return {flow,nodes,start,advance,end,catchOne,finishTimers};
+  return {flow,nodes,start,advance,end,catchOne,finishTimers,stored:()=>JSON.parse(storage.get(KEY)??'null')};
 }
 
 test('first ending offers continue without settlement; ad resumes the same run and second ending settles once',()=>{
@@ -184,4 +187,60 @@ test('ten-second warning turns on at the threshold and stops after recovery, pau
   assert.ok(app.flow.hunt.remaining>10);assert.equal(screen.dataset.urgent,'false');assert.equal(screen.dataset.state,'briefing');
   app.advance();app.flow.hunt.remaining=1;app.end();assert.equal(screen.dataset.urgent,'false');assert.equal(screen.dataset.state,'ended');
   app.nodes.get('continue-ad').click();assert.equal(screen.dataset.urgent,'false');
+});
+
+test('mission opens the nine-row panel with loaded progress and closes through back or Escape',()=>{
+  const saved={progressVersion:PROGRESS_VERSION,economy:{levels:{gold:30}},missions:{kills:{wisp:499,gold:100}}};
+  const app=application(null,saved);app.nodes.get('mission-open').click();
+  assert.equal(app.nodes.get('mission-dialog').open,true);
+  const html=app.nodes.get('mission-list').innerHTML;
+  assert.equal((html.match(/class="mission-card"/g)??[]).length,9);
+  assert.match(html,/황금 유령 100마리 잡기/);assert.match(html,/499 \/ 500/);assert.doesNotMatch(html,/황금 유령 50마리/);
+  assert.equal(app.nodes.get('mission-total-count').textContent,'2 / 9');assert.equal(app.nodes.get('mission-claim').disabled,true);
+  app.nodes.get('mission-back').click();assert.equal(app.nodes.get('mission-dialog').open,false);
+  app.nodes.get('mission-open').click();app.nodes.get('mission-dialog').cancel();assert.equal(app.nodes.get('mission-dialog').open,false);
+  assert.equal(app.flow.tickets,5);assert.equal(app.nodes.has('shop-dialog'),false);app.nodes.get('shop-open').click();
+  assert.equal(app.nodes.get('mission-dialog').open,false);
+});
+
+test('real taps persist captured species before ending, ignore misses and duplicate targets, and survive continuing and reload',()=>{
+  const app=application();app.start();app.advance();
+  const shoot=(type,previous=null)=>{
+    const ghost=previous??(type?app.flow.hunt.spawn(type):null);
+    if(ghost&&!previous){ghost.age=ghost.life*.3;app.flow.renderGhosts();}
+    app.flow.fire({type:'click',detail:0,clientX:200,clientY:200,preventDefault(){},target:{closest:selector=>selector==='[data-ghost]'&&ghost?{dataset:{ghost:String(ghost.id)}}:null}});
+    return ghost;
+  };
+  const wisp=shoot('wisp');shoot(null,wisp);shoot('pudge');shoot('gold');shoot(null);
+  assert.equal(app.flow.missions.kills.wisp,1);assert.equal(app.flow.missions.kills.pudge,1);assert.equal(app.flow.missions.kills.gold,1);
+  assert.deepEqual(app.stored().missions,app.flow.missions);
+  app.end();app.nodes.get('continue-ad').click();app.advance();shoot('pudge');
+  assert.equal(app.flow.missions.kills.pudge,2);
+  const reloaded=application(null,app.stored());reloaded.nodes.get('mission-open').click();
+  assert.equal(reloaded.flow.missions.kills.pudge,2);assert.match(reloaded.nodes.get('mission-list').innerHTML,/2 \/ 500/);
+});
+
+test('one actual shotgun tap saves all its captured species, including multiple captures of the same type',()=>{
+  const app=application(null,{progressVersion:PROGRESS_VERSION,eventState:{shotgunReady:true}});app.start();app.advance();
+  const ghosts=['pudge','pudge','wisp','gold'].map(type=>{const ghost=app.flow.hunt.spawn(type);ghost.age=ghost.life*.3;return ghost;});
+  app.flow.renderGhosts();
+  app.flow.fire({type:'click',detail:0,clientX:200,clientY:200,preventDefault(){},target:{closest:selector=>selector==='[data-ghost]'?{dataset:{ghost:String(ghosts[0].id)}}:null}});
+  assert.equal(app.flow.missions.kills.pudge,2);assert.equal(app.flow.missions.kills.wisp,1);assert.equal(app.flow.missions.kills.gold,1);
+  assert.deepEqual(app.stored().missions,app.flow.missions);
+});
+
+test('the final upgrade immediately unlocks the special cat, claiming once without an extra popup and surviving reload',()=>{
+  const saved={progressVersion:PROGRESS_VERSION,economy:{upgradeCoins:500,levels:{time:29,gold:30,shop:30}},missions:{kills:{pudge:500,wisp:500,stilt:500,grasp:500,skitter:500,gold:100}}};
+  const app=application(null,saved);app.nodes.get('mission-open').click();assert.equal(app.nodes.get('mission-total-count').textContent,'8 / 9');
+  app.nodes.get('mission-back').click();app.nodes.get('upgrade-open').click();
+  app.nodes.get('upgrade-cards').dispatch('click',{target:{closest:()=>({disabled:false,dataset:{upgrade:'time'}})}});
+  assert.equal(app.flow.coins.levels.time,30);app.nodes.get('upgrade-dialog').close();app.nodes.get('mission-open').click();
+  assert.equal(app.nodes.get('mission-total-count').textContent,'9 / 9');assert.equal(app.nodes.get('mission-claim').disabled,false);
+  const balance=app.flow.coins.upgradeCoins;app.nodes.get('mission-claim').click();
+  assert.equal(app.nodes.get('info-dialog').open,false);assert.equal(app.flow.missions.rewardClaimed,true);assert.equal(app.nodes.get('mission-claim').textContent,'획득 완료');
+  assert.equal(app.nodes.get('mission-claim').disabled,true);app.nodes.get('mission-claim').click();assert.equal(app.flow.coins.upgradeCoins,balance);
+  const reloaded=application(null,app.stored());reloaded.nodes.get('mission-open').click();assert.equal(reloaded.nodes.get('mission-claim').textContent,'획득 완료');assert.equal(reloaded.nodes.get('mission-claim').disabled,true);
+  const failed=application(null,{...saved,economy:{...saved.economy,levels:{time:30,gold:30,shop:30}}},{storageFails:true});
+  failed.nodes.get('mission-open').click();failed.nodes.get('mission-claim').click();assert.equal(failed.flow.missions.rewardClaimed,false);
+  assert.equal(failed.nodes.get('mission-claim').textContent,'받기');assert.equal(failed.stored().missions.rewardClaimed,undefined);
 });
