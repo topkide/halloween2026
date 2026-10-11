@@ -51,7 +51,7 @@ test('first ending offers continue without settlement; ad resumes the same run a
   const runId=app.flow.runId;app.end();
   assert.equal(app.nodes.get('continue-dialog').open,true);assert.equal(app.nodes.get('result-dialog').open,false);
   assert.equal(app.flow.coins.upgradeCoins,0);assert.equal(app.flow.coins.eventCoins,0);
-  app.nodes.get('continue-ad').click();app.nodes.get('info-action').click();
+  app.nodes.get('continue-ad').click();assert.equal(app.nodes.get('info-dialog').open,false);
   assert.equal(app.nodes.get('continue-dialog').open,false);assert.equal(app.flow.runId,runId);assert.equal(app.flow.tickets,4);
   assert.equal(app.flow.hunt.wave,2);assert.equal(app.flow.hunt.waveKills,0);assert.equal(app.flow.hunt.remaining,90);
   assert.equal(app.flow.hunt.weapon,'shotgun');assert.equal(app.flow.hunt.spawnMultiplier,2);
@@ -59,7 +59,9 @@ test('first ending offers continue without settlement; ad resumes the same run a
   assert.equal(app.nodes.get('continue-dialog').open,false);assert.equal(app.nodes.get('result-dialog').open,true);
   assert.equal(app.flow.coins.upgradeCoins,8);assert.equal(app.flow.coins.eventCoins,10);
   app.nodes.get('continue-back').click();assert.equal(app.flow.coins.eventCoins,10);
-  app.nodes.get('result-double').click();app.nodes.get('info-action').click();assert.equal(app.flow.coins.eventCoins,20);
+  app.nodes.get('result-double').click();assert.equal(app.nodes.get('info-dialog').open,false);assert.equal(app.flow.coins.eventCoins,20);
+  assert.equal(app.nodes.get('result-double-label').textContent,'적용 중');assert.equal(app.nodes.get('result-double').disabled,true);
+  app.nodes.get('result-double').click();assert.equal(app.flow.coins.eventCoins,20);
 });
 
 test('back or Escape from the continue dialog opens results and preserves earned coins',()=>{
@@ -98,4 +100,21 @@ test('a new bounty briefing immediately clears old targets, impact fragments, sh
   app.flow.effects.render(1001);assert.equal(app.flow.effects.dirty,false);
   app.flow.effects.shoot(earlier,150,170,box,1002);assert.equal(app.flow.effects.labels.length,0);
   app.advance();assert.equal(app.nodes.get('effect-layer').hidden,false);
+});
+
+test('shotgun and X2 rewards apply with one click and active labels, then enter the next run together',()=>{
+  const app=application();app.nodes.get('upgrade-open').click();
+  assert.doesNotMatch(app.nodes.get('upgrade-cards').innerHTML,/다음|<small>/);
+  for(const [button,label] of [['shotgun-ad','shotgun-label'],['ghosts-x2-ad','ghosts-x2-label']]){
+    app.nodes.get(button).click();assert.equal(app.nodes.get('info-dialog').open,false);
+    assert.equal(app.nodes.get(label).textContent,'적용 중');assert.equal(app.nodes.get(button).disabled,true);
+    app.nodes.get(button).click();assert.equal(app.flow.tickets,5);
+  }
+  app.nodes.get('upgrade-start').click();assert.equal(app.flow.hunt.weapon,'shotgun');assert.equal(app.flow.hunt.spawnMultiplier,2);assert.equal(app.flow.tickets,4);
+});
+
+test('ticket ad grants immediately without a popup and stops at the existing 30-ticket cap',()=>{
+  const app=application();app.nodes.get('ad-open').click();assert.equal(app.flow.tickets,8);assert.equal(app.nodes.get('info-dialog').open,false);
+  for(let i=0;i<10;i++)app.nodes.get('ad-open').click();
+  assert.equal(app.flow.tickets,30);assert.equal(app.nodes.get('ad-open').disabled,true);assert.equal(app.nodes.get('info-dialog').open,false);
 });
