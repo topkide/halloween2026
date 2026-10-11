@@ -1,10 +1,10 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261012-ghost-coins';
-import {cleanEconomy} from './upgrades.mjs?v=20261012-ghost-coins';
-import {missionState} from './missions.mjs?v=20261012-ghost-coins';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261012-shared-balance';
+import {cleanEconomy} from './upgrades.mjs?v=20261012-shared-balance';
+import {missionState} from './missions.mjs?v=20261012-shared-balance';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
-export const PROGRESS_VERSION=8;
-const balanceDefaults=Object.fromEntries(['duration','waveRecoveryPercent','recoveryLimit','spawn','goldInterval','goldLimit'].map(key=>[key,DEFAULTS[key]]));
+export const PROGRESS_VERSION=9;
+const balanceDefaults=Object.fromEntries(['duration','missPenalty','waveRecoveryPercent','recoveryLimit','spawn','goldInterval','goldLimit','ghostCoins'].map(key=>[key,DEFAULTS[key]]));
 
 export function readProgress(getItem){
   const read=key=>{
@@ -13,8 +13,8 @@ export function readProgress(getItem){
   const current=read(STORAGE_KEY);
   if(current){
     const version=Number.isSafeInteger(current.progressVersion)&&current.progressVersion>=0?current.progressVersion:0;
-    // Version 8 establishes the same visible balance settings in every browser, once.
-    const resetBalanceDefaults=version<8;
+    // Version 9 applies the agreed twelve visible settings to existing browsers once.
+    const resetBalanceDefaults=version<9;
     // Refund the retired upgrade at its original prices, independent of future balance changes.
     const level=current.economy?.levels?.reload;
     const retiredLevel=version<3&&Number.isSafeInteger(level)&&level>0?Math.min(10,level):0;

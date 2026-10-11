@@ -1,4 +1,4 @@
-import {upgradeLevels} from './upgrades.mjs?v=20261012-ghost-coins';
+import {upgradeLevels} from './upgrades.mjs?v=20261012-shared-balance';
 
 export const MISSIONS=Object.freeze([
   {id:'pudge',kind:'capture',goal:500,title:'뚱보 유령 500마리 잡기'},

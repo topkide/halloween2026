@@ -14,7 +14,7 @@ test('shots have no cooldown while duplicate targets and inactive states stay pr
   assert.equal(h.shoot(b.id).points,200); // Same frame, no tick or artificial timer reset.
   const before=h.remaining;
   assert.equal(h.shoot().kind,'miss');assert.equal(h.shoot().kind,'miss');
-  assert.equal(h.remaining,before-4);assert.equal(h.shots,4);assert.equal(h.kills,2);
+  assert.equal(h.remaining,before-10);assert.equal(h.shots,4);assert.equal(h.kills,2);
   const c=target(h);h.pause();assert.equal(h.shoot(c.id),null);assert.equal(h.shoot(),null);
   h.resume();assert.equal(h.shoot(c.id).points,200);
   assert.equal('reloadLeft' in h,false);assert.equal('reloadSeconds' in h.effects,false);

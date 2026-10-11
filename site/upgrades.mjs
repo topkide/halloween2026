@@ -25,7 +25,7 @@ export function buyUpgrade(value,key){
   if(economy.upgradeCoins<cost)return {ok:false,reason:'funds',economy};
   return {ok:true,cost,economy:{...economy,upgradeCoins:economy.upgradeCoins-cost,levels:{...economy.levels,[key]:economy.levels[key]+1}}};
 }
-export const GHOST_COINS=Object.freeze({pudge:1,wisp:10,stilt:20,grasp:35,skitter:50});
+export const GHOST_COINS=Object.freeze({pudge:1,wisp:3,stilt:5,grasp:10,skitter:15});
 export function waveReward(wave,levels){
   const base=BALANCE.waveBase+Math.max(0,whole(wave)-1)*BALANCE.waveStep;
   // Keep the 200/30 step rational until the final floor; floating percentages can lose a coin.

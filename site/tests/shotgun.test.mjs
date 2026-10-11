@@ -15,13 +15,13 @@ test('one captured target is a shotgun hit and an entirely empty blast costs tim
   const h=playing(),g=target(h),before=h.remaining;
   const hit=h.shootShotgun([g.id]);assert.equal(hit.hitCount,1);assert.equal(hit.penalty,0);assert.equal(h.remaining,before);assert.equal(h.misses,0);assert.equal(h.shots,1);
   assert.equal(h.shootShotgun([g.id]),null);assert.equal(h.shots,1);
-  const miss=h.shootShotgun([]);assert.equal(miss.kind,'miss');assert.equal(miss.penalty,2);assert.equal(h.remaining,before-2);assert.equal(h.shots,2);assert.equal(h.misses,1);
+  const miss=h.shootShotgun([]);assert.equal(miss.kind,'miss');assert.equal(miss.penalty,5);assert.equal(h.remaining,before-5);assert.equal(h.shots,2);assert.equal(h.misses,1);
 });
 test('one blast removes all unique targets and adds each species and gold reward exactly once',()=>{
   const h=playing(),a=target(h),b=target(h,'skitter'),g=target(h,'gold'),outside=target(h,'wisp');
   const bounty=h.bounty.coins,before=h.remaining,hit=h.shootShotgun([a.id,b.id,g.id,a.id,999]);
-  assert.equal(hit.hitCount,3);assert.equal(hit.upgradeCoins,51);assert.equal(hit.bonusCoins,bounty);
-  assert.equal(h.earnedUpgradeCoins,51);assert.equal(h.wavePendingBonus,bounty);assert.equal(h.earnedEventCoins,0);
+  assert.equal(hit.hitCount,3);assert.equal(hit.upgradeCoins,16);assert.equal(hit.bonusCoins,bounty);
+  assert.equal(h.earnedUpgradeCoins,16);assert.equal(h.wavePendingBonus,bounty);assert.equal(h.earnedEventCoins,0);
   assert.equal(h.shots,1);assert.equal(h.hits,1);assert.equal(h.kills,3);assert.equal(h.waveKills,3);assert.equal(h.gold,1);assert.equal(h.remaining,before);assert.deepEqual(h.ghosts,[outside]);
 });
 test('a final multi-hit blast settles every target at the old bounty and advances and heals once',()=>{
@@ -29,7 +29,7 @@ test('a final multi-hit blast settles every target at the old bounty and advance
   for(let i=0;i<7;i++)h.shoot(target(h).id);
   const a=target(h),g1=target(h,'gold'),g2=target(h,'gold'),b=target(h,'skitter'),bounty=h.bounty.coins;
   const hit=h.shootShotgun([a.id,g1.id,g2.id,b.id]);
-  assert.equal(hit.hitCount,4);assert.equal(h.earnedUpgradeCoins,58);assert.equal(h.earnedEventCoins,10+2*bounty);
+  assert.equal(hit.hitCount,4);assert.equal(h.earnedUpgradeCoins,23);assert.equal(h.earnedEventCoins,10+2*bounty);
   assert.deepEqual(h.waveRewards,[{wave:1,base:10,bonus:2*bounty,total:10+2*bounty}]);
   assert.equal(h.kills,11);assert.equal(h.clearedWaves,1);assert.equal(h.wave,2);assert.equal(h.waveKills,0);assert.equal(h.waveGold,0);
   assert.equal(h.remaining,44);assert.equal(h.recoveredTime,4);assert.equal(h.drain().filter(e=>e.kind==='wave-clear').length,1);

@@ -66,7 +66,7 @@ const settingFields=[['setting-duration','duration'],['setting-recovery-percent'
 const coinSettingFields=['pudge','wisp','stilt','grasp','skitter'].map(type=>['setting-coins-'+type,type]);
 
 test('opening an older browser saves the new baseline immediately, displays it in settings and starts gameplay with it',()=>{
-  const saved={progressVersion:7,config:{duration:75,waveRecoveryPercent:20,recoveryLimit:60,spawn:.4,goldInterval:6,goldLimit:4},
+  const saved={progressVersion:8,config:{duration:75,missPenalty:2,waveRecoveryPercent:20,recoveryLimit:60,spawn:.4,goldInterval:6,goldLimit:4,ghostCoins:{pudge:0,wisp:12.5,stilt:-2.5,grasp:.001,skitter:100.25}},
     best:2300,bestWave:12,soundOn:false,economy:{upgradeCoins:123,eventCoins:77,levels:{time:15,gold:2,shop:1}},
     eventState:{tickets:22,shotgunReady:true,ghostsX2Ready:true},missions:{kills:{pudge:99},rewardClaimed:true}};
   const app=application(null,saved),stored=app.stored();
@@ -76,7 +76,7 @@ test('opening an older browser saves the new baseline immediately, displays it i
   assert.equal(stored.eventState.tickets,22);assert.equal(stored.missions.kills.pudge,99);assert.equal(stored.missions.rewardClaimed,true);
   app.nodes.get('settings-open').click();
   for(const [id,key] of settingFields){assert.equal(app.nodes.get(id).value,DEFAULTS[key]);assert.equal(stored.config[key],DEFAULTS[key]);}
-  assert.deepEqual(GHOST_COINS,{pudge:1,wisp:10,stilt:20,grasp:35,skitter:50});
+  assert.deepEqual(GHOST_COINS,{pudge:1,wisp:3,stilt:5,grasp:10,skitter:15});
   assert.deepEqual(stored.config.ghostCoins,GHOST_COINS);
   for(const [id,type] of coinSettingFields)assert.equal(app.nodes.get(id).value,GHOST_COINS[type]);
   app.nodes.get('settings-dialog').close();app.start();

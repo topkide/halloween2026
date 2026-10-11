@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261012-ghost-coins';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261012-shared-balance';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -12,7 +12,7 @@ export const SPECIALS={
 };
 export const TYPES=Object.fromEntries([...SPECIES,...Object.values(SPECIALS)].map(s=>[s.id,s]));
 export const BOUNTY_TIMING=Object.freeze({spin:1.8,hold:1.1});
-export const DEFAULTS=Object.freeze({duration:90,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldInterval:2.5,goldLimit:2,waveRecoveryPercent:10,recoveryLimit:30,ghostCoins:GHOST_COINS});
+export const DEFAULTS=Object.freeze({duration:90,spawn:.23,missPenalty:5,baseGoal:8,goalStep:2,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldInterval:2.5,goldLimit:2,waveRecoveryPercent:10,recoveryLimit:30,ghostCoins:GHOST_COINS});
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const configured=key=>Number.isFinite(value[key])?value[key]:DEFAULTS[key];

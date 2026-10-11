@@ -8,8 +8,8 @@ const load=saved=>readProgress(key=>key===STORAGE_KEY?JSON.stringify(saved):null
 const advance=h=>{h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);h.ghosts=[];};
 const spawn=(h,type)=>{const g=h.spawn(type);g.age=type==='gold'?0:g.life*.3;return g;};
 
-test('ordinary coin defaults span one to fifty and existing saves retain all other settings and balances',()=>{
-  assert.deepEqual(GHOST_COINS,{pudge:1,wisp:10,stilt:20,grasp:35,skitter:50});
+test('ordinary coin defaults span one to fifteen and current saves retain all other settings and balances',()=>{
+  assert.deepEqual(GHOST_COINS,{pudge:1,wisp:3,stilt:5,grasp:10,skitter:15});
   assert.deepEqual(DEFAULTS.ghostCoins,GHOST_COINS);
   const saved={progressVersion:PROGRESS_VERSION,config:{duration:73.5,spawn:.09,missPenalty:0},economy:{upgradeCoins:123.5,eventCoins:77,levels:{time:2,gold:3,shop:4}},bestWave:9};
   const loaded=load(saved);

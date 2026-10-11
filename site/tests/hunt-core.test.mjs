@@ -20,9 +20,9 @@ test('a run starts with a golden-bounty briefing, eight targets and a frozen six
  assert.equal(h.shoot(),null);h.tick(1);assert.equal(h.remaining,60);assert.equal(h.state,'briefing');h.tick(2);assert.equal(h.state,'briefing');assert.equal(h.bountyRevealed,true);h.tick(BOUNTY_TIMING.hold);assert.equal(h.state,'playing');assert.equal(h.remaining,60);
  assert.equal(h.ghosts.length,3);assert.equal(h.ghosts.filter(g=>g.type==='gold').length,1);
 });
-test('each miss costs two seconds and no progress or score; elapsed time also counts down',()=>{
- const h=playing();h.tick(.5);const hit=h.shoot();assert.equal(hit.kind,'miss');assert.equal(hit.penalty,2);assert.equal(h.remaining,57.5);assert.equal(h.misses,1);assert.equal(h.waveKills,0);assert.equal(h.score,0);
- h.tick(1);assert.equal(h.remaining,56.5);assert.equal(h.shots,1);assert.equal(h.hits,0);
+test('each miss costs five seconds and no progress or score; elapsed time also counts down',()=>{
+ const h=playing();h.tick(.5);const hit=h.shoot();assert.equal(hit.kind,'miss');assert.equal(hit.penalty,5);assert.equal(h.remaining,54.5);assert.equal(h.misses,1);assert.equal(h.waveKills,0);assert.equal(h.score,0);
+ h.tick(1);assert.equal(h.remaining,53.5);assert.equal(h.shots,1);assert.equal(h.hits,0);
 });
 test('zero miss penalty leaves the clock running and fractional penalties deduct their configured time',()=>{
  for(const missPenalty of [0,.1,1.7,5]){
@@ -60,7 +60,7 @@ test('default spawning runs every 0.23 seconds without accumulating frame roundi
 test('old coin records migrate only preferences and always adopt the new 0.23-second interval',()=>{
  const old={best:90000,lastResult:{coins:5000},soundOn:false,config:{duration:90,spawn:.5,baseGoal:10,missPenalty:3}};
  const state=readProgress(key=>key==='catjump-wave-hunt-v1'?JSON.stringify(old):null);
- assert.equal(state.best,0);assert.equal(state.lastResult,null);assert.equal(state.soundOn,false);assert.equal(state.config.spawn,.23);assert.equal(state.config.duration,90);assert.equal(state.config.baseGoal,10);assert.equal(state.config.missPenalty,3);assert.equal(old.best,90000);
+ assert.equal(state.best,0);assert.equal(state.lastResult,null);assert.equal(state.soundOn,false);assert.equal(state.config.spawn,.23);assert.equal(state.config.duration,90);assert.equal(state.config.baseGoal,10);assert.equal(state.config.missPenalty,5);assert.equal(old.best,90000);
 });
 test('current score records and custom settings survive reload while malformed storage falls back safely',()=>{
  const saved={progressVersion:PROGRESS_VERSION,best:2300,lastResult:{score:2300,normalScore:800,goldScore:1500},soundOn:false,config:{spawn:.31}};

@@ -42,7 +42,7 @@ test('briefings and pauses neither spend time nor repeat recovery, and a restart
   h.start();assert.equal(h.remaining,90);assert.equal(h.recoveredTime,0);assert.equal(h.lastTimeRecovery,0);
 });
 test('misses are deducted before the recovery calculation; timeout and quit never grant recovery',()=>{
-  const h=playing();h.tick(30);h.shoot();clear(h);near(h.lastTimeRecovery,5.8);near(h.remaining,63.8);
+  const h=playing();h.tick(30);h.shoot();clear(h);near(h.lastTimeRecovery,5.5);near(h.remaining,60.5);
   for(const cause of ['clock','miss','quit']){
     const ended=playing();if(cause==='clock')ended.tick(100);else if(cause==='miss'){ended.tick(89);ended.shoot();}else ended.end('quit');
     assert.equal(ended.state,'ended');assert.equal(ended.recoveredTime,0);assert.equal(ended.shoot(),null);
