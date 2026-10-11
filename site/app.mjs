@@ -1,11 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-hit4';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-hit4';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-hit4';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-hit4';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-hit4';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-hit4';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-hud1';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-hud1';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-hud1';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-hud1';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-hud1';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-hud1';
 
-import {ShotEffects} from './shot-effects.mjs?v=20261011-hit4';
+import {GhostAim,pickGhost} from './ghost-aim.mjs?v=20261011-hud1';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-hud1';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -17,6 +18,7 @@ let engine=new Hunt({config,upgrades:economy.levels}),size={width:400,height:440
 let lastFrame=performance.now(),hudAt=0,toastUntil=0,endingTimer=null,soundContext=null,mutedGain=null,shotNoise=null;
 let reelRows=[],lastReelStep=-1,lastReelSoundAt=-Infinity,infoAction=null;
 const entities=new Map();
+const aim=new GhostAim();
 const shots=new ShotEffects(ui['effect-layer'],{reducedMotion:()=>reducedMotion.matches});
 let feedbackUntil=0,recoil=null,clockPulse=null;
 const number=n=>Math.round(n).toLocaleString('ko-KR');
@@ -59,24 +61,19 @@ function updateHud(){
   const ready=engine.state==='ready',briefing=engine.state==='briefing'||engine.state==='paused'&&engine.pausedFrom==='briefing';
   ui['hunt-screen'].dataset.state=engine.state;
   const remaining=engine.remaining??config.duration;
-  setText(ui['time-label'],Math.ceil(remaining)+'s');ui['time-fill'].style.transform='scaleX('+Math.max(0,remaining/config.duration)+')';
+  const seconds=Math.ceil(remaining);setText(ui['time-label'],Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'));ui['time-fill'].style.transform='scaleX('+Math.max(0,remaining/config.duration)+')';
   ui['hunt-screen'].dataset.urgent=String(remaining<=10&&!ready);
   setText(ui['wave-number'],engine.wave??1);setText(ui['wave-count'],engine.waveKills??0);setText(ui['wave-goal'],engine.waveGoal??config.baseGoal);
-  ui['wave-fill'].style.transform='scaleX('+((engine.waveKills??0)/(engine.waveGoal??config.baseGoal))+')';
-  setText(ui['run-upgrade'],number(engine.earnedUpgradeCoins??0));setText(ui['run-event'],number(engine.earnedEventCoins??0));
-  setText(ui['wave-reward'],engine.waveBaseReward??10);setText(ui['pending-bonus'],engine.wavePendingBonus?' + 황금 '+number(engine.wavePendingBonus):'');
-  setText(ui['miss-cost'],config.missPenalty);setText(ui['wanted-limit'],(engine.waveGold??0)+' / '+config.goldLimit);
+  setText(ui['run-upgrade'],number(engine.earnedUpgradeCoins??0));
   const revealed=engine.bountyRevealed;
-  setText(ui['wanted-reward'],revealed?'호박 +'+number(engine.bounty.coins):'배수 추첨 중');setText(ui.multiplier,revealed?'×'+engine.bounty.multiplier:'×?');
+  setText(ui.multiplier,revealed?'×'+engine.bounty.multiplier:'×?');
   ui.pause.disabled=!['playing','briefing'].includes(engine.state);ui['settings-open'].disabled=!ready;ui['wave-intro'].hidden=!briefing;
   if(briefing){
     ui['wave-intro'].dataset.reveal=revealed?'revealed':'rolling';
     ui['brief-reel'].hidden=revealed||reducedMotion.matches;ui['brief-multiplier'].hidden=!revealed&&!reducedMotion.matches;
     setText(ui['brief-status'],revealed?(engine.bounty.multiplier>=8?'대박! 현상금 확정':'이번 웨이브 현상금 확정'):'이번 현상금은 몇 배일까요?');
-    const last=engine.waveRewards.at(-1);
-    setText(ui['brief-cleared'],last?'WAVE '+last.wave+' 완료 · 호박 +'+last.total:'오늘 밤의 첫 사냥');
-    setText(ui['brief-wave'],'WAVE '+engine.wave);setText(ui['brief-base'],engine.waveBaseReward);
-    setText(ui['brief-multiplier'],revealed?'×'+engine.bounty.multiplier:'×?');setText(ui['brief-reward'],revealed?'+'+number(engine.bounty.coins):'?');setText(ui['brief-goal'],engine.waveGoal);
+    setText(ui['brief-wave'],'Wave '+engine.wave);
+    setText(ui['brief-multiplier'],revealed?'×'+engine.bounty.multiplier:'×?');
   }
 }
 function renderGhosts(){
@@ -113,11 +110,25 @@ function fire(event){
   if(engine.state!=='playing'||event.target.closest('#wave-intro, #ending'))return;
   if(event.type==='pointerdown'&&(event.button!==0||event.isPrimary===false))return;
   if(event.type==='click'&&pointerInput&&(event.detail>0||event.pointerType))return;
-  event.preventDefault();const target=event.target.closest('[data-ghost]'),id=target?Number(target.dataset.ghost):null;
+  event.preventDefault();
+  // Match the visible sprite first, so transparent padding cannot steal a shot
+  // from a ghost behind it. Keyboard activation still addresses its own button.
+  const keyboard=event.type==='click'&&!event.detail&&!event.pointerType;
+  const target=keyboard?event.target.closest('[data-ghost]'):null;
+  const candidates=engine.ghosts.flatMap(g=>{
+    const node=entities.get(g.id);if(!node||node.disabled)return [];
+    const rect=node.getBoundingClientRect();
+    return [{id:g.id,type:g.type,rect,facing:pose(g,size.width,size.height).facing,layer:g.type==='gold'?2:0}];
+  });
+  candidates.sort((a,b)=>a.layer-b.layer);
+  const id=keyboard?(target?Number(target.dataset.ghost):null):pickGhost(candidates,event.clientX,event.clientY,aim.masks);
   const g=id===null?null:engine.ghosts.find(g=>g.id===id),p=g?pose(g,size.width,size.height):null;
-  const x=event.type==='click'&&p?p.x*size.scale:event.clientX-size.left,y=event.type==='click'&&p?p.y*size.scale:event.clientY-size.top;
+  const x=keyboard&&p?p.x*size.scale:event.clientX-size.left,y=keyboard&&p?p.y*size.scale:event.clientY-size.top;
   const ghostBox=g&&p?{x:p.x*size.scale,y:p.y*size.scale,width:TYPES[g.type].width*size.scale*p.sx,height:TYPES[g.type].height*size.scale*p.sy,facing:p.facing}:null;
-  const hit=engine.shoot(id);if(!hit)return;hitEffect(hit,x,y,ghostBox);sound('shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit');
+  const hit=engine.shoot(id);if(!hit)return;
+  // Remove the consumed target before any optional visual or audio work.
+  if(hit.ghost){entities.get(hit.ghost.id)?.remove();entities.delete(hit.ghost.id);}
+  hitEffect(hit,x,y,ghostBox);sound('shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit');
   renderGhosts();flushEvents();updateHud();
 }
 if(pointerInput)ui.arena.addEventListener('pointerdown',fire);ui.arena.addEventListener('click',fire);

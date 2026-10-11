@@ -1,0 +1,50 @@
+/* In-game wireframe: clock, three compact HUD columns, field, empty item tray. */
+.hunt-hud{flex:none;padding:12px 13px 11px;background:linear-gradient(155deg,#38263f,#251b32);border-bottom:1px solid #ae879b55;z-index:2}
+.hunt-topline{display:grid;grid-template-columns:minmax(0,1fr) 36px;gap:16px;align-items:center}
+.hunt-topline .icon-button{width:36px;height:34px;border-radius:9px;font-size:22px}
+.hunt-clock{position:relative;height:29px;border:1px solid #b9949866;background:#130f20;overflow:hidden;border-radius:7px;box-shadow:inset 0 1px 5px #08051088}
+.hunt-clock i{position:absolute;inset:0;background:linear-gradient(90deg,#ad3648,#e96460);transform-origin:left}
+.hunt-clock strong{position:absolute;inset:0;display:grid;place-items:center;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;color:#fff4e6;text-shadow:0 1px 3px #44131a}
+.hunt-screen[data-urgent=true] .hunt-clock{border-color:#ffaea0;box-shadow:0 0 12px #ff5f5433}
+.hunt-status-row{display:grid;grid-template-columns:minmax(66px,.92fr) minmax(112px,1.6fr) minmax(88px,1.1fr);align-items:center;gap:10px;margin-top:10px}
+.wave-status{display:flex;flex-direction:column;align-items:center;gap:4px;color:#f9e5c5}
+.wave-status>strong{font-size:15px;font-weight:650;white-space:nowrap}
+.wave-status>span{display:flex;gap:6px;align-items:center;font-size:14px;line-height:1.1;color:#c7b5cc;font-variant-numeric:tabular-nums}
+.wave-status>span b:first-child{color:#fff2d9}.wave-status i{font-style:normal;opacity:.5}
+.bounty-status{display:flex;align-items:center;justify-content:center;gap:13px;padding:3px 9px;height:65px;min-width:0;border:1px solid #cba66b70;border-radius:10px;background:linear-gradient(145deg,#65422f44,#2c1b32);box-shadow:inset 0 0 16px #e6b87009}
+.bounty-status .wanted-art{width:42px;height:56px;flex:none;display:block}
+.bounty-status>b{color:#ffdc94;font-size:29px;line-height:1;font-variant-numeric:tabular-nums}
+.run-wallet{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;padding:8px 5px;border:1px solid #aa99b744;border-radius:9px;background:#19132399}
+.run-wallet>span{width:26px;height:28px;flex:none}.run-wallet>b{font-size:17px;color:#eee8ef;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.hunt-item-slot{height:clamp(42px,8.4cqh,80px);flex:none;background:linear-gradient(#302238,#281d30);border-top:1px solid #b891ae44}
+.hunt-screen:is([data-state=briefing]) .hunt-hud,.hunt-screen:is([data-state=briefing]) .hunt-item-slot{filter:brightness(.6)}
+.hunt-screen .arena-hint{display:none}
+.ghost-target .character-art,.ghost-target .character-art *{pointer-events:none}
+.pause-sound{display:block;margin:0 auto 14px}
+
+/* A large parchment poster. Typography is live text; the ghost remains pixel art. */
+.hunt-screen .wave-intro{padding:clamp(12px,4cqh,28px) 20px;background:#160f23b8;gap:clamp(10px,3cqh,22px)}
+.hunt-screen .wave-intro h2{font-size:clamp(22px,4.7cqh,34px);margin:0;color:#fff0d3;line-height:1.2;font-weight:750;letter-spacing:.5px}
+.hunt-screen .bounty-card{display:flex;flex-direction:column;align-items:center;gap:0;min-width:0;width:min(100%,340px);max-height:calc(100% - 58px);padding:clamp(12px,3cqh,24px);border:1px solid #e7c183;border-radius:4px;color:#422b25;background:radial-gradient(ellipse at 10% 20%,#8c54292b,transparent 45%),radial-gradient(ellipse at 90% 75%,#95582c40,transparent 46%),linear-gradient(110deg,#d4ad70,#f6dfa5 35%,#ecd097 65%,#d6b578);box-shadow:0 12px 35px #08041166,inset 0 0 28px #8d592735}
+.hunt-screen .wanted-label{font:900 clamp(31px,8cqh,58px)/1 Georgia,'Times New Roman',serif;color:#3a2924;letter-spacing:1px;text-shadow:1px 1px #fff2c377}
+.wanted-subtitle{font:700 clamp(10px,2.3cqh,15px)/1.2 Georgia,'Times New Roman',serif;letter-spacing:1.5px;margin:6px 0 14px;color:#574033;white-space:nowrap}
+.poster-portrait{display:flex;align-items:center;justify-content:center;flex:1 1 auto;min-height:0;width:100%;height:clamp(85px,34cqh,250px);border:1px solid #755234a1;outline:1px solid #75523440;outline-offset:4px;background:radial-gradient(ellipse,#74533d40,transparent 70%);margin:2px 0 13px;overflow:hidden}
+.hunt-screen #brief-art{width:100%;height:100%;margin:0;display:flex;justify-content:center;align-items:center}
+.hunt-screen #brief-art svg{height:92%;width:83%;max-height:100%;filter:drop-shadow(0 5px 8px #57362044)}
+.hunt-screen .bounty-formula{display:grid;place-items:center;flex:none;width:100%;height:clamp(40px,8cqh,58px);margin:0;background:#52352812;border:1px solid #7e582e77;border-radius:3px}
+.hunt-screen .bounty-reel{width:100%;height:clamp(38px,7cqh,52px);border-radius:0;background:none;color:#4c2e21;font-size:clamp(28px,6cqh,40px)}
+.hunt-screen .bounty-reel span{height:clamp(38px,7cqh,52px)}
+.hunt-screen #brief-multiplier{font-size:clamp(28px,6cqh,40px);color:#4c2e21;line-height:1;font-weight:850}
+.hunt-screen #brief-status{margin:9px 0 0;color:#6c4831;font-size:clamp(9px,1.8cqh,12px);line-height:1.4}
+.hunt-screen .wave-intro[data-reveal=revealed] .bounty-card{border-color:#ffe2a2}
+.hunt-screen .wave-intro[data-reveal=revealed] .bounty-formula{background:#fff0bd88;border-color:#a77735}
+@container game (max-height:720px){
+  .hunt-hud{padding:9px 10px}.hunt-topline{gap:12px;grid-template-columns:minmax(0,1fr) 32px}.hunt-topline .icon-button{width:32px;height:29px;font-size:20px}.hunt-clock{height:26px}.hunt-clock strong{font-size:16px}
+  .hunt-status-row{margin-top:7px;gap:8px}.bounty-status{height:54px;gap:10px}.bounty-status .wanted-art{width:35px;height:47px}.bounty-status>b{font-size:26px}.wave-status>strong{font-size:13px}.wave-status>span{font-size:12px}.run-wallet>b{font-size:15px}.run-wallet>span{width:23px;height:25px}
+}
+@container game (max-height:520px){
+  .hunt-hud{padding:6px 8px}.hunt-topline{gap:9px;grid-template-columns:minmax(0,1fr) 27px}.hunt-topline .icon-button{width:27px;height:25px;font-size:17px}.hunt-clock{height:22px}.hunt-clock strong{font-size:14px}.hunt-status-row{grid-template-columns:minmax(46px,.9fr) minmax(79px,1.5fr) minmax(64px,1.1fr);gap:5px;margin-top:5px}.bounty-status{height:44px;gap:6px;padding:2px 5px}.bounty-status .wanted-art{width:27px;height:38px}.bounty-status>b{font-size:22px}.wave-status>strong{font-size:11px}.wave-status>span{font-size:10px;gap:4px}.run-wallet{gap:4px;padding:5px 3px}.run-wallet>b{font-size:12px}.run-wallet>span{width:20px;height:22px}
+}
+@container field (max-height:300px){
+  .hunt-screen .wave-intro{padding:8px 15px;gap:7px}.hunt-screen .wave-intro h2{font-size:18px}.hunt-screen .bounty-card{padding:8px 14px;width:min(100%,220px);max-height:calc(100% - 29px)}.hunt-screen .wanted-label{font-size:26px}.wanted-subtitle{font-size:8px;margin:3px 0 7px;letter-spacing:1px}.poster-portrait{height:70px;margin:1px 0 8px}.hunt-screen .bounty-formula{height:32px}.hunt-screen .bounty-reel,.hunt-screen .bounty-reel span{height:30px;font-size:24px}.hunt-screen #brief-multiplier{font-size:24px}.hunt-screen #brief-status{font-size:8px;margin:4px 0 0}
+}
