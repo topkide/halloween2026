@@ -26,8 +26,10 @@
 .hunt-screen .wave-intro{padding:clamp(12px,4cqh,28px) 20px;background:#160f23b8;gap:clamp(10px,3cqh,22px)}
 .hunt-screen .wave-intro h2{font-size:clamp(22px,4.7cqh,34px);margin:0;color:#fff0d3;line-height:1.2;font-weight:750;letter-spacing:.5px}
 .hunt-screen .bounty-card{display:flex;flex-direction:column;align-items:center;gap:0;min-width:0;width:min(100%,340px);max-height:calc(100% - 58px);padding:clamp(12px,3cqh,24px);border:1px solid #e7c183;border-radius:4px;color:#422b25;background:radial-gradient(ellipse at 10% 20%,#8c54292b,transparent 45%),radial-gradient(ellipse at 90% 75%,#95582c40,transparent 46%),linear-gradient(110deg,#d4ad70,#f6dfa5 35%,#ecd097 65%,#d6b578);box-shadow:0 12px 35px #08041166,inset 0 0 28px #8d592735}
-.hunt-screen .wanted-label{font:900 clamp(31px,8cqh,58px)/1 Georgia,'Times New Roman',serif;color:#3a2924;letter-spacing:1px;text-shadow:1px 1px #fff2c377}
-.wanted-subtitle{font:700 clamp(10px,2.3cqh,15px)/1.2 Georgia,'Times New Roman',serif;letter-spacing:1.5px;margin:6px 0 14px;color:#574033;white-space:nowrap}
+.hunt-screen .wanted-label{font-size:clamp(24px,5.8cqh,38px);font-weight:900;line-height:1.15;color:#3a2924;letter-spacing:0;text-shadow:1px 1px #fff2c377;white-space:nowrap}
+.hunt-screen .bounty-reward{display:flex;align-items:center;justify-content:center;flex:none;gap:12px;min-width:75%;margin:8px 0 13px;padding:4px 12px;border:1px solid #7e582e77;border-radius:3px;background:#52352812;font-variant-numeric:tabular-nums}
+.bounty-reward>[data-coin]{width:clamp(28px,6cqh,42px);height:clamp(30px,6.4cqh,45px);flex:none}
+.bounty-reward>strong{font-size:clamp(22px,5cqh,32px);line-height:1.1;color:#4c2e21;white-space:nowrap}
 .poster-portrait{display:flex;align-items:center;justify-content:center;flex:1 1 auto;min-height:0;width:100%;height:clamp(85px,34cqh,250px);border:1px solid #755234a1;outline:1px solid #75523440;outline-offset:4px;background:radial-gradient(ellipse,#74533d40,transparent 70%);margin:2px 0 13px;overflow:hidden}
 .hunt-screen #brief-art{width:100%;height:100%;margin:0;display:flex;justify-content:center;align-items:center}
 .hunt-screen #brief-art svg{height:92%;width:83%;max-height:100%;filter:drop-shadow(0 5px 8px #57362044)}
@@ -46,7 +48,7 @@
   .hunt-hud{padding:6px 8px}.hunt-topline{gap:9px;grid-template-columns:minmax(0,1fr) 27px}.hunt-topline .icon-button{width:27px;height:25px;font-size:17px}.hunt-clock{height:22px}.hunt-clock strong{font-size:14px}.hunt-status-row{grid-template-columns:minmax(46px,.9fr) minmax(79px,1.5fr) minmax(64px,1.1fr);gap:5px;margin-top:5px}.bounty-status{height:44px;gap:6px;padding:2px 5px}.bounty-status .wanted-art{width:27px;height:38px}.bounty-status>b{font-size:22px}.wave-status>strong{font-size:11px}.wave-status>span{font-size:10px;gap:4px}.run-wallet{gap:4px;padding:5px 3px}.run-wallet>b{font-size:12px}.run-wallet>span{width:20px;height:22px}
 }
 @container field (max-height:300px){
-  .hunt-screen .wave-intro{padding:8px 15px;gap:7px}.hunt-screen .wave-intro h2{font-size:18px}.hunt-screen .bounty-card{padding:8px 14px;width:min(100%,220px);max-height:calc(100% - 29px)}.hunt-screen .wanted-label{font-size:26px}.wanted-subtitle{font-size:8px;margin:3px 0 7px;letter-spacing:1px}.poster-portrait{height:70px;margin:1px 0 8px}.hunt-screen .bounty-formula{height:32px}.hunt-screen .bounty-reel,.hunt-screen .bounty-reel span{height:30px;font-size:24px}.hunt-screen #brief-multiplier{font-size:24px}.hunt-screen #brief-status{font-size:8px;margin:4px 0 0}
+  .hunt-screen .wave-intro{padding:8px 15px;gap:7px}.hunt-screen .wave-intro h2{font-size:18px}.hunt-screen .bounty-card{padding:8px 14px;width:min(100%,220px);max-height:calc(100% - 29px)}.hunt-screen .wanted-label{font-size:20px}.hunt-screen .bounty-reward{margin:4px 0 8px;gap:8px;padding:2px 9px}.bounty-reward>[data-coin]{width:24px;height:26px}.bounty-reward>strong{font-size:20px}.poster-portrait{height:70px;margin:1px 0 8px}.hunt-screen .bounty-formula{height:32px}.hunt-screen .bounty-reel,.hunt-screen .bounty-reel span{height:30px;font-size:24px}.hunt-screen #brief-multiplier{font-size:24px}.hunt-screen #brief-status{font-size:8px;margin:4px 0 0}
 }
 
 /* Each silver payout floats beside the live balance, with at most four labels. */

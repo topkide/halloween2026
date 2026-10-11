@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-wave-growth';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-wave-growth';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-wave-growth';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-wave-growth';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-wave-growth';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-wave-growth';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-bounty-copy';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-bounty-copy';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-bounty-copy';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-bounty-copy';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-bounty-copy';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-bounty-copy';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-wave-growth';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-wave-growth';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-bounty-copy';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-bounty-copy';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -64,7 +64,7 @@ function renderUpgrades(){
 }
 function openUpgrades(){if(engine.state!=='ready')return;renderUpgrades();ui['upgrade-dialog'].showModal();}
 function toast(text,ms=1700){setText(ui['field-toast'],text);ui['field-toast'].classList.add('visible');toastUntil=performance.now()+ms;}
-function prepareBountyReel(){reelRows=createBountyReel(engine.bounty.multiplier,engine.wave);lastReelStep=-1;lastReelSoundAt=-Infinity;ui['brief-strip'].innerHTML=reelRows.map(value=>'<span>×'+value+'</span>').join('');ui['brief-strip'].style.transform='translate3d(0,0,0)';}
+function prepareBountyReel(){reelRows=createBountyReel(engine.bounty.multiplier,engine.wave);lastReelStep=-1;lastReelSoundAt=-Infinity;ui['brief-strip'].innerHTML=reelRows.map(value=>'<span>X'+value+'</span>').join('');ui['brief-strip'].style.transform='translate3d(0,0,0)';}
 function renderBountyReel(now){
   if(engine.state!=='briefing'||engine.bountyRevealed||!reelRows.length)return;
   const offset=reelOffset(config.briefingDuration-engine.briefingLeft,reelRows.length-1),step=Math.floor(offset);
@@ -90,9 +90,11 @@ function updateHud(){
     setText(ui['time-recovery'],recovered>0?'시간 +'+(recovered<.1?'0.1초 미만':Number(recovered.toFixed(1))+'초')+' 회복':'');
     ui['wave-intro'].dataset.reveal=revealed?'revealed':'rolling';
     ui['brief-reel'].hidden=revealed||reducedMotion.matches;ui['brief-multiplier'].hidden=!revealed&&!reducedMotion.matches;
-    setText(ui['brief-status'],revealed?(engine.bounty.multiplier>=8?'대박! 현상금 확정':'이번 웨이브 현상금 확정'):'이번 현상금은 몇 배일까요?');
+    ui['brief-status'].hidden=revealed;
+    setText(ui['brief-status'],'현상금 배수 추첨 중');
+    setText(ui['brief-coins'],revealed?'+'+number(engine.bounty.coins):'+?');
     setText(ui['brief-wave'],'Wave '+engine.wave);
-    setText(ui['brief-multiplier'],revealed?'×'+engine.bounty.multiplier:'×?');
+    setText(ui['brief-multiplier'],revealed?'X'+engine.bounty.multiplier:'X?');
   }
 }
 function renderGhosts(){
