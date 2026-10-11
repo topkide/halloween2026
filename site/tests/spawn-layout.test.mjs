@@ -24,38 +24,42 @@ test('ordinary ghosts use continuous independent positions instead of fixed slot
   assert.deepEqual(positions(1),positions(2),'X2 changes quantity, not coordination between targets');
 });
 
-test('straight moving ghosts have individual slopes in both directions without cross-axis clipping',()=>{
+test('crossing ghosts move only horizontally or vertically from entry through exit',()=>{
   for(const [type,motion,axis,cross] of [['skitter','horizontal','x','y'],['stilt','vertical','y','x']]){
-    const deltas=[];
+    const directions=new Set();
     for(const g of samples(type)){
       if(g.motion!==motion)continue;
+      directions.add(g.direction);
       for(const height of [180,440,800]){
-        const a=pose({...g,age:g.life*.2},400,height),b=pose({...g,age:g.life*.5},400,height),c=pose({...g,age:g.life*.8},400,height);
-        assert.ok((c[axis]-a[axis])*g.direction>0);
-        assert.ok(Math.abs(b[cross]-(a[cross]+c[cross])/2)<1e-8,'motion stays smooth and straight');
+        const points=[0,.1,.3,.5,.7,.9,1].map(u=>pose({...g,age:g.life*u},400,height));
+        assert.ok((points.at(-1)[axis]-points[0][axis])*g.direction>0);
         const half=(cross==='x'?TYPES[type].width:TYPES[type].height)/2,limit=cross==='x'?400:height;
-        for(const p of [a,b,c])assert.ok(p[cross]-half>=0&&p[cross]+half<=limit);
-        if(height===440)deltas.push(c[cross]-a[cross]);
+        for(const p of points){
+          assert.equal(p[cross],points[0][cross],'perpendicular coordinate stays fixed throughout the path');
+          assert.ok(p[cross]-half>=0&&p[cross]+half<=limit);
+        }
       }
     }
-    assert.ok(deltas.filter(n=>n>5).length>deltas.length*.2);
-    assert.ok(deltas.filter(n=>n< -5).length>deltas.length*.2);
+    assert.equal(directions.size,2);
   }
 });
 
-test('returning ghosts pause at individual points, enter from either edge and retrace their slanted path',()=>{
+test('returning ghosts pause at individual points and retrace an axis-aligned path from either edge',()=>{
   for(const [type,motion,axis,cross] of [['grasp','returnX','x','y'],['stilt','returnY','y','x']]){
-    const ghosts=samples(type).filter(g=>g.motion===motion),seen=new Set();let slanted=0;
-    for(const g of ghosts){
-      const start=pose({...g,age:0},400,440),incoming=pose({...g,age:g.life*.15},400,440),stop=pose({...g,age:g.life*.4},400,440),outgoing=pose({...g,age:g.life*.81},400,440),end=pose({...g,age:g.life},400,440);
+    const ghosts=samples(type).filter(g=>g.motion===motion),seen=new Set();
+    for(const g of ghosts)for(const height of [180,440,800]){
+      const at=u=>pose({...g,age:g.life*u},400,height);
+      const start=at(0),incoming=at(.15),stop=at(.4),outgoing=at(.81),end=at(1);
       assert.equal(start.x,end.x);assert.equal(start.y,end.y);
       assert.ok(Math.abs(incoming.x-outgoing.x)<1e-8&&Math.abs(incoming.y-outgoing.y)<1e-8);
       assert.ok((stop[axis]-start[axis])*g.direction>0);
-      if(Math.abs(start[cross]-stop[cross])>5)slanted++;
-      seen.add(`${g.direction}:${stop[axis]<(axis==='x'?200:220)?'low':'high'}`);
+      for(const u of [0,.1,.15,.3,.4,.5,.62,.7,.81,.9,1]){
+        assert.equal(at(u)[cross],start[cross],'entry, hold and return keep the perpendicular coordinate fixed');
+      }
+      assert.equal(at(.3)[axis],stop[axis]);assert.equal(at(.5)[axis],stop[axis]);
+      seen.add(`${g.direction}:${stop[axis]<(axis==='x'?200:height/2)?'low':'high'}`);
     }
     assert.equal(seen.size,4,'entry edge is independent of the destination');
-    assert.ok(slanted>ghosts.length*.4);
   }
 });
 

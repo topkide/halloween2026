@@ -1,4 +1,4 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261012-ghost-coins';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261012-axis-paths';
 import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261012-ghost-coins';
 import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261012-ghost-coins';
 import {UPGRADES,cleanEconomy,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261012-ghost-coins';

@@ -41,9 +41,6 @@ export function pose(ghost,width,height) {
   const marginX=Math.min(width/2,def.width*maxScale/2+8),marginY=Math.min(height/2,def.height*maxScale/2+8);
   const anchorX=ghost.type==='gold'?clamp((ghost.anchor??.5)*width,75,width-75):mix(marginX,width-marginX,clamp(ghost.anchor??.5));
   const anchorY=ghost.type==='gold'?clamp(ghost.lane*height,75,height-75):mix(marginY,height-marginY,clamp(ghost.lane));
-  // A bounded slope varies each path without steering every ghost toward the center.
-  const driftX=(ghost.slant??0)*Math.max(0,Math.min(width*.14,anchorX-marginX,width-marginX-anchorX));
-  const driftY=(ghost.slant??0)*Math.max(0,Math.min(height*.14,anchorY-marginY,height-marginY-anchorY));
   let x=anchorX,y=anchorY,sx=1,sy=1,alpha=1;
   const startX=dir===1?-70:width+70,endX=dir===1?width+70:-70;
   const startY=dir===1?-80:height+80,endY=dir===1?height+80:-80;
@@ -60,18 +57,18 @@ export function pose(ghost,width,height) {
     y=anchorY+Math.min(60,height*.15,height-marginY-anchorY)*(1-smooth(u/.24));
     alpha=Math.min(clamp(u/.1),clamp((1-u)/.16));
   } else if(motion==='horizontal'){
-    x=mix(startX,endX,u);y=anchorY+driftY*(2*u-1);
+    x=mix(startX,endX,u);
   } else if(motion==='vertical'){
-    y=mix(startY,endY,u);x=anchorX+driftX*(2*u-1);
+    y=mix(startY,endY,u);
   } else if(motion==='inflate'){
     // Exactly one swell and shrink, with no shake, rotation or repeated pulsing.
     const scale=u<.25?1:u<.37?mix(1,1.4,smooth((u-.25)/.12)):u<.53?1.4:u<.72?mix(1.4,1,smooth((u-.53)/.19)):1;
     sx=sy=scale;alpha=Math.min(clamp(u/.08),clamp((1-u)/.14));
   } else if(motion==='returnX'||motion==='returnY'){
-    // Each ghost approaches its own point and retraces its individual slanted path.
+    // Each ghost approaches its own point and retraces the same horizontal or vertical path.
     const progress=u<.3?smooth(u/.3):u<.62?1:1-smooth((u-.62)/.38);
-    if(motion==='returnX'){x=mix(startX,anchorX,progress);y=anchorY+driftY*(1-progress);}
-    else{y=mix(startY,anchorY,progress);x=anchorX+driftX*(1-progress);}
+    if(motion==='returnX')x=mix(startX,anchorX,progress);
+    else y=mix(startY,anchorY,progress);
   }
   if(t<0||t>=ghost.life)alpha=0;
   return {x,y,angle:0,sx,sy,alpha:clamp(alpha),facing:dir};
@@ -120,8 +117,6 @@ export class Hunt {
       ghost.life+=GOLD_APPEAR_DURATION;
       ghost.dashDirection=GOLD_DIRECTIONS[Math.floor(this.random()*GOLD_DIRECTIONS.length)];
       ghost.anchor=.12+this.random()*.76;ghost.lane=.12+this.random()*.76;ghost.direction=1;
-    }else{
-      ghost.slant=this.random()*2-1;
     }
     this.ghosts.push(ghost);return ghost;
   }
