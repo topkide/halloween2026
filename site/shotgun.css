@@ -12,10 +12,13 @@
 #upgrade-dialog .dialog-intro{margin:7px 0;font-size:10px!important}
 @media(max-height:700px){
   #upgrade-dialog .dialog-intro,#upgrade-dialog .fine-print{display:none}
+  #upgrade-dialog .dialog-heading small{display:none}
   #upgrade-cards{margin-top:9px}
+  #upgrade-dialog .upgrade-card{padding:8px}
+  #upgrade-dialog .upgrade-track{margin-top:5px}
   .shotgun-offer{margin-top:8px;padding:8px;gap:6px}
   .shotgun-offer h3{font-size:12px}
-  #upgrade-dialog .status{margin:7px 0}
+  #upgrade-dialog .status{margin:5px 0}
 }
 @media(max-height:590px){
   #upgrade-dialog{padding:12px 14px}

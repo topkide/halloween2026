@@ -1,4 +1,4 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-shotgun';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-shotgun2';
 
 // Radius in the arena's 400-unit coordinate space; scales with the viewport.
 export const SHOTGUN=Object.freeze({radius:72});
@@ -56,7 +56,13 @@ function circleTouchesRect(x,y,radius,left,top,width,height){
 export function spriteTouchesCircle(candidate,x,y,radius,mask){
   if(!Number.isFinite(radius)||radius<0||!Number.isFinite(x)||!Number.isFinite(y))return false;
   const r=candidate.rect;
-  if(!circleTouchesRect(x,y,radius,r.left,r.top,r.width,r.height))return false;
+  const touchesVisible=(left,top,width,height)=>{
+    const clip=candidate.clip;if(!clip)return circleTouchesRect(x,y,radius,left,top,width,height);
+    const right=Math.min(left+width,clip.right),bottom=Math.min(top+height,clip.bottom);
+    left=Math.max(left,clip.left);top=Math.max(top,clip.top);
+    return right>left&&bottom>top&&circleTouchesRect(x,y,radius,left,top,right-left,bottom-top);
+  };
+  if(!touchesVisible(r.left,r.top,r.width,r.height))return false;
   if(!mask)return true;
   const w=Math.min(r.width,r.height*mask.aspect),h=w/mask.aspect,left=r.left+(r.width-w)/2,top=r.top+(r.height-h)/2;
   const cw=w/mask.width,ch=h/mask.height;
@@ -64,7 +70,7 @@ export function spriteTouchesCircle(candidate,x,y,radius,mask){
   const row0=Math.max(0,Math.floor((y-radius-top)/ch)),row1=Math.min(mask.height-1,Math.floor((y+radius-top)/ch));
   for(let row=row0;row<=row1;row++)for(let col=col0;col<=col1;col++){
     const sourceCol=candidate.facing<0?mask.width-1-col:col;
-    if(mask.alpha[row*mask.width+sourceCol]>=32&&circleTouchesRect(x,y,radius,left+col*cw,top+row*ch,cw,ch))return true;
+    if(mask.alpha[row*mask.width+sourceCol]>=32&&touchesVisible(left+col*cw,top+row*ch,cw,ch))return true;
   }
   return false;
 }

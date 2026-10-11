@@ -65,3 +65,11 @@ test('ad reward survives closing/reloading and ticket failure, then applies to o
   const entry=useTicket(loaded.eventState);assert.equal(entry.ok,true);assert.equal(entry.weapon,'shotgun');assert.equal(entry.state.shotgunReady,false);
   assert.equal(useTicket(entry.state).weapon,'standard');assert.equal(entry.state.tickets,s.tickets-1);
 });
+
+test('spread never catches an invisible off-arena target or sprite pixels outside the field',()=>{
+  const clip={left:0,top:0,right:100,bottom:100};
+  assert.equal(spriteTouchesCircle({...candidate(1,-30),clip},5,10,72),false);
+  assert.equal(spriteTouchesCircle({...candidate(1,-10),clip},5,10,72),true);
+  const mask={width:2,height:2,aspect:1,alpha:Uint8Array.from([255,0,255,0])};
+  assert.equal(spriteTouchesCircle({...candidate(1,-10),clip},5,10,72,mask),false);
+});

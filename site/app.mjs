@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-shotgun';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-shotgun';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-shotgun';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-shotgun';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun} from './event-core.mjs?v=20261011-shotgun';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-shotgun';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-shotgun2';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-shotgun2';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-shotgun2';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-shotgun2';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun} from './event-core.mjs?v=20261011-shotgun2';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-shotgun2';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-shotgun';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-shotgun';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-shotgun2';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-shotgun2';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -155,7 +155,7 @@ function fire(event){
   const candidates=engine.ghosts.flatMap(g=>{
     const node=entities.get(g.id);if(!node||node.disabled)return [];
     const rect=node.getBoundingClientRect();
-    return [{id:g.id,type:g.type,rect,facing:pose(g,size.width,size.height).facing,layer:g.type==='gold'?2:0}];
+    return [{id:g.id,type:g.type,rect,clip:{left:size.left,top:size.top,right:size.left+size.width*size.scale,bottom:size.top+size.height*size.scale},facing:pose(g,size.width,size.height).facing,layer:g.type==='gold'?2:0}];
   });
   candidates.sort((a,b)=>a.layer-b.layer);
   const id=keyboard?(target?Number(target.dataset.ghost):null):pickGhost(candidates,event.clientX,event.clientY,aim.masks);
