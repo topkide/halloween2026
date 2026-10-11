@@ -1,4 +1,4 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-mission-peek';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-common-defaults';
 
 // All effects share the gameplay RAF and a fixed budget, including a full 16-target blast.
 export const SHOT_LIMITS=Object.freeze({bursts:24,particles:16,lifetime:560,pixelRatio:2,labels:32,labelLifetime:760,spreads:4,spreadLifetime:220});

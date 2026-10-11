@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Hunt,DEFAULTS,BOUNTY_TIMING,SPECIES,TYPES,MOTIONS,GOLD_APPEAR_DURATION,GOLD_MOVE_DURATION,pose,settings,rollMultiplier} from '../hunt-core.mjs';
 import {ghostSVG} from '../ghost-art.mjs';
-import {STORAGE_KEY,readProgress} from '../progress.mjs';
+import {STORAGE_KEY,PROGRESS_VERSION,readProgress} from '../progress.mjs';
 function rng(seed=19){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
 function briefing(config={}){const h=new Hunt({random:rng(),config:{duration:60,...config}});h.start();h.drain();return h;}
 function advanceBriefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);}
@@ -54,7 +54,7 @@ test('old coin records migrate only preferences and always adopt the new 0.23-se
  assert.equal(state.best,0);assert.equal(state.lastResult,null);assert.equal(state.soundOn,false);assert.equal(state.config.spawn,.23);assert.equal(state.config.duration,90);assert.equal(state.config.baseGoal,10);assert.equal(state.config.missPenalty,3);assert.equal(old.best,90000);
 });
 test('current score records and custom settings survive reload while malformed storage falls back safely',()=>{
- const saved={best:2300,lastResult:{score:2300,normalScore:800,goldScore:1500},soundOn:false,config:{spawn:.31}};
+ const saved={progressVersion:PROGRESS_VERSION,best:2300,lastResult:{score:2300,normalScore:800,goldScore:1500},soundOn:false,config:{spawn:.31}};
  const state=readProgress(key=>key===STORAGE_KEY?JSON.stringify(saved):null);
  assert.equal(state.best,2300);assert.deepEqual(state.lastResult,saved.lastResult);assert.equal(state.config.spawn,.31);assert.equal(state.soundOn,false);
  for(const raw of ['broken','[]','null','12']){const fallback=readProgress(()=>raw);assert.equal(fallback.config.spawn,.23);assert.equal(fallback.best,0);}

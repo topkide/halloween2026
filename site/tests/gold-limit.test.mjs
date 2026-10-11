@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Hunt,BOUNTY_TIMING,DEFAULTS,settings} from '../hunt-core.mjs';
-import {STORAGE_KEY,readProgress} from '../progress.mjs';
+import {STORAGE_KEY,PROGRESS_VERSION,readProgress} from '../progress.mjs';
 
 function advanceBriefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);h.drain();}
 function playing(config={}){
@@ -64,7 +64,7 @@ test('custom limits are enforced and existing saves adopt the default without lo
     for(let i=1;i<limit;i++)hit(h,h.spawn('gold'));
     assert.equal(h.waveGold,limit);assert.equal(h.gold,limit);assert.equal(h.spawn('gold'),null);assert.notEqual(h.spawn().type,'gold');
   }
-  const saved={best:8900,lastResult:{score:8900},soundOn:false,config:{duration:90,spawn:.31}};
+  const saved={progressVersion:PROGRESS_VERSION,best:8900,lastResult:{score:8900},soundOn:false,config:{duration:90,spawn:.31}};
   const read=()=>readProgress(key=>key===STORAGE_KEY?JSON.stringify(saved):null);
   assert.equal(read().config.goldLimit,2);assert.equal(read().best,8900);assert.equal(read().config.spawn,.31);assert.equal(read().soundOn,false);
   saved.config.goldLimit=4;assert.equal(read().config.goldLimit,4);

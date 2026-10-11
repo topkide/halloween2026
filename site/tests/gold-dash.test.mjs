@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Hunt,BOUNTY_TIMING,GOLD_DIRECTIONS,GOLD_APPEAR_DURATION,GOLD_MOVE_DURATION,pose,settings} from '../hunt-core.mjs';
-import {STORAGE_KEY,readProgress} from '../progress.mjs';
+import {STORAGE_KEY,PROGRESS_VERSION,readProgress} from '../progress.mjs';
 
 function briefing(h){h.tick(BOUNTY_TIMING.spin);h.tick(BOUNTY_TIMING.hold);h.drain();}
 function playing(config={}){const h=new Hunt({random:()=>.4,config:{goldInterval:4,...config}});h.start();briefing(h);return h;}
@@ -90,7 +90,7 @@ test('gold is fully visible and stationary from its first frame before any direc
 test('appearance interval defaults, bounds and saved preferences remain valid',()=>{
   assert.equal(settings().goldInterval,2.5);assert.equal(settings({goldInterval:0}).goldInterval,1);assert.equal(settings({goldInterval:40}).goldInterval,30);assert.equal(settings({goldInterval:NaN}).goldInterval,2.5);
   const config={goldLimit:3,goldInterval:6.5,spawn:.4};
-  const loaded=readProgress(key=>key===STORAGE_KEY?JSON.stringify({best:4200,config}):null);
+  const loaded=readProgress(key=>key===STORAGE_KEY?JSON.stringify({progressVersion:PROGRESS_VERSION,best:4200,config}):null);
   assert.equal(loaded.config.goldInterval,6.5);assert.equal(loaded.config.goldLimit,3);assert.equal(loaded.best,4200);
   assert.equal(readProgress(key=>key===STORAGE_KEY?JSON.stringify({config:{goldLimit:1}}):null).config.goldInterval,2.5);
   assert.equal('goldChance' in settings(),false);

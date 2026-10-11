@@ -87,7 +87,7 @@ test('the faster interval persists across wave transitions and a new ordinary ru
 test('shotgun plus X2 keeps growing goals past the old cap after loading an existing save',()=>{
   const loaded=readProgress(key=>key===STORAGE_KEY?JSON.stringify({progressVersion:6,config:{duration:100,spawn:.3,baseGoal:10,maxGoal:24}}):null);
   const hunt=playing({config:loaded.config,spawnMultiplier:2,weapon:'shotgun'});
-  assert.equal(hunt.config.duration,100);assert.equal(hunt.spawnInterval,.15);
+  assert.equal(hunt.config.duration,90);assert.equal(hunt.spawnInterval,.115);
   for(let wave=1;wave<=12;wave++){
     assert.equal(hunt.waveGoal,10+(wave-1)*2);
     hunt.ghosts=[];

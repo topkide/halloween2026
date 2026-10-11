@@ -56,12 +56,13 @@ test('settlement credits already-earned coins once without score conversion or a
 });
 
 const load=value=>readProgress(key=>key===STORAGE_KEY?JSON.stringify(value):null);
-test('runs snapshot rewards and migrations retain score, paid runs and custom intervals',()=>{
+test('runs snapshot rewards and migrations retain records while current settings preserve custom intervals',()=>{
   const levels={time:15,gold:3},h=playing(levels);levels.time=30;assert.equal(h.effects.timeRecoveryPercent,20);assert.equal(h.upgrades.time,15);
   const old={best:20000,lastResult:{score:20000,kills:100},config:{goldInterval:4},soundOn:false};
   const migrated=load(old);assert.equal(migrated.config.goldInterval,2.5);assert.equal(migrated.best,20000);assert.equal(migrated.economy.upgradeCoins,0);assert.equal(migrated.soundOn,false);
-  assert.equal(load({...old,config:{goldInterval:6}}).config.goldInterval,6);
-  for(const progressVersion of [2,PROGRESS_VERSION])assert.equal(load({...old,progressVersion}).config.goldInterval,4);
+  assert.equal(load({...old,config:{goldInterval:6}}).config.goldInterval,2.5);
+  assert.equal(load({...old,progressVersion:2}).config.goldInterval,2.5);
+  assert.equal(load({...old,progressVersion:PROGRESS_VERSION}).config.goldInterval,4);
   const economy=cleanEconomy({upgradeCoins:42,eventCoins:78,levels:{gold:2,time:1},claimedRuns:['paid-run']});
   assert.deepEqual(load({...old,progressVersion:PROGRESS_VERSION,economy}).economy,economy);
   assert.deepEqual(cleanEconomy({upgradeCoins:-1,eventCoins:Infinity,levels:{reload:500,gold:NaN,reward:-1}}).levels,{time:0,gold:0,shop:0});

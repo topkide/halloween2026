@@ -22,7 +22,7 @@ function application(audio=null,saved=null,{storageFails=false}={}){
     return {id,hidden:false,open:false,disabled:false,style:{},dataset:{},textContent:'',innerHTML:'',firstElementChild:{style:{}},
       classList:{add(){},remove(){}},setAttribute(){},getBoundingClientRect:()=>({width:400,height:440,left:0,top:0}),
       getContext:()=>drawing,append(){},remove(){},showModal(){this.open=true;},close(){this.open=false;},
-      animate:()=>({cancel(){}}),addEventListener(type,callback){handlers.set(type,callback);},
+      animate:()=>({cancel(){}}),reportValidity:()=>true,addEventListener(type,callback){handlers.set(type,callback);},
       click(){if(!this.disabled)handlers.get('click')?.({target:this});},
       dispatch(type,event){handlers.get(type)?.(event);},
       cancel(){handlers.get('cancel')?.({preventDefault(){}});}
@@ -61,6 +61,35 @@ function application(audio=null,saved=null,{storageFails=false}={}){
   const catchOne=()=>{const ghost=flow.hunt.spawn('pudge');ghost.age=ghost.life*.3;flow.hunt.shoot(ghost.id);flow.flushEvents();};
   return {flow,nodes,start,advance,end,catchOne,finishTimers,stored:()=>JSON.parse(storage.get(KEY)??'null')};
 }
+
+const settingFields=[['setting-duration','duration'],['setting-recovery-percent','waveRecoveryPercent'],['setting-recovery-limit','recoveryLimit'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit']];
+
+test('opening an older browser saves the new baseline immediately, displays it in settings and starts gameplay with it',()=>{
+  const saved={progressVersion:7,config:{duration:75,waveRecoveryPercent:20,recoveryLimit:60,spawn:.4,goldInterval:6,goldLimit:4},
+    best:2300,bestWave:12,soundOn:false,economy:{upgradeCoins:123,eventCoins:77,levels:{time:15,gold:2,shop:1}},
+    eventState:{tickets:22,shotgunReady:true,ghostsX2Ready:true},missions:{kills:{pudge:99},rewardClaimed:true}};
+  const app=application(null,saved),stored=app.stored();
+  assert.equal(stored.progressVersion,PROGRESS_VERSION);
+  assert.equal(stored.best,2300);assert.equal(stored.bestWave,12);assert.equal(stored.soundOn,false);
+  assert.equal(stored.economy.upgradeCoins,123);assert.equal(stored.economy.eventCoins,77);assert.equal(stored.economy.levels.time,15);
+  assert.equal(stored.eventState.tickets,22);assert.equal(stored.missions.kills.pudge,99);assert.equal(stored.missions.rewardClaimed,true);
+  app.nodes.get('settings-open').click();
+  for(const [id,key] of settingFields){assert.equal(app.nodes.get(id).value,DEFAULTS[key]);assert.equal(stored.config[key],DEFAULTS[key]);}
+  app.nodes.get('settings-dialog').close();app.start();
+  for(const [,key] of settingFields)assert.equal(app.flow.hunt.config[key],DEFAULTS[key]);
+  assert.equal(app.flow.hunt.weapon,'shotgun');assert.equal(app.flow.hunt.spawnMultiplier,2);
+});
+
+test('settings changed after the baseline migration are retained on the next browser opening',()=>{
+  const app=application(null,{progressVersion:7,config:{spawn:.4}}),custom={duration:75,waveRecoveryPercent:20,recoveryLimit:60,spawn:.4,goldInterval:6,goldLimit:4};
+  app.nodes.get('settings-open').click();
+  for(const [id,key] of settingFields)app.nodes.get(id).value=String(custom[key]);
+  app.nodes.get('settings-form').dispatch('submit',{preventDefault(){}});
+  const reloaded=application(null,app.stored());reloaded.nodes.get('settings-open').click();
+  for(const [id,key] of settingFields)assert.equal(reloaded.nodes.get(id).value,custom[key]);
+  reloaded.nodes.get('settings-dialog').close();reloaded.start();
+  for(const [,key] of settingFields)assert.equal(reloaded.flow.hunt.config[key],custom[key]);
+});
 
 test('first ending offers continue without settlement; ad resumes the same run and second ending settles once',()=>{
   const app=application();app.start();app.advance();

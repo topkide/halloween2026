@@ -1,14 +1,14 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-mission-peek';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-mission-peek';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-mission-peek';
-import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-mission-peek';
-import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-mission-peek';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-mission-peek';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-common-defaults';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-common-defaults';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-common-defaults';
+import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-common-defaults';
+import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-common-defaults';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-common-defaults';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-mission-peek';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-mission-peek';
-import {CombatAudio} from './combat-audio.mjs?v=20261011-mission-peek';
-import {missionState,addMissionCaptures,missionSummary,claimMissionReward} from './missions.mjs?v=20261011-mission-peek';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-common-defaults';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-common-defaults';
+import {CombatAudio} from './combat-audio.mjs?v=20261011-common-defaults';
+import {missionState,addMissionCaptures,missionSummary,claimMissionReward} from './missions.mjs?v=20261011-common-defaults';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -278,7 +278,7 @@ function frame(now){
 }
 for(const node of document.querySelectorAll('[data-coin]'))node.innerHTML=coinPixel(node.dataset.coin);
 ui['wanted-art'].innerHTML=ghostPixel('gold');ui['brief-art'].innerHTML=ghostPixel('gold');
-if(loaded.refundedReloadCoins>0||loaded.refundedRewardCoins>0)save();
+if(loaded.resetBalanceDefaults||loaded.refundedReloadCoins>0||loaded.refundedRewardCoins>0)save();
 updateSound();ready();requestAnimationFrame(frame);
 function updateSound(){ui.sound.textContent=soundOn?'♪':'♪̸';ui.sound.setAttribute('aria-label',soundOn?'사운드 켜짐':'사운드 꺼짐');ui.sound.setAttribute('aria-pressed',String(soundOn));if(mutedGain)mutedGain.gain.value=soundOn?.2:0;}
 function playAudioVoice(source,nodes,at,duration){
