@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-upgrades30';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-upgrades30';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-upgrades30';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-upgrades30';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-upgrades30';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-upgrades30';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-shotgun';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-shotgun';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-shotgun';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-shotgun';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun} from './event-core.mjs?v=20261011-shotgun';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-shotgun';
 
-import {GhostAim,pickGhost} from './ghost-aim.mjs?v=20261011-upgrades30';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-upgrades30';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-shotgun';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-shotgun';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -50,7 +50,11 @@ function renderUpgrades(){
     return '<article class="upgrade-card"><div class="upgrade-card-head"><h3>'+definition.name+'</h3><b>'+(max?'MAX':'Lv. '+level+' / '+BALANCE.maxLevel)+'</b></div><p>'+descriptions[key]+'</p><div class="upgrade-bottom"><div class="upgrade-effect"><strong>'+effectLabel(key,economy.levels)+'</strong>'+(max?'<span>최대 강화</span>':'<span>→</span><b>'+effectLabel(key,next)+'</b>')+'</div><button type="button" class="upgrade-buy" data-upgrade="'+key+'" '+(max||economy.upgradeCoins<cost?'disabled':'')+'>'+(max?'최대 레벨':coinPixel('ghost')+number(cost)+' · 강화')+'</button></div><div class="upgrade-track"><i style="transform:scaleX('+level/BALANCE.maxLevel+')"></i></div></article>';
   }).join('');
   ui['upgrade-start'].disabled=eventData.tickets===0;
-  ui['upgrade-start'].innerHTML=eventData.tickets?'사냥 시작 <span>기회 1개 사용 · '+config.duration+'초</span>':'플레이 기회를 충전해 주세요';
+  ui['upgrade-start'].innerHTML=eventData.tickets?(eventData.shotgunReady?'샷건으로 사냥 시작':'사냥 시작')+' <span>기회 1개 사용 · '+config.duration+'초</span>':'플레이 기회를 충전해 주세요';
+  ui['shotgun-ad'].disabled=eventData.shotgunReady;
+  setText(ui['shotgun-ad'],eventData.shotgunReady?'✓ 장착 완료':'▶ 광고로 받기');
+  ui['shotgun-offer'].dataset.ready=String(eventData.shotgunReady);
+  setText(ui['shotgun-copy'],eventData.shotgunReady?'다음 사냥 한 판 동안 적용돼요.':'원형 범위 사격 · 한 마리라도 맞히면 명중');
   setText(ui['upgrade-status'],economy.upgradeCoins<20?'일반 유령을 잡아 강화 코인을 모아보세요.':'원하는 강화를 골라 사냥을 준비하세요.');
 }
 function openUpgrades(){if(engine.state!=='ready')return;renderUpgrades();ui['upgrade-dialog'].showModal();}
@@ -65,6 +69,7 @@ function renderBountyReel(now){
 function updateHud(){
   const ready=engine.state==='ready',briefing=engine.state==='briefing'||engine.state==='paused'&&engine.pausedFrom==='briefing';
   ui['hunt-screen'].dataset.state=engine.state;
+  ui['shotgun-active'].hidden=engine.weapon!=='shotgun'||ready;
   const remaining=engine.remaining??config.duration;
   const seconds=Math.ceil(remaining);setText(ui['time-label'],Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'));ui['time-fill'].style.transform='scaleX('+Math.min(1,Math.max(0,remaining/config.duration))+')';
   ui['hunt-screen'].dataset.urgent=String(remaining<=10&&!ready);
@@ -117,11 +122,12 @@ function showCoinGain(amount){
     {color:'#e9ffbf',transform:'scale(1.13)'},{color:'#eee8ef',transform:'scale(1)'}
   ],{duration:220,easing:'ease-out'});
 }
-function hitEffect(hit,x,y,ghostBox){
-  const now=performance.now(),miss=hit.kind==='miss',gold=hit.kind==='gold';shots.shoot(hit,x,y,ghostBox,now);
+function hitEffect(hit,x,y,ghostBox,boxes){
+  const now=performance.now(),miss=hit.kind==='miss',gold=hit.kind==='gold',shotgun=engine.weapon==='shotgun';
+  if(shotgun)shots.shotgun(hit,x,y,SHOTGUN.radius*size.scale,boxes,now);else shots.shoot(hit,x,y,ghostBox,now);
   ui['shot-feedback'].dataset.kind=miss?'miss':gold?'gold':'hit';ui['shot-feedback'].classList.add('visible');
-  setText(ui['shot-feedback-title'],miss?'빗나감':gold?'황금 명중!':'명중!');
-  setText(ui['shot-feedback-detail'],miss?'−'+hit.penalty+'초':gold?'클리어 시 호박 +'+hit.bonusCoins:'강화 코인 +'+hit.upgradeCoins);feedbackUntil=now+650;
+  setText(ui['shot-feedback-title'],miss?'빗나감':shotgun?'샷건 '+hit.hitCount+'마리 명중!':gold?'황금 명중!':'명중!');
+  setText(ui['shot-feedback-detail'],miss?'−'+hit.penalty+'초':[hit.upgradeCoins?'강화 코인 +'+hit.upgradeCoins:'',hit.bonusCoins?'클리어 시 호박 +'+hit.bonusCoins:''].filter(Boolean).join(' · '));feedbackUntil=now+650;
   if(reducedMotion.matches)return;
   if(miss){clockPulse?.cancel();clockPulse=ui['time-label'].animate([{color:'#ff8c80',transform:'scale(1.16)'},{color:'#e1c191',transform:'scale(1)'}],{duration:220});}
   else{recoil?.cancel();recoil=document.querySelector('.arena-scenery').animate([{transform:'translate(0,0)'},{transform:'translate(0,2px)',offset:.2},{transform:'translate(1px,-1px)',offset:.5},{transform:'translate(0,0)'}],{duration:130});}
@@ -156,11 +162,14 @@ function fire(event){
   const g=id===null?null:engine.ghosts.find(g=>g.id===id),p=g?pose(g,size.width,size.height):null;
   const x=keyboard&&p?p.x*size.scale:event.clientX-size.left,y=keyboard&&p?p.y*size.scale:event.clientY-size.top;
   const ghostBox=g&&p?{x:p.x*size.scale,y:p.y*size.scale,width:TYPES[g.type].width*size.scale*p.sx,height:TYPES[g.type].height*size.scale*p.sy,facing:p.facing}:null;
-  const hit=engine.shoot(id);if(!hit)return;
+  const shotgun=engine.weapon==='shotgun',boxes=new Map();
+  if(shotgun)for(const ghost of engine.ghosts){const q=pose(ghost,size.width,size.height);boxes.set(ghost.id,{x:q.x*size.scale,y:q.y*size.scale,width:TYPES[ghost.type].width*size.scale*q.sx,height:TYPES[ghost.type].height*size.scale*q.sy,facing:q.facing});}
+  const ids=shotgun?pickShotgunGhosts(candidates,x+size.left,y+size.top,SHOTGUN.radius*size.scale,aim.masks):null;
+  const hit=shotgun?engine.shootShotgun(ids):engine.shoot(id);if(!hit)return;
   // Remove the consumed target before any optional visual or audio work.
-  if(hit.ghost){entities.get(hit.ghost.id)?.remove();entities.delete(hit.ghost.id);}
+  for(const target of hit.targets){entities.get(target.ghost.id)?.remove();entities.delete(target.ghost.id);}
   showCoinGain(hit.upgradeCoins);
-  hitEffect(hit,x,y,ghostBox);sound('shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit');
+  hitEffect(hit,x,y,ghostBox,boxes);sound(shotgun?'shotgun':'shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit');
   renderGhosts();flushEvents();updateHud();
 }
 if(pointerInput)ui.arena.addEventListener('pointerdown',fire);ui.arena.addEventListener('click',fire);
@@ -168,7 +177,7 @@ function start(){
   if(engine.state!=='ready')return;const entry=useTicket(eventData);if(!entry.ok)return;
   const previous=eventData;eventData=entry.state;if(!save()){eventData=previous;return;}
   ui['upgrade-dialog'].close();clearVisuals();showScreen('hunt-screen');
-  currentRunId=crypto.randomUUID();engine=new Hunt({config,upgrades:economy.levels});engine.start();lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();
+  currentRunId=crypto.randomUUID();engine=new Hunt({config,upgrades:economy.levels,weapon:entry.weapon});engine.start();lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();
 }
 function ready(){
   clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();ui['pause-dialog'].close();clearVisuals();
@@ -215,6 +224,14 @@ ui['info-action'].addEventListener('click',()=>{const action=infoAction;infoActi
 function changeTickets(next){const previous=eventData;eventData=next;if(!save())eventData=previous;updateWallet();}
 ui['package-open'].addEventListener('click',()=>info('특별 패키지','할로윈 특별 패키지 구성은 준비 중이에요. 현재 프로토타입에서는 결제하지 않아요.'));
 ui['ad-open'].addEventListener('click',()=>info('플레이 기회 +3',eventData.tickets>=30?'플레이 기회가 가득 찼어요. 사냥을 시작해 보세요.':'실제 광고가 연결되기 전의 체험 기능이에요. 버튼을 누르면 플레이 기회 3개를 받아요. 최대 30개까지 보유할 수 있어요.','기회 +3 체험',eventData.tickets>=30?null:()=>changeTickets(addTickets(eventData,3))));
+ui['shotgun-ad'].addEventListener('click',()=>{
+  if(engine.state!=='ready'||eventData.shotgunReady)return;
+  info('샷건 · 다음 사냥 한 판','실제 광고 연결 전의 체험 기능이에요. 샷건을 받으면 다음 판 내내 터치한 곳과 주변 유령을 함께 잡아요. 한 마리라도 맞히면 시간 감소가 없어요.','샷건 받기 체험',()=>{
+    if(engine.state!=='ready'||eventData.shotgunReady)return;
+    const previous=eventData;eventData=grantShotgun(eventData);if(!save()){eventData=previous;return;}
+    renderUpgrades();sound('bounty-stop');setText(ui['upgrade-status'],'샷건 장착 완료! 사냥을 시작해 보세요.');
+  });
+});
 ui['distance-open'].addEventListener('click',()=>info('일반게임에서 기회 모으기','일반게임에서 누적 300m마다 플레이 기회 1개를 얻어요. 지금은 연동 전이므로 300m 달성을 체험할 수 있어요. 최대 30개일 때는 추가 적립되지 않아요.','일반게임 +300m 체험',()=>changeTickets(addDistance(eventData,300))));
 ui['close-event'].addEventListener('click',()=>showScreen('closed-screen'));ui.reopen.addEventListener('click',()=>showScreen('lobby'));
 for(const button of document.querySelectorAll('[data-close]'))button.addEventListener('click',()=>ui[button.dataset.close].close());
@@ -250,12 +267,12 @@ function sound(kind){
       const samples=shotNoise.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*(1-i/samples.length)**2;
     }
     if(soundContext.state==='suspended')soundContext.resume().catch(()=>{});
-    if(kind==='shot'){
+    if(kind==='shot'||kind==='shotgun'){
       const noise=soundContext.createBufferSource(),gain=soundContext.createGain(),at=soundContext.currentTime;
-      noise.buffer=shotNoise;gain.gain.setValueAtTime(1.3,at);gain.gain.exponentialRampToValueAtTime(.001,at+.085);
+      noise.buffer=shotNoise;gain.gain.setValueAtTime(kind==='shotgun'?1.7:1.3,at);gain.gain.exponentialRampToValueAtTime(.001,at+.085);
       noise.connect(gain);gain.connect(mutedGain);noise.onended=()=>{noise.disconnect();gain.disconnect();};noise.start(at);noise.stop(at+.085);
     }
-    const sounds={'reel-tick':[[900,620,.028,0,'sine']],'bounty-stop':[[523,784,.12,0,'triangle'],[784,1046,.24,.09,'sine']],shot:[[145,38,.12,0,'sine'],[920,140,.035,0,'sawtooth']],miss:[[130,50,.08,0,'triangle']],hit:[[320,120,.08,.025,'triangle'],[1100,700,.035,.03,'sine']],gold:[[784,990,.15,0,'triangle'],[988,1320,.18,.08,'triangle'],[1318,1760,.25,.16,'sine']],wave:[[440,660,.12,0,'triangle'],[660,880,.16,.1,'sine']],timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]};
+    const sounds={'reel-tick':[[900,620,.028,0,'sine']],'bounty-stop':[[523,784,.12,0,'triangle'],[784,1046,.24,.09,'sine']],shotgun:[[100,28,.16,0,'sine'],[650,70,.05,0,'sawtooth']],shot:[[145,38,.12,0,'sine'],[920,140,.035,0,'sawtooth']],miss:[[130,50,.08,0,'triangle']],hit:[[320,120,.08,.025,'triangle'],[1100,700,.035,.03,'sine']],gold:[[784,990,.15,0,'triangle'],[988,1320,.18,.08,'triangle'],[1318,1760,.25,.16,'sine']],wave:[[440,660,.12,0,'triangle'],[660,880,.16,.1,'sine']],timeout:[[440,330,.18,0,'triangle'],[330,165,.3,.2,'triangle']]};
     for(const [from,to,duration,delay,wave] of sounds[kind]??sounds.hit){const at=soundContext.currentTime+delay,osc=soundContext.createOscillator(),gain=soundContext.createGain();osc.type=wave;osc.frequency.setValueAtTime(from,at);osc.frequency.exponentialRampToValueAtTime(to,at+duration);gain.gain.setValueAtTime(.32,at);gain.gain.exponentialRampToValueAtTime(.001,at+duration);osc.connect(gain);gain.connect(mutedGain);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(at);osc.stop(at+duration);}
   }catch{}
 }

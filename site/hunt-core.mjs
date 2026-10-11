@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-upgrades30';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-shotgun';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -69,8 +69,8 @@ export function pose(ghost,width,height) {
   return {x,y,angle:0,sx,sy,alpha:clamp(alpha),facing:dir};
 }
 export class Hunt {
-  constructor({random=Math.random,config={},upgrades={}}={}){
-    this.random=random;this.config=settings(config);this.upgrades=Object.freeze(upgradeLevels(upgrades));this.effects=upgradeEffects(this.upgrades,{recoveryBasePercent:this.config.waveRecoveryPercent});this.state='ready';this.ghosts=[];this.events=[];this.serial=0;
+  constructor({random=Math.random,config={},upgrades={},weapon='standard'}={}){
+    this.random=random;this.config=settings(config);this.upgrades=Object.freeze(upgradeLevels(upgrades));this.effects=upgradeEffects(this.upgrades,{recoveryBasePercent:this.config.waveRecoveryPercent});this.weapon=weapon==='shotgun'?'shotgun':'standard';this.state='ready';this.ghosts=[];this.events=[];this.serial=0;
   }
   start(){
     Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,goldSpawnLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
@@ -146,29 +146,40 @@ export class Hunt {
     if(this.spawnLeft<=.000001){this.spawn();this.spawnLeft=this.config.spawn+Math.max(this.spawnLeft,-dt);if(this.spawnLeft<=0)this.spawnLeft=this.config.spawn;}
   }
   shoot(id=null){
+    return this.resolveShot(id===null?[]:[id]);
+  }
+  shootShotgun(ids=[]){
+    if(this.weapon!=='shotgun'||!Array.isArray(ids))return null;
+    return this.resolveShot(ids);
+  }
+  resolveShot(ids){
     if(this.state!=='playing')return null;
-    const ghost=id===null?null:this.ghosts.find(g=>g.id===id);
-    // A repeated activation of an already consumed ghost is ignored.
-    if(id!==null&&!ghost)return null;
-    if(ghost&&pose(ghost,400,440).alpha<.3)return null;
+    const selected=new Set(ids),targets=this.ghosts.filter(g=>selected.has(g.id)&&pose(g,400,440).alpha>=.3);
+    // Duplicate/expired targets never become a fresh empty shot.
+    if(ids.length&&!targets.length)return null;
     this.shots++;
-    if(!ghost){
+    if(!targets.length){
       this.misses++;const penalty=Math.min(this.remaining,this.config.missPenalty);this.remaining-=penalty;
       if(this.remaining<=.000001){this.remaining=0;this.end('timeout','miss');}
-      return {kind:'miss',ghost:null,points:0,penalty};
+      return {kind:'miss',ghost:null,points:0,penalty,upgradeCoins:0,bonusCoins:0,targets:[],hitCount:0};
     }
-    this.ghosts=this.ghosts.filter(g=>g!==ghost);
-    this.hits++;this.kills++;this.waveKills++;
-    const points=ghost.type==='gold'?this.bounty.points:TYPES[ghost.type].points;
-    this.score+=points;
-    if(ghost.type==='gold'){
-      this.gold++;this.waveGold++;this.goldScore+=points;
-      if(this.waveGold===this.config.goldLimit)this.events.push({kind:'gold-limit',wave:this.wave});
-    }else this.normalScore+=points;
-    const upgradeCoins=ghost.type==='gold'?0:GHOST_COINS[ghost.type];
-    const bonusCoins=ghost.type==='gold'?this.bounty.coins:0;
-    this.earnedUpgradeCoins+=upgradeCoins;this.wavePendingBonus+=bonusCoins;
-    const hit={kind:ghost.type,ghost,points,upgradeCoins,bonusCoins,penalty:0};
+    const removed=new Set(targets.map(g=>g.id));this.ghosts=this.ghosts.filter(g=>!removed.has(g.id));
+    this.hits++;this.kills+=targets.length;this.waveKills+=targets.length;
+    const hits=targets.map(ghost=>{
+      const points=ghost.type==='gold'?this.bounty.points:TYPES[ghost.type].points;
+      this.score+=points;
+      if(ghost.type==='gold'){
+        this.gold++;this.waveGold++;this.goldScore+=points;
+        if(this.waveGold===this.config.goldLimit)this.events.push({kind:'gold-limit',wave:this.wave});
+      }else this.normalScore+=points;
+      const upgradeCoins=ghost.type==='gold'?0:GHOST_COINS[ghost.type],bonusCoins=ghost.type==='gold'?this.bounty.coins:0;
+      this.earnedUpgradeCoins+=upgradeCoins;this.wavePendingBonus+=bonusCoins;
+      return {kind:ghost.type,ghost,points,upgradeCoins,bonusCoins,penalty:0};
+    });
+    const primary=hits.find(hit=>hit.kind==='gold')??hits[0];
+    const hit={...primary,points:hits.reduce((n,h)=>n+h.points,0),upgradeCoins:hits.reduce((n,h)=>n+h.upgradeCoins,0),bonusCoins:hits.reduce((n,h)=>n+h.bonusCoins,0),targets:hits,hitCount:hits.length};
+    // Resolve the entire old-wave blast before clearing, rewarding and healing once.
+    // Extra captures are paid, but do not carry progress into the next wave.
     if(this.waveKills>=this.waveGoal){
       const reward={wave:this.wave,base:this.waveBaseReward,bonus:this.wavePendingBonus,total:this.waveBaseReward+this.wavePendingBonus};
       this.earnedEventCoins+=reward.total;this.waveRewards.push(reward);

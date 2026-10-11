@@ -37,15 +37,15 @@ test('ending an incomplete wave retains earlier completed rewards and ordinary c
   assert.equal(h.shoot(),null);assert.equal(h.earnedEventCoins,10);
 });
 test('tickets consume exactly one on entry, cap at 30, and distance carries through reload',()=>{
-  assert.deepEqual(eventState(),{tickets:5,distance:20,owned:[]});
+  assert.deepEqual(eventState(),{tickets:5,distance:20,owned:[],shotgunReady:false});
   const entry=useTicket({tickets:1,distance:299});assert.equal(entry.ok,true);assert.equal(entry.state.tickets,0);
   assert.equal(useTicket(entry.state).ok,false);assert.equal(useTicket(entry.state).state.tickets,0);
   assert.equal(addTickets({tickets:29},3).tickets,30);
-  assert.deepEqual(addDistance({tickets:2,distance:290},620),{tickets:5,distance:10,owned:[]});
-  assert.deepEqual(addDistance({tickets:30,distance:20},300),{tickets:30,distance:20,owned:[]});
+  assert.deepEqual(addDistance({tickets:2,distance:290},620),{tickets:5,distance:10,owned:[],shotgunReady:false});
+  assert.deepEqual(addDistance({tickets:30,distance:20},300),{tickets:30,distance:20,owned:[],shotgunReady:false});
   const data={progressVersion:PROGRESS_VERSION,bestWave:7,eventState:{tickets:4,distance:199,owned:['badge']},economy:cleanEconomy({upgradeCoins:30,eventCoins:40,levels:{shop:2}})};
   const loaded=readProgress(key=>key===STORAGE_KEY?JSON.stringify(data):null);
-  assert.equal(loaded.bestWave,7);assert.deepEqual(eventState(loaded.eventState),data.eventState);assert.deepEqual(loaded.economy,data.economy);
+  assert.equal(loaded.bestWave,7);assert.deepEqual(eventState(loaded.eventState),{...data.eventState,shotgunReady:false});assert.deepEqual(loaded.economy,data.economy);
 });
 test('exchange spends only pumpkin coins and rejects duplicates and insufficient balances',()=>{
   const e=cleanEconomy({upgradeCoins:900,eventCoins:100});const purchase=exchange({},e,'badge');

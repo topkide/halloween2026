@@ -1,4 +1,4 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-upgrades30';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-shotgun';
 
 // One canvas and one existing RAF. Each shot has a fixed particle budget and lifetime.
 export const SHOT_LIMITS=Object.freeze({bursts:8,particles:12,lifetime:700,pixelRatio:2});
@@ -6,7 +6,7 @@ const colors={wisp:'#c7acff',pudge:'#c7e798',skitter:'#ff987a',stilt:'#9bf0ec',g
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export class ShotEffects {
   constructor(canvas,{reducedMotion=()=>false}={}){
-    this.canvas=canvas;this.ctx=canvas.getContext('2d');this.reducedMotion=reducedMotion;this.bursts=[];this.width=1;this.height=1;this.dirty=false;this.silhouettes=new Map();
+    this.canvas=canvas;this.ctx=canvas.getContext('2d');this.reducedMotion=reducedMotion;this.bursts=[];this.spreads=[];this.width=1;this.height=1;this.dirty=false;this.silhouettes=new Map();
     this.atlas=new Image();this.atlas.src='assets/refined-ghost-atlas.webp';
   }
   resize(width,height){
@@ -14,31 +14,62 @@ export class ShotEffects {
     this.width=width;this.height=height;this.ratio=Math.min(SHOT_LIMITS.pixelRatio,window.devicePixelRatio||1);
     this.canvas.width=Math.max(1,Math.round(width*this.ratio));this.canvas.height=Math.max(1,Math.round(height*this.ratio));this.clear();
   }
-  clear(){this.bursts.length=0;this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);this.dirty=false;}
+  clear(){this.bursts.length=0;this.spreads.length=0;this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);this.dirty=false;}
   silhouette(type){
     if(this.silhouettes.has(type))return this.silhouettes.get(type);
     if(!this.atlas.complete||!this.atlas.naturalWidth)return null;
     const [x,y,w,h]=ghostFrame(type),canvas=document.createElement('canvas');canvas.width=Math.round(w*.35);canvas.height=Math.round(h*.35);
     const ctx=canvas.getContext('2d');ctx.drawImage(this.atlas,x,y,w,h,0,0,canvas.width,canvas.height);ctx.globalCompositeOperation='source-in';ctx.fillStyle='#fff7df';ctx.fillRect(0,0,canvas.width,canvas.height);this.silhouettes.set(type,canvas);return canvas;
   }
-  shoot(hit,x,y,ghostBox,now=performance.now()){
-    const miss=hit.kind==='miss',gold=hit.kind==='gold',still=this.reducedMotion(),count=still?0:miss?5:gold?12:9;
+  shoot(hit,x,y,ghostBox,now=performance.now(),{impactOnly=false,renderNow=true}={}){
+    const miss=hit.kind==='miss',gold=hit.kind==='gold',still=this.reducedMotion(),count=still?0:impactOnly?4:miss?5:gold?12:9;
     const particles=Array.from({length:count},(_,i)=>{
       const angle=i/count*Math.PI*2+(Math.random()-.5)*.5,speed=(miss?35:65)+Math.random()*(gold?130:90);
       return {vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-25,size:miss?2:2+Math.random()*3,spin:Math.random()*10-5,angle:angle,light:i%3===0};
     });
-    this.bursts.push({x:clamp(x,4,this.width-4),y:clamp(y,4,this.height-4),born:now,miss,gold,still,color:miss?'#b6b0be':colors[hit.kind],particles,ghostBox,silhouette:miss?null:this.silhouette(hit.kind),label:miss?'빗나감  −'+hit.penalty+'초':gold?'황금 +'+hit.bonusCoins:'명중  +'+hit.upgradeCoins});
-    if(this.bursts.length>SHOT_LIMITS.bursts)this.bursts.shift();this.render(now);
+    this.bursts.push({x:clamp(x,4,this.width-4),y:clamp(y,4,this.height-4),born:now,miss,gold,still,impactOnly,color:miss?'#b6b0be':colors[hit.kind],particles,ghostBox,silhouette:miss?null:this.silhouette(hit.kind),label:impactOnly?'':miss?'빗나감  −'+hit.penalty+'초':gold?'황금 +'+hit.bonusCoins:'명중  +'+hit.upgradeCoins});
+    if(this.bursts.length>SHOT_LIMITS.bursts)this.bursts.shift();if(renderNow)this.render(now);
+  }
+  shotgun(hit,x,y,radius,boxes,now=performance.now()){
+    for(const target of hit.targets){
+      const box=boxes.get(target.ghost.id);
+      if(box)this.shoot(target,box.x,box.y,box,now,{impactOnly:true,renderNow:false});
+    }
+    if(!hit.hitCount)this.shoot(hit,x,y,null,now,{impactOnly:true,renderNow:false});
+    this.spreads.push({x,y,radius,born:now,still:this.reducedMotion(),miss:hit.kind==='miss',label:hit.hitCount?'샷건 '+hit.hitCount+'마리 명중':'빗나감 −'+hit.penalty+'초',pellets:Array.from({length:12},(_,i)=>({angle:i*Math.PI/6,reach:.55+Math.random()*.45}))});
+    if(this.spreads.length>6)this.spreads.shift();this.render(now);
+  }
+  renderSpreads(ctx,now){
+    for(const b of this.spreads){
+      const t=(now-b.born)/1000,fade=clamp((.45-t)/.2,0,1),color=b.miss?'#f4a497':'#ffe2a0';
+      ctx.save();ctx.lineCap='round';ctx.strokeStyle=color;
+      // Show the exact blast radius briefly, with radial pellets starting at the tap.
+      ctx.globalAlpha=fade*.45;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);ctx.stroke();
+      if(!b.still){
+        const reach=Math.min(1,t/.13);
+        ctx.globalAlpha=fade*.85;ctx.lineWidth=2;
+        for(const pellet of b.pellets){
+          const end=b.radius*reach*pellet.reach,start=Math.max(0,end-15*(1-reach*.6));
+          ctx.beginPath();ctx.moveTo(b.x+Math.cos(pellet.angle)*start,b.y+Math.sin(pellet.angle)*start);ctx.lineTo(b.x+Math.cos(pellet.angle)*end,b.y+Math.sin(pellet.angle)*end);ctx.stroke();
+        }
+        if(t<.08){ctx.globalAlpha=1-t/.08;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(this.width/2,this.height);ctx.lineTo(b.x,b.y);ctx.stroke();}
+      }
+      ctx.globalAlpha=fade;ctx.fillStyle='#fff1ce';ctx.beginPath();ctx.arc(b.x,b.y,b.still?3:Math.max(2,7-t*50),0,Math.PI*2);ctx.fill();
+      const tx=clamp(b.x,85,this.width-85),ty=clamp(b.y-b.radius-12,20,this.height-20);
+      ctx.font='800 13px system-ui,sans-serif';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#1b1027e6';ctx.strokeText(b.label,tx,ty);ctx.fillStyle=color;ctx.fillText(b.label,tx,ty);ctx.restore();
+    }
   }
   render(now){
     this.bursts=this.bursts.filter(b=>now-b.born<SHOT_LIMITS.lifetime);
-    if(!this.bursts.length&&!this.dirty)return;
-    const ctx=this.ctx;ctx.setTransform(this.ratio||1,0,0,this.ratio||1,0,0);ctx.clearRect(0,0,this.width,this.height);this.dirty=this.bursts.length>0;
+    this.spreads=this.spreads.filter(b=>now-b.born<450);
+    if(!this.bursts.length&&!this.spreads.length&&!this.dirty)return;
+    const ctx=this.ctx;ctx.setTransform(this.ratio||1,0,0,this.ratio||1,0,0);ctx.clearRect(0,0,this.width,this.height);this.dirty=this.bursts.length>0||this.spreads.length>0;
+    this.renderSpreads(ctx,now);
     for(const b of this.bursts){
       const t=(now-b.born)/1000,fade=clamp((.7-t)/.23,0,1),mx=this.width*.5,my=this.height+8;
       ctx.save();ctx.lineCap='round';
       // A sharp muzzle flash and tracer link the shot to the clicked point.
-      if(t<.09&&!b.still){
+      if(t<.09&&!b.still&&!b.impactOnly){
         ctx.globalAlpha=(1-t/.09)*.95;ctx.strokeStyle=b.miss?'#cbd1dc':'#ffe9b5';ctx.lineWidth=2;
         ctx.beginPath();ctx.moveTo(mx,my);ctx.lineTo(b.x,b.y);ctx.stroke();
         ctx.fillStyle='#fff2c5';ctx.beginPath();ctx.moveTo(mx-12,my);ctx.lineTo(mx-5,my-18);ctx.lineTo(mx,my-7);ctx.lineTo(mx+6,my-23);ctx.lineTo(mx+13,my);ctx.fill();
@@ -71,7 +102,7 @@ export class ShotEffects {
         if(b.miss)ctx.fillRect(-p.size,-p.size/2,p.size*2,p.size);else{ctx.beginPath();ctx.moveTo(-p.size,-p.size);ctx.lineTo(p.size*1.6,-p.size*.5);ctx.lineTo(p.size*.4,p.size*1.4);ctx.lineTo(-p.size,p.size*.5);ctx.closePath();ctx.fill();}ctx.restore();
       }
       // One small brass casing per shot, separate from the target's fragments.
-      if(!b.still&&t<.4){ctx.save();ctx.globalAlpha=(1-t/.4)*.9;ctx.translate(mx+24+t*75,this.height-13-t*65+180*t*t);ctx.rotate(t*13);ctx.fillStyle='#d4ae67';ctx.fillRect(-3,-1.5,7,3);ctx.restore();}
+      if(!b.still&&!b.impactOnly&&t<.4){ctx.save();ctx.globalAlpha=(1-t/.4)*.9;ctx.translate(mx+24+t*75,this.height-13-t*65+180*t*t);ctx.rotate(t*13);ctx.fillStyle='#d4ae67';ctx.fillRect(-3,-1.5,7,3);ctx.restore();}
       const tx=clamp(b.x,70,this.width-70),ty=clamp(b.y-31-(b.still?0:t*22),22,this.height-17);
       ctx.globalAlpha=fade;ctx.font='700 '+(b.gold?15:13)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#1b1027e6';ctx.strokeText(b.label,tx,ty);ctx.fillStyle=b.miss?'#ffb0a4':b.gold?'#ffdb80':'#fff4da';ctx.fillText(b.label,tx,ty);
       ctx.restore();

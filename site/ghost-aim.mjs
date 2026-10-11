@@ -1,4 +1,7 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-upgrades30';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-shotgun';
+
+// Radius in the arena's 400-unit coordinate space; scales with the viewport.
+export const SHOTGUN=Object.freeze({radius:72});
 
 // Small alpha masks are prepared once, never sampled from the canvas per shot.
 export class GhostAim {
@@ -44,4 +47,29 @@ export function pickGhost(candidates,x,y,masks){
     const c=candidates[i];if(spriteContains(c,x,y,null))return c.id;
   }
   return null;
+}
+
+function circleTouchesRect(x,y,radius,left,top,width,height){
+  const dx=x-Math.max(left,Math.min(left+width,x)),dy=y-Math.max(top,Math.min(top+height,y));
+  return dx*dx+dy*dy<=radius*radius;
+}
+export function spriteTouchesCircle(candidate,x,y,radius,mask){
+  if(!Number.isFinite(radius)||radius<0||!Number.isFinite(x)||!Number.isFinite(y))return false;
+  const r=candidate.rect;
+  if(!circleTouchesRect(x,y,radius,r.left,r.top,r.width,r.height))return false;
+  if(!mask)return true;
+  const w=Math.min(r.width,r.height*mask.aspect),h=w/mask.aspect,left=r.left+(r.width-w)/2,top=r.top+(r.height-h)/2;
+  const cw=w/mask.width,ch=h/mask.height;
+  const col0=Math.max(0,Math.floor((x-radius-left)/cw)),col1=Math.min(mask.width-1,Math.floor((x+radius-left)/cw));
+  const row0=Math.max(0,Math.floor((y-radius-top)/ch)),row1=Math.min(mask.height-1,Math.floor((y+radius-top)/ch));
+  for(let row=row0;row<=row1;row++)for(let col=col0;col<=col1;col++){
+    const sourceCol=candidate.facing<0?mask.width-1-col:col;
+    if(mask.alpha[row*mask.width+sourceCol]>=32&&circleTouchesRect(x,y,radius,left+col*cw,top+row*ch,cw,ch))return true;
+  }
+  return false;
+}
+export function pickShotgunGhosts(candidates,x,y,radius,masks){
+  // The center keeps normal-shot forgiveness. The spread only hits visible sprite pixels.
+  const direct=pickGhost(candidates,x,y,masks);
+  return [...new Set(candidates.filter(c=>c.id===direct||spriteTouchesCircle(c,x,y,radius,masks.get(c.type))).map(c=>c.id))];
 }
