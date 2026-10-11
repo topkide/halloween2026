@@ -130,7 +130,7 @@ test('rise moves up, then holds still before fading in place',()=>{
  assert.ok(entrance.y>held.y);assert.equal(entrance.x,held.x);assert.equal(held.y,later.y);assert.equal(held.y,fade.y);assert.equal(later.alpha,1);assert.ok(fade.alpha<.3);
  const h=playing(),g=target(h,'wisp');Object.assign(g,{motion:'rise',life:3,age:2.98});assert.equal(h.shoot(g.id),null);assert.equal(h.shots,0);
 });
-test('horizontal and vertical paths travel in both directions without cross-axis drift',()=>{
+test('zero-slope horizontal and vertical paths travel in both directions without cross-axis drift',()=>{
  for(const direction of [-1,1])for(const motion of ['horizontal','vertical']){
   const a=sample(motion,.15,direction),b=sample(motion,.5,direction),c=sample(motion,.85,direction);
   const axis=motion==='horizontal'?'x':'y',fixed=motion==='horizontal'?'y':'x';

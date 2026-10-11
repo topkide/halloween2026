@@ -29,14 +29,20 @@ export const GOLD_APPEAR_DURATION=.24;
 export const GOLD_MOVE_DURATION=Object.freeze([.6,.8]);
 export const GOLD_DIRECTIONS=Object.freeze(['east','west','south','north']);
 const patterns={wisp:['rise'],pudge:['inflate'],skitter:['horizontal'],stilt:['vertical','returnY'],grasp:['returnX'],gold:['goldDash']};
-const spawnAreas=[.16,.5,.84].flatMap(y=>[.16,.5,.84].map(x=>({x,y})));
 const clamp=(n,min=0,max=1)=>Math.max(min,Math.min(max,n));
 const mix=(a,b,t)=>a+(b-a)*t;
 const smooth=t=>{t=clamp(t);return t*t*(3-2*t);};
 export function pose(ghost,width,height) {
   const u=clamp(ghost.age/ghost.life),t=ghost.age,dir=ghost.direction;
   const motion=ghost.motion??patterns[ghost.type][0];
-  const anchorX=clamp((ghost.anchor??.5)*width,75,width-75),anchorY=clamp(ghost.lane*height,75,height-75);
+  // Map independent positions into the usable field; clamping would pile up edge spawns.
+  const def=TYPES[ghost.type],maxScale=motion==='inflate'?1.4:1;
+  const marginX=Math.min(width/2,def.width*maxScale/2+8),marginY=Math.min(height/2,def.height*maxScale/2+8);
+  const anchorX=ghost.type==='gold'?clamp((ghost.anchor??.5)*width,75,width-75):mix(marginX,width-marginX,clamp(ghost.anchor??.5));
+  const anchorY=ghost.type==='gold'?clamp(ghost.lane*height,75,height-75):mix(marginY,height-marginY,clamp(ghost.lane));
+  // A bounded slope varies each path without steering every ghost toward the center.
+  const driftX=(ghost.slant??0)*Math.max(0,Math.min(width*.14,anchorX-marginX,width-marginX-anchorX));
+  const driftY=(ghost.slant??0)*Math.max(0,Math.min(height*.14,anchorY-marginY,height-marginY-anchorY));
   let x=anchorX,y=anchorY,sx=1,sy=1,alpha=1;
   const startX=dir===1?-70:width+70,endX=dir===1?width+70:-70;
   const startY=dir===1?-80:height+80,endY=dir===1?height+80:-80;
@@ -50,21 +56,21 @@ export function pose(ghost,width,height) {
     alpha=clamp((1-travel)/.08);
   } else if(motion==='rise'){
     // A short upward entrance, a stable aiming window, then a fade in place.
-    y=anchorY+Math.min(60,height*.15)*(1-smooth(u/.24));
+    y=anchorY+Math.min(60,height*.15,height-marginY-anchorY)*(1-smooth(u/.24));
     alpha=Math.min(clamp(u/.1),clamp((1-u)/.16));
   } else if(motion==='horizontal'){
-    x=mix(startX,endX,u);
+    x=mix(startX,endX,u);y=anchorY+driftY*(2*u-1);
   } else if(motion==='vertical'){
-    y=mix(startY,endY,u);
+    y=mix(startY,endY,u);x=anchorX+driftX*(2*u-1);
   } else if(motion==='inflate'){
     // Exactly one swell and shrink, with no shake, rotation or repeated pulsing.
     const scale=u<.25?1:u<.37?mix(1,1.4,smooth((u-.25)/.12)):u<.53?1.4:u<.72?mix(1.4,1,smooth((u-.53)/.19)):1;
     sx=sy=scale;alpha=Math.min(clamp(u/.08),clamp((1-u)/.14));
   } else if(motion==='returnX'||motion==='returnY'){
-    // Stop at this group's position, then leave by the same edge.
+    // Each ghost approaches its own point and retraces its individual slanted path.
     const progress=u<.3?smooth(u/.3):u<.62?1:1-smooth((u-.62)/.38);
-    if(motion==='returnX')x=mix(startX,anchorX,progress);
-    else y=mix(startY,anchorY,progress);
+    if(motion==='returnX'){x=mix(startX,anchorX,progress);y=anchorY+driftY*(1-progress);}
+    else{y=mix(startY,anchorY,progress);x=anchorX+driftX*(1-progress);}
   }
   if(t<0||t>=ghost.life)alpha=0;
   return {x,y,angle:0,sx,sy,alpha:clamp(alpha),facing:dir};
@@ -77,7 +83,7 @@ export class Hunt {
   }
   start(){
     Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,goldSpawnLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
-    this.spawnGroup=null;this.continueUsed=false;this.firstGoldSpawned=false;this.earnedUpgradeCoins=0;this.earnedEventCoins=0;this.waveRewards=[];this.recoveredTime=0;this.lastTimeRecovery=0;this.prepareWave();
+    this.continueUsed=false;this.firstGoldSpawned=false;this.earnedUpgradeCoins=0;this.earnedEventCoins=0;this.waveRewards=[];this.recoveredTime=0;this.lastTimeRecovery=0;this.prepareWave();
   }
   prepareWave(){
     this.wave++;this.waveKills=0;this.waveGold=0;this.waveGoal=this.config.baseGoal+(this.wave-1)*this.config.goalStep;
@@ -91,7 +97,6 @@ export class Hunt {
   beginWave(){
     if(this.state!=='briefing'||!this.bountyRevealed)return;
     this.state='playing';this.briefingLeft=0;this.spawnLeft=this.spawnInterval;
-    if(this.spawnGroup)this.spawnGroup.left=0;
     // Only the first wave is guaranteed an immediate gold. Later waves keep the run's cooldown.
     for(let i=0;i<3;i++){
       const g=(i===1?this.spawnGoldIfReady():null)??this.spawn();
@@ -108,25 +113,14 @@ export class Hunt {
     }
     const options=patterns[type],motion=options[Math.floor(this.random()*options.length)],[min,max]=type==='gold'?GOLD_MOVE_DURATION:MOTIONS[motion];
     const speed=1+Math.min(.4,(this.wave-1)*.04);
-    const ghost={id:++this.serial,type,motion,age:0,life:mix(min,max,this.random())/speed,direction:this.random()<.5?1:-1,lane:.2+this.random()*.6,anchor:.22+this.random()*.56,seed:this.random()*6.28};
+    const ghost={id:++this.serial,type,motion,age:0,life:mix(min,max,this.random())/speed,direction:this.random()<.5?1:-1,lane:this.random(),anchor:this.random(),seed:this.random()*6.28};
     if(type==='gold'){
       // Difficulty changes travel speed, never the time available to see the initial appearance.
       ghost.life+=GOLD_APPEAR_DURATION;
       ghost.dashDirection=GOLD_DIRECTIONS[Math.floor(this.random()*GOLD_DIRECTIONS.length)];
       ghost.anchor=.12+this.random()*.76;ghost.lane=.12+this.random()*.76;ghost.direction=1;
     }else{
-      // Keep a small group blastable, then move the next group far enough to re-aim.
-      // X2 adds density to each group without doubling the rate of direction changes.
-      if(!this.spawnGroup?.left){
-        const areas=spawnAreas.filter(area=>!this.spawnGroup||Math.hypot(area.x-this.spawnGroup.x,area.y-this.spawnGroup.y)>=.42);
-        this.spawnGroup={...areas[Math.floor(this.random()*areas.length)],left:3*this.spawnMultiplier};
-      }
-      const group=this.spawnGroup;group.left--;
-      ghost.anchor=group.x+(this.random()-.5)*.07;
-      ghost.lane=group.y+(this.random()-.5)*.07;
-      // Returning ghosts enter from the near edge instead of crossing the center first.
-      if(motion==='returnX')ghost.direction=group.x<.5?1:group.x>.5?-1:ghost.direction;
-      if(motion==='returnY')ghost.direction=group.y<.5?1:group.y>.5?-1:ghost.direction;
+      ghost.slant=this.random()*2-1;
     }
     this.ghosts.push(ghost);return ghost;
   }

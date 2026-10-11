@@ -1,4 +1,4 @@
-import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261012-roaming-groups';
+import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261012-free-paths';
 
 const VALUES=[2,3,5,8,10];
 export function createBountyReel(multiplier,wave){
