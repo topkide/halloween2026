@@ -49,13 +49,14 @@ function application(audio=null){
     setTimeout:callback=>{const id=++serial;timers.set(id,callback);return id;},clearTimeout:id=>timers.delete(id),
   });
   const source=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8').replace(/^import .* from .*;\r?\n/gm,'');
-  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},hitEffect,renderGhosts,flushEvents,fire};',context);
+  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},hitEffect,renderGhosts,flushEvents,fire,updateHud};',context);
   const flow=context.flow;
   const start=()=>{nodes.get('upgrade-open').click();nodes.get('upgrade-start').click();};
   const advance=()=>{flow.hunt.tick(BOUNTY_TIMING.spin);flow.hunt.tick(BOUNTY_TIMING.hold);flow.hunt.ghosts=[];flow.flushEvents();};
-  const end=()=>{flow.hunt.end('quit');flow.flushEvents();for(const [id,callback] of [...timers]){timers.delete(id);callback();}};
+  const finishTimers=()=>{for(const [id,callback] of [...timers]){timers.delete(id);callback();}};
+  const end=()=>{flow.hunt.end('quit');flow.flushEvents();finishTimers();};
   const catchOne=()=>{const ghost=flow.hunt.spawn('pudge');ghost.age=ghost.life*.3;flow.hunt.shoot(ghost.id);flow.flushEvents();};
-  return {flow,nodes,start,advance,end,catchOne};
+  return {flow,nodes,start,advance,end,catchOne,finishTimers};
 }
 
 test('first ending offers continue without settlement; ad resumes the same run and second ending settles once',()=>{
@@ -148,4 +149,39 @@ test('actual firing selects the equipped gun, adds impact only on hits, and resp
   app.flow.hunt.weapon='shotgun';audio.plays=[];shoot('pudge');
   assert.equal(audio.plays[0],'shotgun');assert.equal(audio.plays.filter(kind=>kind==='shotgun').length,1);
   assert.equal(audio.plays[1],'hit');
+});
+
+test('game over clears the field and precedes continue or results; continuing and retrying hide it',()=>{
+  const app=application();app.start();app.advance();
+  const ghost=app.flow.hunt.spawn('pudge');ghost.age=ghost.life*.3;app.flow.renderGhosts();
+  const hit={kind:'pudge',upgradeCoins:1,bonusCoins:0,ghost};
+  app.flow.effects.shoot(hit,180,200,{x:180,y:200,width:70,height:80,facing:1},1000);
+  assert.ok(app.flow.targets.size>0);assert.ok(app.flow.effects.labels.length>0);
+  app.flow.hunt.remaining=.01;app.flow.hunt.tick(.02);app.flow.flushEvents();
+  assert.equal(app.nodes.get('ending').hidden,false);
+  assert.equal(app.nodes.get('continue-dialog').open,false);assert.equal(app.nodes.get('result-dialog').open,false);
+  assert.equal(app.flow.targets.size,0);assert.equal(app.flow.effects.labels.length,0);
+  assert.equal(app.nodes.get('effect-layer').hidden,true);assert.equal(app.nodes.get('hunt-screen').dataset.urgent,'false');
+  app.flow.renderGhosts();assert.equal(app.flow.targets.size,0);
+  app.finishTimers();assert.equal(app.nodes.get('ending').hidden,true);assert.equal(app.nodes.get('continue-dialog').open,true);
+  app.nodes.get('continue-ad').click();assert.equal(app.nodes.get('ending').hidden,true);
+  app.advance();app.flow.hunt.end('quit');app.flow.flushEvents();
+  assert.equal(app.nodes.get('ending').hidden,false);assert.equal(app.nodes.get('result-dialog').open,false);
+  app.finishTimers();assert.equal(app.nodes.get('ending').hidden,true);assert.equal(app.nodes.get('result-dialog').open,true);
+  app.nodes.get('result-retry').click();assert.equal(app.nodes.get('ending').hidden,true);
+});
+
+test('ten-second warning turns on at the threshold and stops after recovery, pause or ending',()=>{
+  const app=application();app.start();app.advance();const screen=app.nodes.get('hunt-screen');
+  const refresh=()=>app.flow.updateHud();
+  app.flow.hunt.remaining=10.01;refresh();assert.equal(screen.dataset.urgent,'false');
+  app.flow.hunt.remaining=10;refresh();assert.equal(screen.dataset.urgent,'true');assert.equal(screen.dataset.state,'playing');
+  app.nodes.get('pause').click();assert.equal(screen.dataset.state,'paused');assert.equal(screen.dataset.urgent,'true');
+  app.nodes.get('resume').click();assert.equal(screen.dataset.state,'playing');
+  // A wave-clear heal carries the clock back above the warning threshold.
+  app.flow.hunt.remaining=9.9;
+  for(let i=0;i<8;i++)app.catchOne();
+  assert.ok(app.flow.hunt.remaining>10);assert.equal(screen.dataset.urgent,'false');assert.equal(screen.dataset.state,'briefing');
+  app.advance();app.flow.hunt.remaining=1;app.end();assert.equal(screen.dataset.urgent,'false');assert.equal(screen.dataset.state,'ended');
+  app.nodes.get('continue-ad').click();assert.equal(screen.dataset.urgent,'false');
 });

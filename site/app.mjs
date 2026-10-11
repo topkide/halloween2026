@@ -1,13 +1,13 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-gun-audio';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-gun-audio';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-gun-audio';
-import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-gun-audio';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-gun-audio';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-gun-audio';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-game-over';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-game-over';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-game-over';
+import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-game-over';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-game-over';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-game-over';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-gun-audio';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-gun-audio';
-import {CombatAudio} from './combat-audio.mjs?v=20261011-gun-audio';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-game-over';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-game-over';
+import {CombatAudio} from './combat-audio.mjs?v=20261011-game-over';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -79,7 +79,7 @@ function updateHud(){
   ui['ghosts-x2-active'].hidden=engine.spawnMultiplier!==2||ready;
   const remaining=engine.remaining??config.duration;
   const seconds=Math.ceil(remaining);setText(ui['time-label'],Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'));ui['time-fill'].style.transform='scaleX('+Math.min(1,Math.max(0,remaining/config.duration))+')';
-  ui['hunt-screen'].dataset.urgent=String(remaining<=10&&!ready);
+  ui['hunt-screen'].dataset.urgent=String(remaining>0&&remaining<=10&&!ready&&engine.state!=='ended');
   setText(ui['wave-number'],engine.wave??1);setText(ui['wave-count'],engine.waveKills??0);setText(ui['wave-goal'],engine.waveGoal??config.baseGoal);
   setText(ui['run-upgrade'],number(engine.earnedUpgradeCoins??0));
   const revealed=engine.bountyRevealed;
@@ -94,8 +94,9 @@ function updateHud(){
   }
 }
 function renderGhosts(){
-  const alive=new Set(engine.ghosts.map(g=>g.id));for(const [id,node] of entities)if(!alive.has(id)){node.remove();entities.delete(id);}
-  for(const ghost of engine.ghosts){
+  const ghosts=engine.state==='ended'?[]:engine.ghosts;
+  const alive=new Set(ghosts.map(g=>g.id));for(const [id,node] of entities)if(!alive.has(id)){node.remove();entities.delete(id);}
+  for(const ghost of ghosts){
     const def=TYPES[ghost.type],p=pose(ghost,size.width,size.height);let node=entities.get(ghost.id);
     if(!node){node=document.createElement('button');node.type='button';node.className='ghost-target type-'+ghost.type;node.dataset.ghost=String(ghost.id);node.setAttribute('aria-label',def.name+' 사격');node.innerHTML=ghostPixel(ghost.type);entities.set(ghost.id,node);ui['ghost-layer'].append(node);}
     const w=def.width*size.scale,h=def.height*size.scale;
@@ -123,7 +124,7 @@ function flushEvents(){for(const event of engine.drain()){
   if(event.kind==='wave'){clearVisuals();prepareBountyReel();updateHud();sound('reel-tick');}
   if(event.kind==='bounty-reveal'){sound(event.multiplier>=8?'gold':'bounty-stop');updateHud();}
   if(event.kind==='wave-start'){updateHud();sound('wave');}
-  if(event.kind==='end')finish(event.reason,event.cause);
+  if(event.kind==='end')finish(event.reason);
 }}
 function fire(event){
   if(engine.state!=='playing'||event.target.closest('#wave-intro, #ending'))return;
@@ -165,13 +166,14 @@ function ready(){
   clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();ui['pause-dialog'].close();ui['continue-dialog'].close();clearVisuals();
   engine=new Hunt({config,upgrades:economy.levels});showScreen('lobby');updateWallet();updateHud();
 }
-function finish(reason,cause){
-  if(endingTimer||lastResult?.runId===currentRunId)return;ui['pause-dialog'].close();ui.ending.hidden=false;
-  setText(ui['ending-title'],reason==='quit'?'사냥 종료':'시간 초과!');setText(ui['ending-copy'],reason==='quit'?'오늘 밤의 보상을 정리하고 있어요.':cause==='miss'?'헛발로 남은 시간을 모두 썼어요.':'남은 시간이 모두 줄어들었어요.');if(reason==='timeout')sound('timeout');
+function finish(reason){
+  if(endingTimer||lastResult?.runId===currentRunId)return;
+  ui['pause-dialog'].close();clearVisuals();updateHud();ui.ending.hidden=false;
+  if(reason==='timeout')sound('timeout');
   endingTimer=setTimeout(()=>{
     endingTimer=null;ui.ending.hidden=true;
     if(engine.canContinue())ui['continue-dialog'].showModal();else showFinalResult();
-  },1200);
+  },1800);
 }
 function showFinalResult(){
   if(engine.state!=='ended'||lastResult?.runId===currentRunId)return;
