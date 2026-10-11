@@ -59,3 +59,5 @@ dialog::backdrop{background:#100b1bcc}dialog h2{font-size:24px;font-weight:750;l
 @media(max-height:730px){.lobby{grid-template-rows:132px minmax(290px,1fr) 96px 78px}.event-kicker{margin-top:10px}.event-header h1{font-size:28px;margin:6px 0}.event-header h1 em{font-size:34px}.event-period{margin-top:7px;font-size:10px}.bounty-card{padding:8px 20px}#brief-art{width:40px;height:45px;margin:5px auto}.wave-intro h2{font-size:21px;margin:5px 0 8px}.wave-intro>p{margin:10px 0 6px}.bounty-card>small{margin-top:4px}#brief-reward{font-size:21px}.hunt-header{padding-top:9px}.hunt-wallet>div{padding:7px}}
 
 .package-icon{width:31px;height:31px;margin:0 auto 4px}.character-art,.ghost-target .character-art{overflow:hidden;image-rendering:auto}
+
+.ghost-coin-settings{margin:20px 0 0;padding:4px 12px;border:1px solid #795f7e;border-radius:8px;text-align:left}.ghost-coin-settings legend{padding:0 7px;color:#ffe0a0;font-size:12px}

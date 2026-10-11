@@ -41,8 +41,8 @@ export class ShotEffects {
     const burst={x:clamp(x,2,this.width-2),y:clamp(y,2,this.height-2),born:now,miss,gold,still,impactOnly,scale,color:miss?'#b6b0be':colors[hit.kind]??'#e4d8ff',particles,shards,ghostBox,silhouette:miss?null:this.silhouette(hit.kind),frame:ghostFrame(hit.kind)};
     this.bursts.push(burst);if(this.bursts.length>SHOT_LIMITS.bursts)this.bursts.shift();
     const amount=gold?hit.bonusCoins:hit.upgradeCoins;
-    if(!miss&&amount>0){
-      this.labels.push({x:burst.x,y:burst.y,born:now,gold,still,scale,text:'+'+Math.round(amount).toLocaleString('ko-KR')});
+    if(!miss&&Number.isFinite(amount)&&amount!==0){
+      this.labels.push({x:burst.x,y:burst.y,born:now,gold,still,scale,text:(amount>0?'+':'')+amount.toLocaleString('ko-KR',{maximumSignificantDigits:21})});
       if(this.labels.length>SHOT_LIMITS.labels)this.labels.shift();
     }
     if(renderNow)this.render(now);

@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {Hunt,TYPES,DEFAULTS,settings,pose,BOUNTY_TIMING} from '../hunt-core.mjs';
 import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from '../progress.mjs';
 import {createBountyReel,reelOffset} from '../bounty-reel.mjs';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from '../upgrades.mjs';
+import {BALANCE,UPGRADES,GHOST_COINS,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from '../upgrades.mjs';
 import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from '../event-core.mjs';
 import {ghostPixel,coinPixel} from '../pixel-art.mjs';
 import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from '../ghost-aim.mjs';
@@ -46,7 +46,7 @@ function application(audio=null,saved=null,{storageFails=false,reducedMotion=fal
   const storage=new Map();
   if(saved)storage.set(KEY,JSON.stringify(saved));
   globalThis.window=window;globalThis.document=document;globalThis.Image=class{complete=false;naturalWidth=0;};
-  const context=vm.createContext({Hunt,TYPES,DEFAULTS,settings,pose,KEY,PROGRESS_VERSION,readProgress,createBountyReel,reelOffset,BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward,EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2,ghostPixel,coinPixel,GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN,ShotEffects,CombatAudio:Combat,missionState,addMissionCaptures,missionSummary,claimMissionReward,document,window,
+  const context=vm.createContext({Hunt,TYPES,DEFAULTS,settings,pose,KEY,PROGRESS_VERSION,readProgress,createBountyReel,reelOffset,BALANCE,UPGRADES,GHOST_COINS,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward,EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2,ghostPixel,coinPixel,GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN,ShotEffects,CombatAudio:Combat,missionState,addMissionCaptures,missionSummary,claimMissionReward,document,window,
     performance:{now:()=>1000},crypto:{randomUUID:()=>String(++serial)},ResizeObserver:class{observe(){}},requestAnimationFrame(){},
     localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(storageFails)throw new Error('Unavailable');storage.set(key,value);}},
     setTimeout:callback=>{const id=++serial;timers.set(id,callback);return id;},clearTimeout:id=>timers.delete(id),
@@ -63,6 +63,7 @@ function application(audio=null,saved=null,{storageFails=false,reducedMotion=fal
 }
 
 const settingFields=[['setting-duration','duration'],['setting-recovery-percent','waveRecoveryPercent'],['setting-recovery-limit','recoveryLimit'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit'],['setting-miss-penalty','missPenalty']];
+const coinSettingFields=['pudge','wisp','stilt','grasp','skitter'].map(type=>['setting-coins-'+type,type]);
 
 test('opening an older browser saves the new baseline immediately, displays it in settings and starts gameplay with it',()=>{
   const saved={progressVersion:7,config:{duration:75,waveRecoveryPercent:20,recoveryLimit:60,spawn:.4,goldInterval:6,goldLimit:4},
@@ -75,33 +76,44 @@ test('opening an older browser saves the new baseline immediately, displays it i
   assert.equal(stored.eventState.tickets,22);assert.equal(stored.missions.kills.pudge,99);assert.equal(stored.missions.rewardClaimed,true);
   app.nodes.get('settings-open').click();
   for(const [id,key] of settingFields){assert.equal(app.nodes.get(id).value,DEFAULTS[key]);assert.equal(stored.config[key],DEFAULTS[key]);}
+  assert.deepEqual(GHOST_COINS,{pudge:1,wisp:10,stilt:20,grasp:35,skitter:50});
+  assert.deepEqual(stored.config.ghostCoins,GHOST_COINS);
+  for(const [id,type] of coinSettingFields)assert.equal(app.nodes.get(id).value,GHOST_COINS[type]);
   app.nodes.get('settings-dialog').close();app.start();
   for(const [,key] of settingFields)assert.equal(app.flow.hunt.config[key],DEFAULTS[key]);
+  assert.deepEqual(app.flow.hunt.config.ghostCoins,GHOST_COINS);
   assert.equal(app.flow.hunt.weapon,'shotgun');assert.equal(app.flow.hunt.spawnMultiplier,2);
 });
 
 test('all prototype inputs allow arbitrary decimal values without browser range limits',()=>{
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
-  for(const [id] of settingFields){
+  for(const [id] of [...settingFields,...coinSettingFields]){
     const input=html.match(new RegExp('<input\\b[^>]*\\bid="'+id+'"[^>]*>'))?.[0];
     assert.ok(input,id);assert.doesNotMatch(input,/\s(?:min|max)\s*=/);assert.match(input,/\bstep="any"/);
   }
 });
 
 test('settings outside the former limits survive saving, reopening and starting a run, then restore to defaults',()=>{
-  const app=application(null,{progressVersion:7,config:{spawn:.4}}),custom={duration:600.5,waveRecoveryPercent:125.5,recoveryLimit:9999.25,spawn:.001,goldInterval:.01,goldLimit:100.5,missPenalty:20.75};
+  const app=application(null,{progressVersion:7,config:{spawn:.4}}),custom={duration:600.5,waveRecoveryPercent:125.5,recoveryLimit:9999.25,spawn:.001,goldInterval:.01,goldLimit:100.5,missPenalty:20.75,ghostCoins:{pudge:0,wisp:12.5,stilt:-2.5,grasp:.001,skitter:100.25}};
   app.nodes.get('settings-open').click();
   for(const [id,key] of settingFields)app.nodes.get(id).value=String(custom[key]);
+  for(const [id,type] of coinSettingFields)app.nodes.get(id).value=String(custom.ghostCoins[type]);
   app.nodes.get('settings-form').dispatch('submit',{preventDefault(){}});
   for(const [,key] of settingFields)assert.equal(app.stored().config[key],custom[key]);
+  assert.deepEqual(app.stored().config.ghostCoins,custom.ghostCoins);
   const reloaded=application(null,app.stored());reloaded.nodes.get('settings-open').click();
   for(const [id,key] of settingFields)assert.equal(reloaded.nodes.get(id).value,custom[key]);
+  for(const [id,type] of coinSettingFields)assert.equal(reloaded.nodes.get(id).value,custom.ghostCoins[type]);
   reloaded.nodes.get('settings-dialog').close();reloaded.start();
   for(const [,key] of settingFields)assert.equal(reloaded.flow.hunt.config[key],custom[key]);
+  assert.deepEqual(reloaded.flow.hunt.config.ghostCoins,custom.ghostCoins);
   const restored=application(null,app.stored());restored.nodes.get('settings-open').click();restored.nodes.get('defaults').click();
   for(const [id,key] of settingFields){assert.equal(restored.nodes.get(id).value,DEFAULTS[key]);assert.equal(restored.stored().config[key],DEFAULTS[key]);}
+  for(const [id,type] of coinSettingFields)assert.equal(restored.nodes.get(id).value,GHOST_COINS[type]);
+  assert.deepEqual(restored.stored().config.ghostCoins,GHOST_COINS);
   restored.nodes.get('settings-dialog').close();restored.start();
   for(const [,key] of settingFields)assert.equal(restored.flow.hunt.config[key],DEFAULTS[key]);
+  assert.deepEqual(restored.flow.hunt.config.ghostCoins,GHOST_COINS);
   const zero=application(null,{progressVersion:PROGRESS_VERSION,config:{duration:0}});zero.start();zero.flow.updateHud();
   assert.equal(zero.flow.hunt.remaining,0);assert.equal(zero.nodes.get('time-fill').style.transform,'scaleX(0)');
 });
@@ -123,6 +135,39 @@ test('miss penalty settings, including zero, affect actual empty taps and surviv
       assert.equal(current.flow.hunt.state,'playing');
     }
   }
+});
+
+test('custom positive, zero and negative ghost coins match tap labels, HUD, final rewards and the reloaded wallet',()=>{
+  const app=application(null,{progressVersion:PROGRESS_VERSION,config:{ghostCoins:{pudge:0,wisp:12.5,skitter:100.25,grasp:-2.5}},economy:{upgradeCoins:1.5}});
+  app.start();app.advance();
+  for(const [type,total] of [['wisp',12.5],['skitter',112.75],['pudge',112.75],['grasp',110.25]]){
+    const ghost=app.flow.hunt.spawn(type);ghost.age=ghost.life*.3;app.flow.renderGhosts();
+    app.flow.fire({type:'click',detail:0,clientX:200,clientY:200,preventDefault(){},target:{closest:selector=>selector==='[data-ghost]'?{dataset:{ghost:String(ghost.id)}}:null}});
+    assert.equal(app.flow.hunt.earnedUpgradeCoins,total);assert.equal(app.nodes.get('run-upgrade').textContent,String(total));
+  }
+  assert.equal(app.flow.hunt.kills,4);assert.equal(app.flow.hunt.misses,0);
+  assert.deepEqual(app.flow.effects.labels.map(label=>label.text),['+12.5','+100.25','-2.5']);
+  assert.equal(app.flow.coins.upgradeCoins,1.5);
+  app.nodes.get('pause').click();app.nodes.get('quit').click();
+  assert.equal(app.nodes.get('result-upgrade-coins').textContent,'+110.25');
+  assert.equal(app.nodes.get('wallet-upgrade').textContent,'111.75');assert.equal(app.flow.coins.upgradeCoins,111.75);
+  const reloaded=application(null,app.stored());
+  assert.equal(reloaded.flow.coins.upgradeCoins,111.75);assert.equal(reloaded.nodes.get('wallet-upgrade').textContent,'111.75');
+});
+
+test('one shotgun tap sums each custom species payout, including duplicates and a zero payout',()=>{
+  const app=application(null,{progressVersion:PROGRESS_VERSION,config:{ghostCoins:{pudge:0,wisp:12.5,skitter:100.25}},eventState:{shotgunReady:true}});
+  app.start();app.advance();
+  const ghosts=['wisp','wisp','skitter','pudge'].map(type=>{const ghost=app.flow.hunt.spawn(type);Object.assign(ghost,{age:ghost.life*.3,anchor:.5,lane:.5});return ghost;});
+  app.flow.renderGhosts();
+  app.flow.fire({type:'click',detail:0,clientX:200,clientY:200,preventDefault(){},target:{closest:selector=>selector==='[data-ghost]'?{dataset:{ghost:String(ghosts[0].id)}}:null}});
+  assert.equal(app.flow.hunt.shots,1);assert.equal(app.flow.hunt.kills,4);assert.equal(app.flow.hunt.earnedUpgradeCoins,125.25);
+  assert.equal(app.nodes.get('run-upgrade').textContent,'125.25');
+  assert.deepEqual(app.flow.effects.labels.map(label=>label.text),['+12.5','+12.5','+100.25']);
+  app.nodes.get('pause').click();app.nodes.get('quit').click();
+  assert.equal(app.nodes.get('result-upgrade-coins').textContent,'+125.25');assert.equal(app.flow.coins.upgradeCoins,125.25);
+  const reloaded=application(null,app.stored());
+  assert.equal(reloaded.flow.coins.upgradeCoins,125.25);assert.equal(reloaded.nodes.get('wallet-upgrade').textContent,'125.25');
 });
 
 test('quitting from a paused briefing or hunt immediately settles once without ending or continue screens',()=>{

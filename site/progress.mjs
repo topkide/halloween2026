@@ -1,6 +1,6 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261012-open-settings';
-import {cleanEconomy} from './upgrades.mjs?v=20261012-open-settings';
-import {missionState} from './missions.mjs?v=20261012-open-settings';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261012-ghost-coins';
+import {cleanEconomy} from './upgrades.mjs?v=20261012-ghost-coins';
+import {missionState} from './missions.mjs?v=20261012-ghost-coins';
 
 export const STORAGE_KEY='catjump-wave-score-v1';
 export const PROGRESS_VERSION=8;
@@ -23,7 +23,7 @@ export function readProgress(getItem){
     const retiredRewardLevel=version<6&&Number.isSafeInteger(rewardLevel)&&rewardLevel>0?Math.min(10,rewardLevel):0;
     const refundedRewardCoins=retiredRewardLevel*20+10*retiredRewardLevel*(retiredRewardLevel-1)/2;
     const economy=cleanEconomy(current.economy);
-    economy.upgradeCoins=Math.min(1_000_000_000,economy.upgradeCoins+refundedReloadCoins+refundedRewardCoins);
+    economy.upgradeCoins+=refundedReloadCoins+refundedRewardCoins;
     return {
       config:settings({...current.config,...(resetBalanceDefaults?balanceDefaults:{})}),
       best:Number.isSafeInteger(current.best)&&current.best>=0?current.best:0,

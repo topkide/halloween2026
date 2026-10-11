@@ -1,4 +1,4 @@
-import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261012-open-settings';
+import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261012-ghost-coins';
 
 const VALUES=[2,3,5,8,10];
 export function createBountyReel(multiplier,wave){

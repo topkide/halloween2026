@@ -3,6 +3,7 @@ export const BALANCE=Object.freeze({maxLevel:30,firstCost:20,costStep:10,timeSta
 export const UPGRADES=Object.freeze({time:{name:'시간 회복 증가'},gold:{name:'황금 유령 등장 확률 증가'},shop:{name:'웨이브 보상 증가'}});
 const runIds=value=>Array.isArray(value)?[...new Set(value.filter(id=>typeof id==='string'&&id.length>0&&id.length<120))].slice(-32):[];
 const whole=(n,max=1_000_000_000)=>Number.isSafeInteger(n)&&n>=0?Math.min(n,max):0;
+const finite=n=>Number.isFinite(n)?n:0;
 export function upgradeLevels(value={}){
   return Object.fromEntries(Object.keys(UPGRADES).map(key=>[key,whole(value?.[key],BALANCE.maxLevel)]));
 }
@@ -13,7 +14,7 @@ export function upgradeEffects(value={}, {recoveryBasePercent=BALANCE.timeStartP
   return Object.freeze({timeRecoveryPercent:interpolate(base,Math.max(base,BALANCE.timeMaxPercent),levels.time),goldChance:interpolate(BALANCE.goldStartPercent,BALANCE.goldMaxPercent,levels.gold)/100,shopBonusPercent:interpolate(0,BALANCE.shopMaxBonusPercent,levels.shop)});
 }
 export function cleanEconomy(value={}){
-  return {upgradeCoins:whole(value?.upgradeCoins),eventCoins:whole(value?.eventCoins),levels:upgradeLevels(value?.levels),claimedRuns:runIds(value?.claimedRuns),doubledRuns:runIds(value?.doubledRuns)};
+  return {upgradeCoins:finite(value?.upgradeCoins),eventCoins:whole(value?.eventCoins),levels:upgradeLevels(value?.levels),claimedRuns:runIds(value?.claimedRuns),doubledRuns:runIds(value?.doubledRuns)};
 }
 export function upgradeCost(level){return level>=BALANCE.maxLevel?null:BALANCE.firstCost+whole(level,BALANCE.maxLevel)*BALANCE.costStep;}
 export function buyUpgrade(value,key){
@@ -24,7 +25,7 @@ export function buyUpgrade(value,key){
   if(economy.upgradeCoins<cost)return {ok:false,reason:'funds',economy};
   return {ok:true,cost,economy:{...economy,upgradeCoins:economy.upgradeCoins-cost,levels:{...economy.levels,[key]:economy.levels[key]+1}}};
 }
-export const GHOST_COINS=Object.freeze({pudge:1,grasp:2,wisp:3,stilt:4,skitter:5});
+export const GHOST_COINS=Object.freeze({pudge:1,wisp:10,stilt:20,grasp:35,skitter:50});
 export function waveReward(wave,levels){
   const base=BALANCE.waveBase+Math.max(0,whole(wave)-1)*BALANCE.waveStep;
   // Keep the 200/30 step rational until the final floor; floating percentages can lose a coin.
@@ -32,12 +33,12 @@ export function waveReward(wave,levels){
   return Math.floor(base*numerator/denominator);
 }
 export function runRewards(result){
-  return {upgradeCoins:whole(result?.earnedUpgradeCoins),eventCoins:whole(result?.earnedEventCoins)};
+  return {upgradeCoins:finite(result?.earnedUpgradeCoins),eventCoins:whole(result?.earnedEventCoins)};
 }
 export function settleRun(value,result,levels){
   const economy=cleanEconomy(value),rewards=runRewards(result,levels),id=result?.runId;
   if(typeof id!=='string'||!id||id.length>=120||economy.claimedRuns.includes(id))return {awarded:false,economy,rewards};
-  return {awarded:true,rewards,economy:{...economy,upgradeCoins:whole(economy.upgradeCoins+rewards.upgradeCoins),eventCoins:whole(economy.eventCoins+rewards.eventCoins),claimedRuns:[...economy.claimedRuns,id].slice(-32)}};
+  return {awarded:true,rewards,economy:{...economy,upgradeCoins:finite(economy.upgradeCoins+rewards.upgradeCoins),eventCoins:whole(economy.eventCoins+rewards.eventCoins),claimedRuns:[...economy.claimedRuns,id].slice(-32)}};
 }
 
 // The base reward is already settled. The ad grants one extra pumpkin reward, once per run.

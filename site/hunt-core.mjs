@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261012-open-settings';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261012-ghost-coins';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -12,11 +12,12 @@ export const SPECIALS={
 };
 export const TYPES=Object.fromEntries([...SPECIES,...Object.values(SPECIALS)].map(s=>[s.id,s]));
 export const BOUNTY_TIMING=Object.freeze({spin:1.8,hold:1.1});
-export const DEFAULTS=Object.freeze({duration:90,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldInterval:2.5,goldLimit:2,waveRecoveryPercent:10,recoveryLimit:30});
+export const DEFAULTS=Object.freeze({duration:90,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldInterval:2.5,goldLimit:2,waveRecoveryPercent:10,recoveryLimit:30,ghostCoins:GHOST_COINS});
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const configured=key=>Number.isFinite(value[key])?value[key]:DEFAULTS[key];
-  return {...DEFAULTS,duration:configured('duration'),spawn:configured('spawn'),missPenalty:configured('missPenalty'),baseGoal:configured('baseGoal'),goldLimit:configured('goldLimit'),goldInterval:configured('goldInterval'),waveRecoveryPercent:configured('waveRecoveryPercent'),recoveryLimit:configured('recoveryLimit')};
+  const ghostCoins=Object.fromEntries(Object.entries(GHOST_COINS).map(([type,coins])=>[type,Number.isFinite(value.ghostCoins?.[type])?value.ghostCoins[type]:coins]));
+  return {...DEFAULTS,duration:configured('duration'),spawn:configured('spawn'),missPenalty:configured('missPenalty'),baseGoal:configured('baseGoal'),goldLimit:configured('goldLimit'),goldInterval:configured('goldInterval'),waveRecoveryPercent:configured('waveRecoveryPercent'),recoveryLimit:configured('recoveryLimit'),ghostCoins};
 }
 export function rollMultiplier(random=Math.random,previous=null){
   const choices=[[2,38],[3,30],[5,20],[8,9],[10,3]].filter(([value])=>value!==previous);
@@ -183,7 +184,7 @@ export class Hunt {
         this.gold++;this.waveGold++;this.goldScore+=points;
         if(this.waveGold===this.config.goldLimit)this.events.push({kind:'gold-limit',wave:this.wave});
       }else this.normalScore+=points;
-      const upgradeCoins=ghost.type==='gold'?0:GHOST_COINS[ghost.type],bonusCoins=ghost.type==='gold'?this.bounty.coins:0;
+      const upgradeCoins=ghost.type==='gold'?0:this.config.ghostCoins[ghost.type],bonusCoins=ghost.type==='gold'?this.bounty.coins:0;
       this.earnedUpgradeCoins+=upgradeCoins;this.wavePendingBonus+=bonusCoins;
       return {kind:ghost.type,ghost,points,upgradeCoins,bonusCoins,penalty:0};
     });

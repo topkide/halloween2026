@@ -33,7 +33,7 @@ test('gold bonuses are pending until clear, include a golden final kill, and can
 test('ending an incomplete wave retains earlier completed rewards and ordinary coins only',()=>{
   const h=playing();for(let i=0;i<8;i++)catchGhost(h,'pudge');advance(h);
   catchGhost(h,'gold');catchGhost(h,'skitter');assert.ok(h.wavePendingBonus>0);h.end('quit');
-  assert.equal(h.earnedEventCoins,10);assert.equal(h.earnedUpgradeCoins,13);assert.equal(h.waveRewards.length,1);
+  assert.equal(h.earnedEventCoins,10);assert.equal(h.earnedUpgradeCoins,58);assert.equal(h.waveRewards.length,1);
   assert.equal(h.shoot(),null);assert.equal(h.earnedEventCoins,10);
 });
 test('tickets consume exactly one on entry, cap at 30, and distance carries through reload',()=>{

@@ -21,6 +21,14 @@ test('payout text is numeric only at the captured target, including a gold bonus
   e.shoot({...hit(),kind:'miss',penalty:2},320,100,null,2);
   assert.equal(e.labels.length,2);assert.ok(ctx.text.every(value=>/^\+\d[\d,]*$/.test(value)));
 });
+test('custom payouts retain their fractional amount and sign while zero and non-finite amounts have no label',()=>{
+  for(const [amount,text] of [[12.5,'+12.5'],[-1.25,'-1.25'],[1234.56789,'+1,234.56789'],[.00001,'+0.00001'],[1e-21,'+0.000000000000000000001'],[0,null],[-0,null],[NaN,null],[Infinity,null],[-Infinity,null]]){
+    const {effects:e,ctx}=effects();e.shoot(hit('wisp',amount),8,8,box(120,180),0);
+    assert.equal(e.bursts.length,1);
+    assert.deepEqual(e.labels.map(l=>[l.text,l.x,l.y]),text===null?[]:[[text,120,180]]);
+    assert.deepEqual(ctx.text,text===null?[]:[text]);
+  }
+});
 
 test('a 16-target shotgun blast gives every captured ghost its own payout without aggregate hit wording',()=>{
   const {effects:e,ctx}=effects(),targets=Array.from({length:16},(_,id)=>({...hit('pudge',id%5+1),ghost:{id}}));
@@ -29,6 +37,14 @@ test('a 16-target shotgun blast gives every captured ghost its own payout withou
   assert.equal(e.bursts.length,16);assert.equal(e.labels.length,16);
   assert.deepEqual(e.labels.map(l=>l.text),targets.map(t=>'+'+t.upgradeCoins));
   assert.equal(ctx.text.length,16);assert.ok(ctx.text.every(value=>/^\+\d$/.test(value)));
+});
+test('a shotgun preserves each target payout and location even when signed fractional amounts cancel',()=>{
+  const {effects:e,ctx}=effects(),targets=[hit('wisp',12.5),hit('grasp',-12.5),hit('pudge',0),hit('stilt',.125)].map((t,id)=>({...t,ghost:{id}}));
+  const boxes=new Map(targets.map((t,i)=>[t.ghost.id,box(50+i*90,100+i*70)]));
+  e.shotgun({targets,hitCount:4,kind:'wisp',upgradeCoins:.125},180,180,72,boxes,0);
+  assert.equal(e.bursts.length,4);
+  assert.deepEqual(e.labels.map(l=>[l.text,l.x,l.y]),[['+12.5',50,100],['-12.5',140,170],['+0.125',320,310]]);
+  assert.deepEqual(ctx.text,['+12.5','-12.5','+0.125']);
 });
 
 test('loaded sprite breakup and fast continuous effects stay finite, bounded and clear after their lifetime',()=>{
