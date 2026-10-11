@@ -1,4 +1,4 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-ghosts-x2';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-wave-growth';
 
 // One canvas and one existing RAF. Each shot has a fixed particle budget and lifetime.
 export const SHOT_LIMITS=Object.freeze({bursts:8,particles:12,lifetime:700,pixelRatio:2});

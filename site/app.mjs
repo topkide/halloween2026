@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-ghosts-x2';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-ghosts-x2';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-ghosts-x2';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-ghosts-x2';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-ghosts-x2';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-ghosts-x2';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-wave-growth';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-wave-growth';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-wave-growth';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-wave-growth';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-wave-growth';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-wave-growth';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-ghosts-x2';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-ghosts-x2';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-wave-growth';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-wave-growth';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';

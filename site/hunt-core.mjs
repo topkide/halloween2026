@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-ghosts-x2';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-wave-growth';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -12,7 +12,7 @@ export const SPECIALS={
 };
 export const TYPES=Object.fromEntries([...SPECIES,...Object.values(SPECIALS)].map(s=>[s.id,s]));
 export const BOUNTY_TIMING=Object.freeze({spin:1.8,hold:1.1});
-export const DEFAULTS=Object.freeze({duration:90,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGoal:24,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldInterval:2.5,goldLimit:2,waveRecoveryPercent:10,recoveryLimit:30});
+export const DEFAULTS=Object.freeze({duration:90,spawn:.23,missPenalty:2,baseGoal:8,goalStep:2,maxGhosts:8,briefingDuration:BOUNTY_TIMING.spin+BOUNTY_TIMING.hold,goldBase:SPECIALS.gold.points,goldInterval:2.5,goldLimit:2,waveRecoveryPercent:10,recoveryLimit:30});
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const bound=(key,min,max)=>Number.isFinite(value[key])?Math.max(min,Math.min(max,value[key])):DEFAULTS[key];
@@ -79,7 +79,7 @@ export class Hunt {
     this.firstGoldSpawned=false;this.earnedUpgradeCoins=0;this.earnedEventCoins=0;this.waveRewards=[];this.recoveredTime=0;this.lastTimeRecovery=0;this.prepareWave();
   }
   prepareWave(){
-    this.wave++;this.waveKills=0;this.waveGold=0;this.waveGoal=Math.min(this.config.maxGoal,this.config.baseGoal+(this.wave-1)*this.config.goalStep);
+    this.wave++;this.waveKills=0;this.waveGold=0;this.waveGoal=this.config.baseGoal+(this.wave-1)*this.config.goalStep;
     this.waveBaseReward=waveReward(this.wave,this.upgrades);this.wavePendingBonus=0;
     this.bounty={type:'gold',multiplier:rollMultiplier(this.random,this.bounty?.multiplier)};
     this.bounty.points=this.config.goldBase*this.bounty.multiplier;

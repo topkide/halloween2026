@@ -108,9 +108,9 @@ test('only ordinary and golden ghosts spawn with a strict eight-ghost cap',()=>{
  assert.equal(peak,8);assert.deepEqual([...seen].sort(),[...Object.keys(TYPES)].sort());assert.equal(seen.size,6);
  const standard=playing();const before=standard.serial;standard.tick(.22);assert.equal(standard.serial,before);standard.tick(.01);assert.equal(standard.serial,before+1);
 });
-test('wave difficulty is bounded and no goal can exceed twenty-four',()=>{
- const h=playing();for(let i=0;i<20;i++){finishWave(h);assert.ok(h.waveGoal<=24);advanceBriefing(h);for(const g of h.ghosts)assert.ok(g.type==='gold'?g.life>=GOLD_APPEAR_DURATION+GOLD_MOVE_DURATION[0]/1.4&&g.life<=GOLD_APPEAR_DURATION+GOLD_MOVE_DURATION[1]:g.life>=1&&g.life<=2.4);}
- assert.equal(h.waveGoal,24);
+test('wave goals keep increasing beyond twenty-four while movement speed stays bounded',()=>{
+ const h=playing();for(let i=0;i<20;i++){const previous=h.waveGoal;finishWave(h);assert.equal(h.waveGoal,previous+2);advanceBriefing(h);for(const g of h.ghosts)assert.ok(g.type==='gold'?g.life>=GOLD_APPEAR_DURATION+GOLD_MOVE_DURATION[0]/1.4&&g.life<=GOLD_APPEAR_DURATION+GOLD_MOVE_DURATION[1]:g.life>=1&&g.life<=2.4);}
+ assert.equal(h.wave,21);assert.equal(h.waveGoal,48);
 });
 test('multiplier weighting retains all outcomes and excludes the previous wave value',()=>{
  assert.deepEqual([0,.379,.38,.679,.68,.879,.88,.969,.97,.999].map(n=>rollMultiplier(()=>n)),[2,2,3,3,5,5,8,8,10,10]);

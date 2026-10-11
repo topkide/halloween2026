@@ -83,3 +83,24 @@ test('the faster interval persists across wave transitions and a new ordinary ru
   const normal=playing({config:hunt.config});
   assert.equal(normal.spawnInterval,.23);assert.equal(normal.maxGhosts,8);
 });
+
+test('shotgun plus X2 keeps growing goals past the old cap after loading an existing save',()=>{
+  const loaded=readProgress(key=>key===STORAGE_KEY?JSON.stringify({progressVersion:6,config:{duration:100,spawn:.3,baseGoal:10,maxGoal:24}}):null);
+  const hunt=playing({config:loaded.config,spawnMultiplier:2,weapon:'shotgun'});
+  assert.equal(hunt.config.duration,100);assert.equal(hunt.spawnInterval,.15);
+  for(let wave=1;wave<=12;wave++){
+    assert.equal(hunt.waveGoal,10+(wave-1)*2);
+    hunt.ghosts=[];
+    while(hunt.state==='playing'){
+      const targets=Array.from({length:Math.min(3,hunt.waveGoal-hunt.waveKills)},()=>{
+        const ghost=hunt.spawn('pudge');ghost.age=ghost.life*.3;return ghost.id;
+      });
+      hunt.shootShotgun(targets);
+    }
+    assert.equal(hunt.clearedWaves,wave);
+    assert.equal(hunt.waveKills,0);
+    hunt.tick(BOUNTY_TIMING.spin);hunt.tick(BOUNTY_TIMING.hold);
+  }
+  assert.equal(hunt.wave,13);assert.equal(hunt.waveGoal,34);
+  assert.equal(hunt.weapon,'shotgun');assert.equal(hunt.spawnMultiplier,2);
+});
