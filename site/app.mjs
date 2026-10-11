@@ -1,11 +1,11 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-hit3';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-hit3';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-hit3';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-hit3';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-hit3';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-hit3';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-hit4';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-hit4';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-hit4';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun} from './upgrades.mjs?v=20261011-hit4';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange} from './event-core.mjs?v=20261011-hit4';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-hit4';
 
-import {ShotEffects} from './shot-effects.mjs?v=20261011-hit3';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-hit4';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -116,7 +116,7 @@ function fire(event){
   event.preventDefault();const target=event.target.closest('[data-ghost]'),id=target?Number(target.dataset.ghost):null;
   const g=id===null?null:engine.ghosts.find(g=>g.id===id),p=g?pose(g,size.width,size.height):null;
   const x=event.type==='click'&&p?p.x*size.scale:event.clientX-size.left,y=event.type==='click'&&p?p.y*size.scale:event.clientY-size.top;
-  const ghostBox=g&&p?{x:p.x*size.scale,y:p.y*size.scale,width:TYPES[g.type].width*size.scale*p.sx,height:TYPES[g.type].height*size.scale*p.sy}:null;
+  const ghostBox=g&&p?{x:p.x*size.scale,y:p.y*size.scale,width:TYPES[g.type].width*size.scale*p.sx,height:TYPES[g.type].height*size.scale*p.sy,facing:p.facing}:null;
   const hit=engine.shoot(id);if(!hit)return;hitEffect(hit,x,y,ghostBox);sound('shot');sound(hit.kind==='gold'?'gold':hit.kind==='miss'?'miss':'hit');
   renderGhosts();flushEvents();updateHud();
 }

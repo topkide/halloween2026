@@ -1,4 +1,4 @@
-import {ghostFrame} from './pixel-art.mjs?v=20261011-hit3';
+import {ghostFrame} from './pixel-art.mjs?v=20261011-hit4';
 
 // One canvas and one existing RAF. Each shot has a fixed particle budget and lifetime.
 export const SHOT_LIMITS=Object.freeze({bursts:8,particles:12,lifetime:700,pixelRatio:2});
@@ -46,7 +46,7 @@ export class ShotEffects {
       // The target flashes in place; no moving hitbox or interruption to spawning.
       if(!b.miss&&t<.22&&b.silhouette&&b.ghostBox){
         const q=b.ghostBox,k=b.still?1:1+t*.4;ctx.globalAlpha=(1-t/.22)*.85;
-        ctx.drawImage(b.silhouette,q.x-q.width*k/2,q.y-q.height*k/2,q.width*k,q.height*k);
+        ctx.save();ctx.translate(q.x,q.y);ctx.scale(q.facing??1,1);ctx.drawImage(b.silhouette,-q.width*k/2,-q.height*k/2,q.width*k,q.height*k);ctx.restore();
       }
       ctx.globalAlpha=fade;
       if(b.miss){

@@ -1,4 +1,4 @@
-import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261011-hit3';
+import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261011-hit4';
 
 const VALUES=[2,3,5,8,10];
 export function createBountyReel(multiplier,wave){
