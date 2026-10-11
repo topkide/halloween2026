@@ -91,7 +91,8 @@ function prepareBountyReel(){reelRows=createBountyReel(engine.bounty.multiplier,
 function renderBountyReel(now){
   if(engine.state!=='briefing'||engine.bountyRevealed||!reelRows.length)return;
   const offset=reelOffset(config.briefingDuration-engine.briefingLeft,reelRows.length-1),step=Math.floor(offset);
-  if(!reducedMotion.matches)ui['brief-strip'].style.transform='translate3d(0,'+(-offset/reelRows.length*100)+'%,0)';
+  // Reduced motion swaps whole rows without the scrolling movement.
+  ui['brief-strip'].style.transform='translate3d(0,'+(-(reducedMotion.matches?step:offset)/reelRows.length*100)+'%,0)';
   if(step!==lastReelStep){lastReelStep=step;if(now-lastReelSoundAt>=65){sound('reel-tick');lastReelSoundAt=now;}}
 }
 function updateHud(){
@@ -110,7 +111,7 @@ function updateHud(){
   ui.pause.disabled=!['playing','briefing'].includes(engine.state);ui['settings-open'].disabled=!ready;ui['wave-intro'].hidden=!briefing;
   if(briefing){
     ui['wave-intro'].dataset.reveal=revealed?'revealed':'rolling';
-    ui['brief-reel'].hidden=revealed||reducedMotion.matches;ui['brief-multiplier'].hidden=!revealed&&!reducedMotion.matches;
+    ui['brief-reel'].hidden=revealed;ui['brief-multiplier'].hidden=!revealed;
     setText(ui['brief-coins'],revealed?'+'+number(engine.bounty.coins):'+?');
     setText(ui['brief-wave'],'Wave '+engine.wave);
     setText(ui['brief-multiplier'],revealed?'X'+engine.bounty.multiplier:'X?');

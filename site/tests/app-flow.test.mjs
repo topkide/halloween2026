@@ -14,7 +14,7 @@ import {CombatAudio} from '../combat-audio.mjs';
 import {missionState,addMissionCaptures,missionSummary,claimMissionReward} from '../missions.mjs';
 
 // Exercise actual button handlers and settlement timing without opening a browser.
-function application(audio=null,saved=null,{storageFails=false}={}){
+function application(audio=null,saved=null,{storageFails=false,reducedMotion=false}={}){
   const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),nodes=new Map(),timers=new Map();let serial=0;
   const drawing=new Proxy({measureText:text=>({width:text.length*10}),createRadialGradient:()=>({addColorStop(){}})},{get:(target,key)=>key in target?target[key]:()=>{}});
   function node(id=''){
@@ -30,7 +30,7 @@ function application(audio=null,saved=null,{storageFails=false}={}){
   }
   for(const match of html.matchAll(/\bid="([^"]+)"/g))nodes.set(match[1],node(match[1]));
   const document={hidden:false,querySelectorAll:selector=>selector==='[id]'?[...nodes.values()]:[],querySelector:()=>node(),createElement:()=>node(),addEventListener(){}};
-  const window={devicePixelRatio:1,matchMedia:()=>({matches:false}),addEventListener(){}};
+  const window={devicePixelRatio:1,matchMedia:()=>({matches:reducedMotion}),addEventListener(){}};
   let Combat=CombatAudio;
   if(audio){
     const param=()=>({value:0,setValueAtTime(){},exponentialRampToValueAtTime(){}});
@@ -52,7 +52,7 @@ function application(audio=null,saved=null,{storageFails=false}={}){
     setTimeout:callback=>{const id=++serial;timers.set(id,callback);return id;},clearTimeout:id=>timers.delete(id),
   });
   const source=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8').replace(/^import .* from .*;\r?\n/gm,'');
-  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},get missions(){return missionData;},hitEffect,renderGhosts,flushEvents,fire,updateHud};',context);
+  vm.runInContext(source+'\nthis.flow={get hunt(){return engine;},get coins(){return economy;},get tickets(){return eventData.tickets;},get runId(){return currentRunId;},get effects(){return shots;},get targets(){return entities;},get missions(){return missionData;},hitEffect,renderGhosts,renderBountyReel,flushEvents,fire,updateHud};',context);
   const flow=context.flow;
   const start=()=>{nodes.get('upgrade-open').click();nodes.get('upgrade-start').click();};
   const advance=()=>{flow.hunt.tick(BOUNTY_TIMING.spin);flow.hunt.tick(BOUNTY_TIMING.hold);flow.hunt.ghosts=[];flow.flushEvents();};
@@ -124,6 +124,30 @@ test('retry opens upgrades without a ticket charge and a new entry restores its 
   app.nodes.get('result-retry').click();assert.equal(app.nodes.get('upgrade-dialog').open,true);assert.equal(app.flow.tickets,4);
   app.nodes.get('upgrade-start').click();assert.equal(app.flow.tickets,3);assert.equal(app.flow.hunt.continueUsed,false);
   app.advance();app.end();assert.equal(app.nodes.get('continue-dialog').open,true);
+});
+
+for(const reducedMotion of [false,true])test(`bounty reel visibly changes before revealing its fixed result with reduced motion ${reducedMotion}`,()=>{
+  const app=application(null,null,{reducedMotion});app.start();
+  const h=app.flow.hunt,reel=app.nodes.get('brief-reel'),strip=app.nodes.get('brief-strip'),result=app.nodes.get('brief-multiplier');
+  const bounty={...h.bounty},rows=(strip.innerHTML.match(/<span>/g)??[]).length,originalRandom=h.random;
+  let draws=0,elapsed=0,previous=strip.style.transform;
+  h.random=()=>{draws++;return originalRandom();};
+  assert.equal(reel.hidden,false);assert.equal(result.hidden,true);assert.ok(rows>1);
+  for(const dt of [.17,.29,.31]){
+    elapsed+=dt;h.tick(dt);app.flow.renderBountyReel(elapsed*1000);app.flow.updateHud();
+    assert.equal(reel.hidden,false);assert.equal(result.hidden,true);
+    assert.notEqual(strip.style.transform,previous);previous=strip.style.transform;
+    const offset=-Number(strip.style.transform.match(/translate3d\(0,([^%]+)%/)[1])*rows/100;
+    const fractional=Math.abs(offset-Math.round(offset));
+    assert.ok(reducedMotion?fractional<1e-8:fractional>1e-4,'reduced motion swaps whole rows; normal motion scrolls between rows');
+  }
+  h.tick(BOUNTY_TIMING.spin-elapsed);app.flow.flushEvents();app.flow.renderBountyReel(2000);
+  assert.equal(h.bountyRevealed,true);assert.equal(reel.hidden,true);assert.equal(result.hidden,false);
+  assert.equal(result.textContent,'X'+bounty.multiplier);
+  const stopped=strip.style.transform;
+  h.tick(.2);app.flow.renderBountyReel(2200);app.flow.updateHud();
+  assert.equal(strip.style.transform,stopped);assert.deepEqual(h.bounty,bounty);assert.equal(draws,0);
+  assert.equal(result.hidden,false);assert.equal(result.textContent,'X'+bounty.multiplier);
 });
 
 test('a new bounty briefing immediately clears old targets, impact fragments, shotgun marks and payout numbers',()=>{
