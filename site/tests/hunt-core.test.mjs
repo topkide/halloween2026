@@ -24,6 +24,15 @@ test('each miss costs two seconds and no progress or score; elapsed time also co
  const h=playing();h.tick(.5);const hit=h.shoot();assert.equal(hit.kind,'miss');assert.equal(hit.penalty,2);assert.equal(h.remaining,57.5);assert.equal(h.misses,1);assert.equal(h.waveKills,0);assert.equal(h.score,0);
  h.tick(1);assert.equal(h.remaining,56.5);assert.equal(h.shots,1);assert.equal(h.hits,0);
 });
+test('zero miss penalty leaves the clock running and fractional penalties deduct their configured time',()=>{
+ for(const missPenalty of [0,.1,1.7,5]){
+  const h=playing({missPenalty}),hit=h.shoot();
+  assert.equal(hit.kind,'miss');assert.equal(hit.penalty,missPenalty);assert.equal(h.remaining,60-missPenalty);
+  assert.equal(h.state,'playing');assert.equal(h.misses,1);assert.equal(h.shots,1);assert.equal(h.hits,0);
+  assert.equal(h.waveKills,0);assert.equal(h.score,0);
+  h.tick(.5);assert.equal(h.remaining,59.5-missPenalty);
+ }
+});
 test('ordinary ghosts advance the wave and golden ghosts pay the wave multiplier',()=>{
  const h=playing();const regular=h.shoot(target(h).id);assert.equal(regular.points,200);assert.equal(h.waveKills,1);assert.equal(h.score,200);
  const reward=h.bounty.points,gold=h.shoot(target(h,'gold').id);assert.equal(gold.points,reward);assert.equal(h.score,200+reward);assert.equal(h.normalScore,200);assert.equal(h.goldScore,reward);assert.equal(h.waveKills,2);assert.equal(h.gold,1);assert.equal(h.remaining,60);
@@ -117,8 +126,17 @@ test('multiplier weighting retains all outcomes and excludes the previous wave v
  for(const previous of [2,3,5,8,10])for(const n of [0,.2,.5,.8,.999])assert.notEqual(rollMultiplier(()=>n,previous),previous);
 });
 test('settings tolerate corrupt data and the current art contains six distinct puppets',()=>{
- assert.deepEqual(settings(null),{...DEFAULTS});assert.deepEqual(settings({duration:NaN}),{...DEFAULTS});assert.equal(settings({baseGoal:6.8}).baseGoal,7);assert.equal(settings({missPenalty:0}).missPenalty,.5);assert.equal(settings({duration:500}).duration,120);
+ assert.deepEqual(settings(null),{...DEFAULTS});assert.deepEqual(settings({duration:NaN}),{...DEFAULTS});assert.equal(settings({baseGoal:6.8}).baseGoal,7);assert.equal(settings({duration:500}).duration,120);
  const art=Object.keys(TYPES).map(id=>ghostSVG(id,{color:TYPES[id].color}));assert.equal(new Set(art).size,6);art.forEach(svg=>{assert.match(svg,/<svg/);assert.doesNotMatch(svg,/<script|<foreignObject/);});
+});
+test('miss penalty settings accept zero, clamp to five seconds, and reject malformed saved values',()=>{
+ assert.equal(DEFAULTS.missPenalty,2);
+ for(const [value,expected] of [[-1,0],[0,0],[.1,.1],[1.7,1.7],[5,5],[6,5]])assert.equal(settings({missPenalty:value}).missPenalty,expected);
+ for(const missPenalty of [NaN,Infinity,-Infinity,null,'0',false,{},[]])assert.equal(settings({missPenalty}).missPenalty,DEFAULTS.missPenalty);
+ for(const missPenalty of [0,.1,1.7,5]){
+  const saved={progressVersion:PROGRESS_VERSION,config:{missPenalty}};
+  assert.equal(readProgress(key=>key===STORAGE_KEY?JSON.stringify(saved):null).config.missPenalty,missPenalty);
+ }
 });
 test('all six quick motion paths remain finite and upright at short and tall screen sizes',()=>{
  assert.deepEqual(Object.keys(MOTIONS),['rise','horizontal','vertical','inflate','returnX','returnY']);

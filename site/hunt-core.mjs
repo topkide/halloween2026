@@ -16,7 +16,7 @@ export const DEFAULTS=Object.freeze({duration:90,spawn:.23,missPenalty:2,baseGoa
 export function settings(value={}){
   if(!value||typeof value!=='object')value={};
   const bound=(key,min,max)=>Number.isFinite(value[key])?Math.max(min,Math.min(max,value[key])):DEFAULTS[key];
-  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',.5,5),baseGoal:Math.round(bound('baseGoal',4,20)),goldLimit:Math.round(bound('goldLimit',1,10)),goldInterval:bound('goldInterval',1,30),waveRecoveryPercent:bound('waveRecoveryPercent',0,30),recoveryLimit:bound('recoveryLimit',0,300)};
+  return {...DEFAULTS,duration:bound('duration',15,120),spawn:bound('spawn',.15,2),missPenalty:bound('missPenalty',0,5),baseGoal:Math.round(bound('baseGoal',4,20)),goldLimit:Math.round(bound('goldLimit',1,10)),goldInterval:bound('goldInterval',1,30),waveRecoveryPercent:bound('waveRecoveryPercent',0,30),recoveryLimit:bound('recoveryLimit',0,300)};
 }
 export function rollMultiplier(random=Math.random,previous=null){
   const choices=[[2,38],[3,30],[5,20],[8,9],[10,3]].filter(([value])=>value!==previous);
@@ -203,7 +203,7 @@ export class Hunt {
   }
   pause(){if(['playing','briefing'].includes(this.state)){this.pausedFrom=this.state;this.state='paused';return true;}return false;}
   resume(){if(this.state==='paused'){this.state=this.pausedFrom;this.pausedFrom=null;}}
-  canContinue(){return this.state==='ended'&&this.continueUsed===false&&this.wave>0;}
+  canContinue(){return this.state==='ended'&&this.reason==='timeout'&&this.continueUsed===false&&this.wave>0;}
   continueRun(){
     if(!this.canContinue())return false;
     // Resume the same run and bounty; restart only the unfinished wave's progress.

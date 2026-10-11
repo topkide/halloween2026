@@ -1,4 +1,4 @@
-import {DEFAULTS,settings} from './hunt-core.mjs?v=20261012-free-paths';
+import {DEFAULTS,settings} from './hunt-core.mjs?v=20261012-play-controls';
 import {cleanEconomy} from './upgrades.mjs?v=20261011-common-defaults';
 import {missionState} from './missions.mjs?v=20261011-common-defaults';
 

@@ -25,22 +25,32 @@ test('continue restarts the unfinished wave, keeps its goal and bounty, and rest
 test('continue adds or retains both ad buffs without stacking their speed or requiring another ticket',()=>{
   for(const weapon of ['standard','shotgun'])for(const spawnMultiplier of [1,2]){
     const h=playing({weapon,spawnMultiplier,config:{spawn:.3},upgrades:{shop:15}});
-    h.end('quit');assert.equal(h.continueRun(),true);
+    h.tick(h.remaining);assert.equal(h.continueRun(),true);
     assert.equal(h.weapon,'shotgun');assert.equal(h.spawnMultiplier,2);assert.equal(h.spawnInterval,.15);assert.equal(h.maxGhosts,16);
     assert.equal(h.upgrades.shop,15);assert.equal(h.waveBaseReward,20);
   }
 });
 
-test('continue is unavailable while active, can be used once after any ending, and resets only for a new run',()=>{
+test('continue is unavailable while active, can be used once after timeout, and resets only for a new run',()=>{
   const h=new Hunt();assert.equal(h.canContinue(),false);assert.equal(h.continueRun(),false);
   h.start();assert.equal(h.continueRun(),false);h.pause();assert.equal(h.continueRun(),false);h.resume();
-  h.end('quit');assert.equal(h.continueRun(),true);assert.equal(h.continueRun(),false);
+  advance(h);h.tick(h.remaining);assert.equal(h.continueRun(),true);assert.equal(h.continueRun(),false);
   advance(h);h.tick(120);assert.equal(h.state,'ended');assert.equal(h.canContinue(),false);assert.equal(h.continueRun(),false);
-  h.start();assert.equal(h.continueUsed,false);h.end('quit');assert.equal(h.canContinue(),true);
+  h.start();assert.equal(h.continueUsed,false);advance(h);h.tick(h.remaining);assert.equal(h.canContinue(),true);
+});
+
+test('quitting from gameplay or a briefing cannot continue or change the ended run',()=>{
+  for(const phase of ['playing','briefing']){
+    const h=playing();catchOne(h);if(phase==='briefing')clear(h);
+    h.end('quit');const snapshot=JSON.stringify(h);
+    assert.equal(h.reason,'quit');assert.equal(h.continueUsed,false);
+    assert.equal(h.canContinue(),false);assert.equal(h.continueRun(),false);
+    assert.equal(JSON.stringify(h),snapshot);
+  }
 });
 
 test('continued rewards preserve completed waves and silver, discard only unfinished bounty, and settle once',()=>{
-  const h=playing();clear(h);advance(h);catchOne(h);catchOne(h,'gold');h.end('quit');
+  const h=playing();clear(h);advance(h);catchOne(h);catchOne(h,'gold');h.tick(h.remaining);
   assert.equal(h.earnedUpgradeCoins,9);assert.equal(h.earnedEventCoins,10);
   h.continueRun();advance(h);clear(h);advance(h);h.end('quit');
   assert.equal(h.canContinue(),false);assert.equal(h.earnedUpgradeCoins,19);assert.equal(h.earnedEventCoins,25);

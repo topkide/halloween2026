@@ -66,7 +66,7 @@ test('wave openings and continued runs retain independent positions and upright 
     hunt.tick(BOUNTY_TIMING.spin);hunt.tick(BOUNTY_TIMING.hold);
     const ghosts=hunt.ghosts.filter(g=>g.type!=='gold');
     openings.push(ghosts.map(g=>pose({...g,age:g.life*.5},400,440)));
-    if(wave===0){hunt.end('quit');assert.equal(hunt.continueRun(),true);}
+    if(wave===0){hunt.tick(hunt.remaining);assert.equal(hunt.continueRun(),true);}
     else hunt.prepareWave();
   }
   assert.ok(openings.filter(points=>distance(points[0],points[1])>.2).length>10);

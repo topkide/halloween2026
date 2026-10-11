@@ -32,7 +32,7 @@ test('wave recovery cannot exceed the full clock and only actual healing consume
     clear(h);assert.equal(h.remaining,duration);assert.equal(h.lastTimeRecovery,0);assert.equal(h.recoveredTime,0);
     advance(h);h.tick(.25);clear(h);near(h.remaining,duration);near(h.lastTimeRecovery,.25);near(h.recoveredTime,.25);
     for(let i=0;i<5;i++){advance(h);clear(h);near(h.remaining,duration);assert.equal(h.lastTimeRecovery,0);near(h.recoveredTime,.25);}
-    h.end('quit');assert.equal(h.continueRun(),true);assert.equal(h.remaining,duration);
+    advance(h);h.tick(h.remaining);assert.equal(h.continueRun(),true);assert.equal(h.remaining,duration);
   }
 });
 test('briefings and pauses neither spend time nor repeat recovery, and a restart resets the budget',()=>{

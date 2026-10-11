@@ -1,6 +1,6 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261012-free-paths';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261012-free-paths';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261012-free-paths';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261012-play-controls';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261012-play-controls';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261012-play-controls';
 import {UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-common-defaults';
 import {EVENT,eventState,addTickets,addDistance,useTicket,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-common-defaults';
 import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-common-defaults';
@@ -91,8 +91,7 @@ function prepareBountyReel(){reelRows=createBountyReel(engine.bounty.multiplier,
 function renderBountyReel(now){
   if(engine.state!=='briefing'||engine.bountyRevealed||!reelRows.length)return;
   const offset=reelOffset(config.briefingDuration-engine.briefingLeft,reelRows.length-1),step=Math.floor(offset);
-  // Reduced motion swaps whole rows without the scrolling movement.
-  ui['brief-strip'].style.transform='translate3d(0,'+(-(reducedMotion.matches?step:offset)/reelRows.length*100)+'%,0)';
+  ui['brief-strip'].style.transform='translate3d(0,'+(-offset/reelRows.length*100)+'%,0)';
   if(step!==lastReelStep){lastReelStep=step;if(now-lastReelSoundAt>=65){sound('reel-tick');lastReelSoundAt=now;}}
 }
 function updateHud(){
@@ -193,7 +192,9 @@ function ready(){
 }
 function finish(reason){
   if(endingTimer||lastResult?.runId===currentRunId)return;
-  ui['pause-dialog'].close();clearVisuals();updateHud();ui.ending.hidden=false;
+  ui['pause-dialog'].close();clearVisuals();updateHud();
+  if(reason==='quit'){showFinalResult();return;}
+  ui.ending.hidden=false;
   if(reason==='timeout')sound('timeout');
   endingTimer=setTimeout(()=>{
     endingTimer=null;ui.ending.hidden=true;
@@ -265,9 +266,9 @@ ui['continue-dialog'].addEventListener('cancel',event=>{event.preventDefault();s
 ui.sound.addEventListener('click',()=>{soundOn=!soundOn;updateSound();save();});
 document.addEventListener('keydown',event=>{if(!event.repeat&&event.key==='Escape'&&['playing','briefing'].includes(engine.state)){event.preventDefault();pause();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing','briefing'].includes(engine.state))pause();lastFrame=performance.now();});
-function fillSettings(){for(const [id,key] of [['setting-duration','duration'],['setting-recovery-percent','waveRecoveryPercent'],['setting-recovery-limit','recoveryLimit'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit']])ui[id].value=config[key];}
+function fillSettings(){for(const [id,key] of [['setting-duration','duration'],['setting-miss-penalty','missPenalty'],['setting-recovery-percent','waveRecoveryPercent'],['setting-recovery-limit','recoveryLimit'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit']])ui[id].value=config[key];}
 ui['settings-open'].addEventListener('click',()=>{if(engine.state!=='ready')return;fillSettings();setText(ui['settings-status'],'');ui['settings-dialog'].showModal();});
-ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({...config,duration:Number(ui['setting-duration'].value),waveRecoveryPercent:Number(ui['setting-recovery-percent'].value),recoveryLimit:Number(ui['setting-recovery-limit'].value),spawn:Number(ui['setting-spawn'].value),goldInterval:Number(ui['setting-gold-interval'].value),goldLimit:Number(ui['setting-gold-limit'].value)});save();ui['settings-dialog'].close();ready();});
+ui['settings-form'].addEventListener('submit',event=>{event.preventDefault();if(!ui['settings-form'].reportValidity())return;config=settings({...config,duration:Number(ui['setting-duration'].value),missPenalty:Number(ui['setting-miss-penalty'].value),waveRecoveryPercent:Number(ui['setting-recovery-percent'].value),recoveryLimit:Number(ui['setting-recovery-limit'].value),spawn:Number(ui['setting-spawn'].value),goldInterval:Number(ui['setting-gold-interval'].value),goldLimit:Number(ui['setting-gold-limit'].value)});save();ui['settings-dialog'].close();ready();});
 ui['reset-records'].addEventListener('click',()=>info('최고 기록을 초기화할까요?','최고 웨이브 기록만 0으로 돌아가요. 보유 코인, 강화, 교환한 장식과 플레이 기회는 유지돼요.','최고 기록 초기화',()=>{const previous=bestWave;bestWave=0;if(!save())bestWave=previous;updateWallet();setText(ui['settings-status'],'최고 웨이브 기록을 초기화했어요.');}));
 ui.defaults.addEventListener('click',()=>{config={...DEFAULTS};fillSettings();save();setText(ui['settings-status'],'기본값을 복원했어요.');});
 ui['demo-credit'].addEventListener('click',()=>{const previous=economy;economy={...economy,upgradeCoins:Math.min(1e9,economy.upgradeCoins+100),eventCoins:Math.min(1e9,economy.eventCoins+100)};if(!save()){economy=previous;return;}updateWallet();setText(ui['settings-status'],'체험용 강화 코인과 호박 코인을 각각 100개 받았어요.');});

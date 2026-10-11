@@ -57,12 +57,12 @@ function application(audio=null,saved=null,{storageFails=false,reducedMotion=fal
   const start=()=>{nodes.get('upgrade-open').click();nodes.get('upgrade-start').click();};
   const advance=()=>{flow.hunt.tick(BOUNTY_TIMING.spin);flow.hunt.tick(BOUNTY_TIMING.hold);flow.hunt.ghosts=[];flow.flushEvents();};
   const finishTimers=()=>{for(const [id,callback] of [...timers]){timers.delete(id);callback();}};
-  const end=()=>{flow.hunt.end('quit');flow.flushEvents();finishTimers();};
+  const end=()=>{flow.hunt.end('timeout','clock');flow.flushEvents();finishTimers();};
   const catchOne=()=>{const ghost=flow.hunt.spawn('pudge');ghost.age=ghost.life*.3;flow.hunt.shoot(ghost.id);flow.flushEvents();};
   return {flow,nodes,start,advance,end,catchOne,finishTimers,stored:()=>JSON.parse(storage.get(KEY)??'null')};
 }
 
-const settingFields=[['setting-duration','duration'],['setting-recovery-percent','waveRecoveryPercent'],['setting-recovery-limit','recoveryLimit'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit']];
+const settingFields=[['setting-duration','duration'],['setting-recovery-percent','waveRecoveryPercent'],['setting-recovery-limit','recoveryLimit'],['setting-spawn','spawn'],['setting-gold-interval','goldInterval'],['setting-gold-limit','goldLimit'],['setting-miss-penalty','missPenalty']];
 
 test('opening an older browser saves the new baseline immediately, displays it in settings and starts gameplay with it',()=>{
   const saved={progressVersion:7,config:{duration:75,waveRecoveryPercent:20,recoveryLimit:60,spawn:.4,goldInterval:6,goldLimit:4},
@@ -81,7 +81,7 @@ test('opening an older browser saves the new baseline immediately, displays it i
 });
 
 test('settings changed after the baseline migration are retained on the next browser opening',()=>{
-  const app=application(null,{progressVersion:7,config:{spawn:.4}}),custom={duration:75,waveRecoveryPercent:20,recoveryLimit:60,spawn:.4,goldInterval:6,goldLimit:4};
+  const app=application(null,{progressVersion:7,config:{spawn:.4}}),custom={duration:75,waveRecoveryPercent:20,recoveryLimit:60,spawn:.4,goldInterval:6,goldLimit:4,missPenalty:1.3};
   app.nodes.get('settings-open').click();
   for(const [id,key] of settingFields)app.nodes.get(id).value=String(custom[key]);
   app.nodes.get('settings-form').dispatch('submit',{preventDefault(){}});
@@ -89,6 +89,46 @@ test('settings changed after the baseline migration are retained on the next bro
   for(const [id,key] of settingFields)assert.equal(reloaded.nodes.get(id).value,custom[key]);
   reloaded.nodes.get('settings-dialog').close();reloaded.start();
   for(const [,key] of settingFields)assert.equal(reloaded.flow.hunt.config[key],custom[key]);
+});
+
+test('miss penalty settings, including zero, affect actual empty taps and survive reopening the browser',()=>{
+  for(const penalty of [1.3,0]){
+    const app=application();app.nodes.get('settings-open').click();
+    app.nodes.get('setting-miss-penalty').value=String(penalty);
+    app.nodes.get('settings-form').dispatch('submit',{preventDefault(){}});
+    assert.equal(app.stored().config.missPenalty,penalty);
+    const reloaded=application(null,app.stored());reloaded.nodes.get('settings-open').click();
+    assert.equal(reloaded.nodes.get('setting-miss-penalty').value,penalty);
+    reloaded.nodes.get('settings-dialog').close();
+    for(const current of [app,reloaded]){
+      current.start();current.advance();const before=current.flow.hunt.remaining;
+      current.flow.fire({type:'click',detail:0,clientX:200,clientY:200,preventDefault(){},target:{closest:()=>null}});
+      assert.equal(current.flow.hunt.misses,1);
+      assert.ok(Math.abs(current.flow.hunt.remaining-(before-penalty))<1e-8);
+      assert.equal(current.flow.hunt.state,'playing');
+    }
+  }
+});
+
+test('quitting from a paused briefing or hunt immediately settles once without ending or continue screens',()=>{
+  for(const phase of ['briefing','playing']){
+    const app=application();app.start();app.advance();
+    for(let i=0;i<8;i++)app.catchOne();
+    if(phase==='playing'){app.advance();app.catchOne();}
+    const h=app.flow.hunt,upgradeCoins=h.earnedUpgradeCoins,eventCoins=h.earnedEventCoins,runId=app.flow.runId;
+    assert.equal(h.state,phase);app.nodes.get('pause').click();
+    assert.equal(h.state,'paused');assert.equal(app.nodes.get('pause-dialog').open,true);
+    app.nodes.get('quit').click();
+    assert.equal(h.state,'ended');assert.equal(h.reason,'quit');assert.equal(h.canContinue(),false);
+    assert.equal(app.nodes.get('pause-dialog').open,false);assert.equal(app.nodes.get('ending').hidden,true);
+    assert.equal(app.nodes.get('continue-dialog').open,false);assert.equal(app.nodes.get('result-dialog').open,true);
+    assert.equal(app.flow.coins.upgradeCoins,upgradeCoins);assert.equal(app.flow.coins.eventCoins,eventCoins);
+    assert.equal(app.stored().lastResult.reason,'quit');
+    app.nodes.get('quit').click();app.nodes.get('continue-back').click();app.finishTimers();
+    assert.equal(app.flow.coins.upgradeCoins,upgradeCoins);assert.equal(app.flow.coins.eventCoins,eventCoins);
+    assert.equal(app.flow.coins.claimedRuns.filter(id=>id===runId).length,1);
+    assert.equal(app.nodes.get('continue-dialog').open,false);
+  }
 });
 
 test('first ending offers continue without settlement; ad resumes the same run and second ending settles once',()=>{
@@ -130,7 +170,7 @@ for(const reducedMotion of [false,true])test(`bounty reel visibly changes before
   const app=application(null,null,{reducedMotion});app.start();
   const h=app.flow.hunt,reel=app.nodes.get('brief-reel'),strip=app.nodes.get('brief-strip'),result=app.nodes.get('brief-multiplier');
   const bounty={...h.bounty},rows=(strip.innerHTML.match(/<span>/g)??[]).length,originalRandom=h.random;
-  let draws=0,elapsed=0,previous=strip.style.transform;
+  let draws=0,elapsed=0,previous=strip.style.transform,previousOffset=0;
   h.random=()=>{draws++;return originalRandom();};
   assert.equal(reel.hidden,false);assert.equal(result.hidden,true);assert.ok(rows>1);
   for(const dt of [.17,.29,.31]){
@@ -139,7 +179,8 @@ for(const reducedMotion of [false,true])test(`bounty reel visibly changes before
     assert.notEqual(strip.style.transform,previous);previous=strip.style.transform;
     const offset=-Number(strip.style.transform.match(/translate3d\(0,([^%]+)%/)[1])*rows/100;
     const fractional=Math.abs(offset-Math.round(offset));
-    assert.ok(reducedMotion?fractional<1e-8:fractional>1e-4,'reduced motion swaps whole rows; normal motion scrolls between rows');
+    assert.ok(fractional>1e-4,'both modes scroll continuously between rows');
+    assert.ok(offset>previousOffset,'increasing row offsets move the strip upward');previousOffset=offset;
   }
   h.tick(BOUNTY_TIMING.spin-elapsed);app.flow.flushEvents();app.flow.renderBountyReel(2000);
   assert.equal(h.bountyRevealed,true);assert.equal(reel.hidden,true);assert.equal(result.hidden,false);
@@ -221,7 +262,7 @@ test('game over clears the field and precedes continue or results; continuing an
   app.flow.renderGhosts();assert.equal(app.flow.targets.size,0);
   app.finishTimers();assert.equal(app.nodes.get('ending').hidden,true);assert.equal(app.nodes.get('continue-dialog').open,true);
   app.nodes.get('continue-ad').click();assert.equal(app.nodes.get('ending').hidden,true);
-  app.advance();app.flow.hunt.end('quit');app.flow.flushEvents();
+  app.advance();app.flow.hunt.end('timeout','clock');app.flow.flushEvents();
   assert.equal(app.nodes.get('ending').hidden,false);assert.equal(app.nodes.get('result-dialog').open,false);
   app.finishTimers();assert.equal(app.nodes.get('ending').hidden,true);assert.equal(app.nodes.get('result-dialog').open,true);
   app.nodes.get('result-retry').click();assert.equal(app.nodes.get('ending').hidden,true);

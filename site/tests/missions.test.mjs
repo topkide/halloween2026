@@ -39,7 +39,7 @@ test('actual final-blast captures count across waves, continue and new runs; inv
   const g=spawn(hunt,'grasp');hunt.pause();assert.equal(hunt.shootShotgun([g.id]),null);hunt.resume();
   progress=addMissionCaptures(progress,hunt.shootShotgun([g.id]).targets);
   const miss=hunt.shootShotgun([]);assert.deepEqual(addMissionCaptures(progress,miss.targets),progress);
-  hunt.end('quit');assert.equal(hunt.continueRun(),true);assert.equal(progress.kills.grasp,1);
+  hunt.tick(hunt.remaining);assert.equal(hunt.continueRun(),true);assert.equal(progress.kills.grasp,1);
   hunt.tick(BOUNTY_TIMING.spin);hunt.tick(BOUNTY_TIMING.hold);hunt.ghosts=[];
   progress=addMissionCaptures(progress,hunt.shootShotgun([spawn(hunt,'grasp').id]).targets);
   const nextRun=playing();progress=addMissionCaptures(progress,nextRun.shoot(spawn(nextRun,'grasp').id).targets);
