@@ -31,6 +31,12 @@
 #shotgun-ad{min-width:0;font-size:16px;white-space:nowrap}
 #shotgun-ad:disabled,#result-double:disabled{opacity:.7;box-shadow:none;cursor:default}
 #shotgun-ad[data-ready=true],#result-double[data-claimed=true]{background:#36533c;border-color:#a6c48480;opacity:1}
+#upgrade-dialog .upgrade-actions{grid-template-columns:1fr 1fr 1.5fr;gap:9px}
+#upgrade-dialog .upgrade-actions .reward-ad{flex-direction:column;gap:4px;min-width:0;min-height:72px;padding:7px 4px;font-size:14px;white-space:nowrap}
+#upgrade-dialog .upgrade-actions .video-mark{width:27px;height:27px;font-size:17px}
+#ghosts-x2-ad:disabled{opacity:.7;box-shadow:none;cursor:default}
+#ghosts-x2-ad[data-ready=true]{background:#36533c;border-color:#a6c48480;opacity:1}
+#upgrade-dialog #upgrade-start{font-size:16px}
 .event-dialog .result-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .result-summary>div{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:78px;padding:10px;border:1px solid #baa3b76b;border-radius:11px;background:#261c32}
 .result-silver>[data-coin]{width:42px;height:46px;flex:none}.result-silver>strong{font-size:30px;letter-spacing:-1px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
@@ -44,6 +50,9 @@
 #result-double{width:100%;font-size:22px;min-height:62px}
 #result-dialog .status{font-size:10px!important;margin:10px 0 0;line-height:1.5;min-height:15px;color:#cbb4be!important}
 @media(max-width:380px){
+  #upgrade-dialog .upgrade-actions{gap:7px}
+  #upgrade-dialog .upgrade-actions .reward-ad{font-size:12px}
+  #upgrade-dialog #upgrade-start{font-size:14px}
   .event-dialog .event-panel{padding:37px 12px 14px;border-radius:19px}
   .event-dialog .event-dialog-title{font-size:21px;height:49px}
   #upgrade-dialog .upgrade-card{grid-template-columns:53px minmax(0,1fr) 48px;gap:7px;padding:8px;min-height:88px}
@@ -55,12 +64,19 @@
   .result-pumpkin{gap:10px;min-height:150px}.result-pumpkin>[data-coin]{width:88px;height:94px}#result-event-coins{font-size:42px}
 }
 @media(max-height:620px){
-  #upgrade-dialog .upgrade-wallet{padding:5px 19px;margin-bottom:12px}.upgrade-wallet>[data-coin]{width:31px;height:34px}.upgrade-wallet>b{font-size:25px}
-  #upgrade-cards{gap:9px}#upgrade-dialog .upgrade-card{min-height:80px;padding:7px}#upgrade-dialog .status{margin:7px 0}
+  #upgrade-dialog{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
+  #upgrade-dialog .event-panel{margin-top:24px;padding:32px 12px 12px}
+  #upgrade-dialog .event-dialog-title{height:49px;font-size:21px}
+  #upgrade-dialog .upgrade-wallet{padding:3px 16px;margin-bottom:9px}.upgrade-wallet>[data-coin]{width:27px;height:29px}.upgrade-wallet>b{font-size:24px}
+  #upgrade-cards{gap:8px}#upgrade-dialog .upgrade-card{grid-template-columns:53px minmax(0,1fr) 48px;gap:7px;min-height:72px;padding:6px}
+  #upgrade-dialog .upgrade-copy h3{font-size:12px;margin-bottom:4px}.upgrade-copy h3>span{font-size:10px}#upgrade-dialog .upgrade-copy p{font-size:9px}.upgrade-copy p>strong{font-size:11px}.upgrade-copy>small{font-size:8px}
+  #upgrade-dialog .upgrade-buy{min-height:58px}#upgrade-dialog .status{margin:6px 0;min-height:14px}
+  #upgrade-dialog .upgrade-actions .reward-ad,#upgrade-dialog #upgrade-start{min-height:64px}
   .event-dialog .event-action,.event-dialog .reward-ad,#upgrade-start{min-height:57px;padding:8px}
   .result-pumpkin{min-height:135px;padding:12px 0}.result-prize{margin:12px 0 14px}.result-summary>div{min-height:67px}
 }
 @media(orientation:landscape) and (max-height:500px){
+  #upgrade-dialog .upgrade-actions .reward-ad{flex-direction:row;min-height:43px}
   #upgrade-dialog,#result-dialog{width:min(680px,calc(100vw - 32px))}
   .event-dialog .event-dialog-title{width:230px;height:43px;font-size:21px}.event-dialog .event-panel{margin-top:20px;padding:30px 14px 12px}.event-back{font-size:33px;height:39px}
   #upgrade-dialog .upgrade-wallet{padding:3px 18px;margin-bottom:8px}.upgrade-wallet>[data-coin]{width:25px;height:27px}.upgrade-wallet>b{font-size:22px}

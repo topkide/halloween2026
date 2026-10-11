@@ -1,3 +1,7 @@
-/* Shotgun state during play. The pre-game action lives in event-dialogs.css. */
-.shotgun-active{position:absolute;z-index:5;right:9px;bottom:9px;pointer-events:none;padding:5px 8px;border:1px solid #dab47570;border-radius:7px;color:#ffe0a0;background:#24192cdc;font-size:10px;font-weight:700}
-.hunt-screen[data-state=briefing] .shotgun-active{display:none}
+/* The reserved tray shows each ad item independently throughout its run. */
+.hunt-item-slot{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:16px;padding:7px 12px}
+.active-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:min(100%,155px);height:100%;max-height:62px;border:1px solid #a994a577;border-radius:11px;background:linear-gradient(#493448,#2d2239);color:#f4e4c9;font-size:12px;line-height:1.3;pointer-events:none;box-shadow:inset 0 1px #ffe6c01a}
+.active-item>strong{font-size:13px;font-weight:750;color:#ffe0a0}
+#shotgun-active{grid-column:1;justify-self:start}
+#ghosts-x2-active{grid-column:2;justify-self:end}
+@media(max-height:620px){.hunt-item-slot{padding:5px 9px}.active-item{font-size:10px;border-radius:8px}.active-item>strong{font-size:11px}}

@@ -1,4 +1,4 @@
-import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-event-ui';
+import {upgradeLevels,upgradeEffects,GHOST_COINS,waveReward} from './upgrades.mjs?v=20261011-ghosts-x2';
 
 export const SPECIES = [
   {id:'wisp',name:'길쭉이',color:'#ad9de4',points:200,width:64,height:102,habit:'위로 나타나 멈춘 뒤 사라짐'},
@@ -69,8 +69,10 @@ export function pose(ghost,width,height) {
   return {x,y,angle:0,sx,sy,alpha:clamp(alpha),facing:dir};
 }
 export class Hunt {
-  constructor({random=Math.random,config={},upgrades={},weapon='standard'}={}){
+  constructor({random=Math.random,config={},upgrades={},weapon='standard',spawnMultiplier=1}={}){
     this.random=random;this.config=settings(config);this.upgrades=Object.freeze(upgradeLevels(upgrades));this.effects=upgradeEffects(this.upgrades,{recoveryBasePercent:this.config.waveRecoveryPercent});this.weapon=weapon==='shotgun'?'shotgun':'standard';this.state='ready';this.ghosts=[];this.events=[];this.serial=0;
+    // Keep saved balance settings intact; the ad changes this run only.
+    this.spawnMultiplier=spawnMultiplier===2?2:1;this.spawnInterval=this.config.spawn/this.spawnMultiplier;this.maxGhosts=this.config.maxGhosts*this.spawnMultiplier;
   }
   start(){
     Object.assign(this,{remaining:this.config.duration,elapsed:0,score:0,normalScore:0,goldScore:0,kills:0,shots:0,hits:0,misses:0,gold:0,goldSpawnLeft:0,clearedWaves:0,wave:0,bounty:null,reason:null,endCause:null,pausedFrom:null,ghosts:[],events:[]});
@@ -87,7 +89,7 @@ export class Hunt {
   }
   beginWave(){
     if(this.state!=='briefing'||!this.bountyRevealed)return;
-    this.state='playing';this.briefingLeft=0;this.spawnLeft=this.config.spawn;
+    this.state='playing';this.briefingLeft=0;this.spawnLeft=this.spawnInterval;
     // Only the first wave is guaranteed an immediate gold. Later waves keep the run's cooldown.
     for(let i=0;i<3;i++){
       const g=(i===1?this.spawnGoldIfReady():null)??this.spawn();
@@ -96,7 +98,7 @@ export class Hunt {
     this.events.push({kind:'wave-start',wave:this.wave});
   }
   spawn(forced){
-    if(this.ghosts.length>=this.config.maxGhosts)return null;
+    if(this.ghosts.length>=this.maxGhosts)return null;
     const type=forced??SPECIES[Math.floor(this.random()*SPECIES.length)].id;
     // Live gold reserves a slot, but only a successful hit consumes it. Escapes free the slot.
     if(type==='gold'&&this.waveGold+this.ghosts.filter(g=>g.type==='gold').length>=this.config.goldLimit){
@@ -115,7 +117,7 @@ export class Hunt {
   }
   spawnGoldIfReady(){
     if(this.goldSpawnLeft>.000001)return null;
-    if(this.ghosts.length>=this.config.maxGhosts||this.waveGold+this.ghosts.filter(g=>g.type==='gold').length>=this.config.goldLimit)return null;
+    if(this.ghosts.length>=this.maxGhosts||this.waveGold+this.ghosts.filter(g=>g.type==='gold').length>=this.config.goldLimit)return null;
     // One roll per interval, including failed rolls. The first gold of a run is guaranteed.
     this.goldSpawnLeft=this.config.goldInterval;
     if(this.firstGoldSpawned&&this.random()>=this.effects.goldChance)return null;
@@ -141,9 +143,9 @@ export class Hunt {
     this.goldSpawnLeft=Math.max(0,this.goldSpawnLeft-dt);
     this.spawnLeft-=dt;
     // Gold takes priority when due; don't release an ordinary target in the same frame.
-    if(this.spawnGoldIfReady()){this.spawnLeft=this.config.spawn;return;}
+    if(this.spawnGoldIfReady()){this.spawnLeft=this.spawnInterval;return;}
     // Preserve normal frame overshoot without releasing a burst after a slow frame.
-    if(this.spawnLeft<=.000001){this.spawn();this.spawnLeft=this.config.spawn+Math.max(this.spawnLeft,-dt);if(this.spawnLeft<=0)this.spawnLeft=this.config.spawn;}
+    if(this.spawnLeft<=.000001){this.spawn();this.spawnLeft=this.spawnInterval+Math.max(this.spawnLeft,-dt);if(this.spawnLeft<=0)this.spawnLeft=this.spawnInterval;}
   }
   shoot(id=null){
     return this.resolveShot(id===null?[]:[id]);

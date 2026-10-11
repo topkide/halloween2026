@@ -1,12 +1,12 @@
-import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-event-ui';
-import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-event-ui';
-import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-event-ui';
-import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-event-ui';
-import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun} from './event-core.mjs?v=20261011-event-ui';
-import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-event-ui';
+import {Hunt,TYPES,DEFAULTS,settings,pose} from './hunt-core.mjs?v=20261011-ghosts-x2';
+import {STORAGE_KEY as KEY,PROGRESS_VERSION,readProgress} from './progress.mjs?v=20261011-ghosts-x2';
+import {createBountyReel,reelOffset} from './bounty-reel.mjs?v=20261011-ghosts-x2';
+import {BALANCE,UPGRADES,upgradeEffects,upgradeCost,buyUpgrade,settleRun,doubleRunReward} from './upgrades.mjs?v=20261011-ghosts-x2';
+import {EVENT,GOODS,eventState,addTickets,addDistance,useTicket,exchange,grantShotgun,grantGhostsX2} from './event-core.mjs?v=20261011-ghosts-x2';
+import {ghostPixel,coinPixel} from './pixel-art.mjs?v=20261011-ghosts-x2';
 
-import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-event-ui';
-import {ShotEffects} from './shot-effects.mjs?v=20261011-event-ui';
+import {GhostAim,pickGhost,pickShotgunGhosts,SHOTGUN} from './ghost-aim.mjs?v=20261011-ghosts-x2';
+import {ShotEffects} from './shot-effects.mjs?v=20261011-ghosts-x2';
 
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(node=>[node.id,node]));
 const pointerInput=typeof window.PointerEvent==='function';
@@ -56,7 +56,11 @@ function renderUpgrades(){
   ui['shotgun-ad'].disabled=eventData.shotgunReady;
   ui['shotgun-ad'].dataset.ready=String(eventData.shotgunReady);
   setText(ui['shotgun-label'],eventData.shotgunReady?'장착 완료':'샷건 장착');
-  setText(ui['upgrade-status'],eventData.tickets===0?'메인화면에서 플레이 기회를 충전해 주세요.':eventData.shotgunReady?'다음 한 판은 샷건으로 시작해요.':'강화는 다음 사냥에도 유지돼요.');
+  ui['ghosts-x2-ad'].disabled=eventData.ghostsX2Ready;
+  ui['ghosts-x2-ad'].dataset.ready=String(eventData.ghostsX2Ready);
+  setText(ui['ghosts-x2-label'],eventData.ghostsX2Ready?'적용 준비':'유령 X2');
+  const buffs=[eventData.shotgunReady?'샷건':null,eventData.ghostsX2Ready?'유령 X2':null].filter(Boolean);
+  setText(ui['upgrade-status'],eventData.tickets===0?'메인화면에서 플레이 기회를 충전해 주세요.':buffs.length?'다음 한 판 · '+buffs.join(' + ')+' 적용':'강화는 다음 사냥에도 유지돼요.');
 }
 function openUpgrades(){if(engine.state!=='ready')return;renderUpgrades();ui['upgrade-dialog'].showModal();}
 function toast(text,ms=1700){setText(ui['field-toast'],text);ui['field-toast'].classList.add('visible');toastUntil=performance.now()+ms;}
@@ -71,6 +75,7 @@ function updateHud(){
   const ready=engine.state==='ready',briefing=engine.state==='briefing'||engine.state==='paused'&&engine.pausedFrom==='briefing';
   ui['hunt-screen'].dataset.state=engine.state;
   ui['shotgun-active'].hidden=engine.weapon!=='shotgun'||ready;
+  ui['ghosts-x2-active'].hidden=engine.spawnMultiplier!==2||ready;
   const remaining=engine.remaining??config.duration;
   const seconds=Math.ceil(remaining);setText(ui['time-label'],Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'));ui['time-fill'].style.transform='scaleX('+Math.min(1,Math.max(0,remaining/config.duration))+')';
   ui['hunt-screen'].dataset.urgent=String(remaining<=10&&!ready);
@@ -178,7 +183,7 @@ function start(){
   if(engine.state!=='ready')return;const entry=useTicket(eventData);if(!entry.ok)return;
   const previous=eventData;eventData=entry.state;if(!save()){eventData=previous;return;}
   ui['upgrade-dialog'].close();clearVisuals();showScreen('hunt-screen');
-  currentRunId=crypto.randomUUID();engine=new Hunt({config,upgrades:economy.levels,weapon:entry.weapon});engine.start();lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();
+  currentRunId=crypto.randomUUID();engine=new Hunt({config,upgrades:economy.levels,weapon:entry.weapon,spawnMultiplier:entry.spawnMultiplier});engine.start();lastFrame=performance.now();measure();flushEvents();renderGhosts();updateHud();
 }
 function ready(){
   clearTimeout(endingTimer);endingTimer=null;ui['result-dialog'].close();ui['pause-dialog'].close();clearVisuals();
@@ -239,7 +244,15 @@ ui['shotgun-ad'].addEventListener('click',()=>{
   info('샷건 · 다음 사냥 한 판','실제 광고 연결 전의 체험 기능이에요. 샷건을 받으면 다음 판 내내 터치한 곳과 주변 유령을 함께 잡아요. 한 마리라도 맞히면 시간 감소가 없어요.','샷건 받기 체험',()=>{
     if(engine.state!=='ready'||eventData.shotgunReady)return;
     const previous=eventData;eventData=grantShotgun(eventData);if(!save()){eventData=previous;return;}
-    renderUpgrades();sound('bounty-stop');setText(ui['upgrade-status'],'샷건 장착 완료! 사냥을 시작해 보세요.');
+    renderUpgrades();sound('bounty-stop');
+  });
+});
+ui['ghosts-x2-ad'].addEventListener('click',()=>{
+  if(engine.state!=='ready'||eventData.ghostsX2Ready)return;
+  info('유령 X2 · 다음 사냥 한 판','실제 광고 연결 전의 체험 기능이에요. 다음 판 동안 일반 유령이 2배 더 자주 등장하고, 동시에 최대 16마리까지 나타나요. 샷건과 함께 사용할 수 있어요.','유령 X2 받기 체험',()=>{
+    if(engine.state!=='ready'||eventData.ghostsX2Ready)return;
+    const previous=eventData;eventData=grantGhostsX2(eventData);if(!save()){eventData=previous;return;}
+    renderUpgrades();sound('bounty-stop');
   });
 });
 ui['result-double'].addEventListener('click',()=>{

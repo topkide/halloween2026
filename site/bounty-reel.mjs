@@ -1,4 +1,4 @@
-import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261011-event-ui';
+import {BOUNTY_TIMING} from './hunt-core.mjs?v=20261011-ghosts-x2';
 
 const VALUES=[2,3,5,8,10];
 export function createBountyReel(multiplier,wave){
